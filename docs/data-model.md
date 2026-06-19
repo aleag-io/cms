@@ -297,13 +297,22 @@ Represents a group or association within the diocese or parish (e.g., Knights of
 | `parish_id` | UUID (FK) | Null = diocesan organization |
 | `name` | string | |
 | `description` | text | |
-| `organization_type` | enum | `ministry`, `council`, `committee`, `apostolate`, `youth_fellowship`, `young_family_fellowship`, `sunday_school`, `prayer_group`, `womens_guild`, `mens_group`, `choir`, `confraternity`, `sodality`, `third_order`, `other` |
+| `organization_type` | enum | **Required at creation.** `ministry`, `council`, `committee`, `apostolate`, `youth_fellowship`, `young_family_fellowship`, `sunday_school`, `prayer_group`, `womens_guild`, `mens_group`, `choir`, `confraternity`, `sodality`, `third_order`, `other` |
+| `membership_mode` | enum | `open` (default) or `exclusive`. Controls whether a member may belong to more than one active organization of this type simultaneously. Defaults to `exclusive` for `prayer_group`; defaults to `open` for all other types. Admins may override the default when creating or editing the organization. |
 | `is_diocesan` | boolean | |
 | `meeting_schedule` | text | Human-readable schedule description |
 | `has_own_ledger` | boolean | If true, this organization maintains its own chart of accounts and journal entries, separate from the parish ledger |
 | `status` | enum | `active`, `inactive` |
 | `created_at` | datetime | |
 | `updated_at` | datetime | |
+
+> **Type defaults for `membership_mode`:**
+> | `organization_type` | Default `membership_mode` |
+> |---------------------|--------------------------|
+> | `prayer_group` | `exclusive` |
+> | All other types | `open` |
+>
+> When `membership_mode = 'exclusive'`, the system enforces that a member may hold at most one **active** membership (`left_at IS NULL`) across all organizations of the same `organization_type` within the same parish. This constraint is enforced at the database layer (unique partial index or CHECK via trigger).
 
 ### 4.4 OrganizationMembership
 
@@ -315,6 +324,8 @@ Represents a group or association within the diocese or parish (e.g., Knights of
 | `role` | string | General participation role (e.g., "member", "volunteer") |
 | `joined_at` | date | |
 | `left_at` | date | (null = current member) |
+
+> **Exclusivity constraint:** When the parent `Organization.membership_mode = 'exclusive'`, the system prevents a member from having more than one active membership (`left_at IS NULL`) across all organizations sharing the same `organization_type` within the same parish. Attempting to add a member to a second exclusive organization of the same type will surface a validation error. An admin may resolve the conflict by first ending the member's existing membership.
 
 ### 4.5 OrganizationOfficer
 

@@ -240,10 +240,21 @@ This document provides a detailed description of each feature area of the Dioces
 
 **Supported Organization Types:** Youth Fellowship, Young Family Fellowship, Sunday School, Prayer Group, Women's Guild, Men's Group, Choir, Knights of Columbus chapter, Parish Council, Finance Committee, Apostolate, Confraternity, Sodality, Third Order, and other custom types.
 
+**Organization Type and Membership Mode:**
+
+When an admin creates an organization, the **type is required**. The type determines the default **membership mode**:
+
+| Membership Mode | Behavior |
+|-----------------|----------|
+| `open` (default for most types) | A member may belong to any number of active organizations of this type simultaneously. |
+| `exclusive` (default for Prayer Group) | A member may belong to **only one** active organization of this type at a time within the parish. |
+
+The admin may override the default membership mode when creating or editing an organization. This allows, for example, designating a particular choir as exclusive if the parish policy requires it.
+
 **Key Workflows:**
 
-1. Create organization record (name, type, description, meeting schedule)
-2. Manage membership roster
+1. Create organization record — **type is required**; name, description, meeting schedule, membership mode (defaults from type), and ledger flag are also set at this step.
+2. Manage membership roster — adding a member to an `exclusive`-mode organization surfaces an error and blocks the action if the member already has an active membership in another organization of the same type; the admin must end the prior membership first.
 3. Manage **organization officers**: add officers with formal titles (President, Vice President, Secretary, Treasurer, Chaplain, etc.) and optional term dates. Multiple officers may hold different roles simultaneously. Track officer history when terms end.
 4. Track meeting history
 5. Link to related events and programs

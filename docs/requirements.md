@@ -58,6 +58,9 @@ This document captures the functional and non-functional requirements for the Di
 | PA-11 | Parish administrators shall manage **parish officers and board members** — clergy (vicar, associate pastors, deacons) and lay leadership (board chairman, executive committee, trustees, finance committee) — with defined titles and optional term dates. |
 | PA-12 | The system shall provide a **Church Admin Settings → Permissions** page where a Parish Admin can configure granular role-level permissions for their parish, overriding system defaults for individual resources and actions (e.g., allow Parish Staff to manage sacramental records, restrict Organization Leaders from exporting data). |
 | PA-13 | Parish organizations shall optionally maintain their **own separate ledger** (chart of accounts and journal entries) distinct from the parish general ledger. Parish Admins retain oversight visibility of all organization ledgers within their parish. |
+| PA-14 | When creating a parish organization (group, ministry, council, etc.), the admin shall be **required to specify the organization type** from the supported type list. The type may not be left unspecified. |
+| PA-15 | Each organization shall have a **membership mode** (`open` or `exclusive`) that governs whether a member may hold simultaneous active memberships across organizations of the same type within the same parish. The membership mode shall default based on the selected type (`exclusive` for Prayer Group; `open` for all other types) and may be overridden by the admin at creation or edit time. |
+| PA-16 | The system shall **enforce the exclusive membership constraint** at the database layer: when a member is added to an `exclusive`-mode organization, the system shall reject the operation if the member already holds an active membership in any other organization of the same type within the same parish. The admin interface shall surface a clear error identifying the conflicting membership. |
 
 ---
 
