@@ -283,7 +283,53 @@ Represents a group or association within the diocese or parish (e.g., Knights of
 
 ## 6. Giving & Finances
 
-### 6.1 GivingCampaign
+The financial model supports a **full double-entry ledger** in addition to giving-specific entities (campaigns, donations, pledges). All financial transactions — donations, expenses, payroll, utilities — are recorded as journal entries in the general ledger.
+
+### 6.1 Account (Chart of Accounts)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | Owning parish |
+| `account_code` | string | Account number (e.g., "1000", "4100") |
+| `name` | string | Account name (e.g., "General Fund", "Building Fund", "Salaries") |
+| `account_type` | enum | `asset`, `liability`, `equity`, `income`, `expense` |
+| `parent_account_id` | UUID (FK) | Parent account for hierarchical chart (nullable) |
+| `description` | text | |
+| `is_active` | boolean | |
+| `created_at` | datetime | |
+
+### 6.2 JournalEntry
+
+Represents a single accounting transaction (double-entry).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | |
+| `entry_date` | date | Transaction date |
+| `reference` | string | Reference number (check #, transaction ID, etc.) |
+| `description` | text | Memo / description |
+| `source_type` | enum | `donation`, `expense`, `payroll`, `adjustment`, `transfer`, `other` |
+| `source_id` | UUID | FK to source record (e.g., donation_id) |
+| `created_by_user_id` | UUID (FK) | |
+| `posted_at` | datetime | When entry was posted (null = draft) |
+| `created_at` | datetime | |
+
+### 6.3 JournalLine
+
+Each `JournalEntry` has two or more lines (debits and credits must balance).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `journal_entry_id` | UUID (FK) | |
+| `account_id` | UUID (FK) | Account being debited or credited |
+| `type` | enum | `debit`, `credit` |
+| `amount` | decimal | Amount in USD (always positive) |
+| `memo` | string | Optional line-level description |
+
+### 6.4 GivingCampaign
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -291,14 +337,14 @@ Represents a group or association within the diocese or parish (e.g., Knights of
 | `parish_id` | UUID (FK) | |
 | `name` | string | Campaign name (e.g., "Annual Fund 2025") |
 | `description` | text | |
-| `fund_type` | enum | `general`, `building`, `missions`, `special`, `other` |
+| `account_id` | UUID (FK) | Linked chart-of-accounts entry (fund) |
 | `goal_amount` | decimal | Target fundraising goal |
 | `start_date` | date | |
 | `end_date` | date | |
 | `status` | enum | `active`, `completed`, `cancelled` |
 | `created_at` | datetime | |
 
-### 6.2 Donation
+### 6.5 Donation
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -307,16 +353,17 @@ Represents a group or association within the diocese or parish (e.g., Knights of
 | `family_id` | UUID (FK) | |
 | `member_id` | UUID (FK) | Optional (if given by individual) |
 | `campaign_id` | UUID (FK) | Optional (general giving if null) |
+| `journal_entry_id` | UUID (FK) | Linked ledger entry |
 | `amount` | decimal | Donation amount in USD |
 | `donation_date` | date | |
 | `method` | enum | `cash`, `check`, `online`, `ach`, `stock`, `other` |
 | `check_number` | string | |
-| `transaction_id` | string | Payment processor transaction ID |
+| `transaction_id` | string | Payment processor transaction ID (Stripe) |
 | `is_pledged` | boolean | Part of a pledge |
 | `pledge_id` | UUID (FK) | |
 | `created_at` | datetime | |
 
-### 6.3 Pledge
+### 6.6 Pledge
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -337,14 +384,14 @@ Represents a group or association within the diocese or parish (e.g., Knights of
 
 ### 7.1 User
 
+> **Note:** User authentication is managed by **Supabase Auth**. The `auth.users` table is owned by Supabase. The application maintains a `profiles` table in the `public` schema that extends the Supabase user record with application-specific fields.
+
+#### profiles (extends Supabase `auth.users`)
+
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | UUID | Primary key |
-| `email` | string | Login email (unique) |
-| `name` | string | Display name |
-| `password_hash` | string | Hashed password (or null if SSO only) |
-| `is_sso` | boolean | True if account uses SSO |
-| `mfa_enabled` | boolean | |
+| `id` | UUID | Primary key — matches `auth.users.id` |
+| `display_name` | string | Full display name |
 | `diocese_id` | UUID (FK) | Associated diocese |
 | `parish_id` | UUID (FK) | Associated parish (null for diocese-level users) |
 | `member_id` | UUID (FK) | Linked member record (nullable) |

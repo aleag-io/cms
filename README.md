@@ -17,6 +17,7 @@ The CMS provides a unified system for managing:
 |---|---|
 | [Requirements](docs/requirements.md) | Functional and non-functional requirements |
 | [Architecture](docs/architecture.md) | System architecture and multi-tenancy design |
+| [Tech Stack](docs/tech-stack.md) | Confirmed technology choices and setup |
 | [Data Model](docs/data-model.md) | Entity relationships and data model |
 | [User Roles & Permissions](docs/user-roles.md) | Role-based access control |
 | [Features](docs/features.md) | Detailed feature descriptions |

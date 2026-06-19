@@ -46,8 +46,8 @@ This document captures the functional and non-functional requirements for the Di
 | PA-5 | The system shall support **facility management** for each parish (rooms, halls, equipment booking). |
 | PA-6 | Parish administrators shall manage **staff and volunteers**, including role assignments. |
 | PA-7 | The system shall record and manage **sacramental records** (Baptism, First Communion, Confirmation, Marriage, Anointing) per parish. |
-| PA-8 | Parish administrators shall be able to send **communications** to parish members (email/SMS/push notifications). |
-| PA-9 | The system shall support parish **financial management** including giving campaigns, pledge tracking, and donation recording. |
+| PA-8 | Parish administrators shall be able to send **communications** to parish members via email and SMS; browser push notifications are planned for a future phase. |
+| PA-9 | The system shall support parish **financial management** including a full ledger (chart of accounts, journal entries), giving campaigns, pledge tracking, donation recording, and financial reporting. |
 | PA-10 | Each parish shall have its own **documents repository** for policies, bulletins, and announcements. |
 
 ---
@@ -159,14 +159,22 @@ This document captures the functional and non-functional requirements for the Di
 | IN-1 | The system shall expose a **REST API** for third-party integrations. |
 | IN-2 | The system shall support **webhook notifications** for key events (new member, donation received). |
 | IN-3 | The system shall support data **import/export** via CSV and standard church data formats. |
-| IN-4 | The system shall integrate with common **payment processors** (Stripe, PayPal, or equivalent) for online giving. |
-| IN-5 | The system shall integrate with **email service providers** (SendGrid, AWS SES) for communication delivery. |
+| IN-4 | The system shall integrate with **Stripe** for online giving (one-time and recurring). |
+| IN-5 | The system shall integrate with **Resend or SendGrid** for transactional and bulk email delivery. |
+| IN-6 | The system shall integrate with **Twilio** for SMS notifications to members. |
+| IN-7 | The system shall use **Supabase Auth** for user authentication, SSO, and MFA. |
+| IN-8 | The system shall use **Vercel Blob** for file storage (photos, documents, exports). |
 
 ---
 
 ## 3. Constraints
 
-- The system is **not** intended to replace accounting software; it tracks donations and pledges but integrates with external accounting tools.
-- The system will initially be deployed for **one diocese** (single-diocese multi-tenant model).
+- The system will support a **full financial ledger** (chart of accounts, journal entries, transaction history) for each parish, in addition to giving campaigns and donations.
+- The system is intended to **integrate with** but not replace dedicated accounting software; the ledger tracks church finances and can export data to QuickBooks or similar tools.
+- The system will initially be deployed for **one diocese** (single-diocese multi-tenant model). Support for multiple dioceses is a future priority.
 - All monetary values shall be stored and displayed in **USD**.
-- The system shall operate within a **cloud-hosted environment** (no on-premises hosting requirement for initial release).
+- The system shall be hosted on **Vercel** using **Next.js**, **Supabase** (auth and PostgreSQL), and **Vercel Blob** (file storage).
+- The web application shall be fully responsive and support desktop, tablet, and mobile browsers. A separate **Expo mobile app** with offline capability is planned as a future project.
+- **Offline support** is not in scope for the web application.
+- **Public-facing parish pages** (bulletin, Mass schedule, events calendar) are **out of scope**. The CMS is an internal management tool.
+- **Confession scheduling** is out of scope.

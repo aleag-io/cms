@@ -237,14 +237,15 @@ This document provides a detailed description of each feature area of the Dioces
 
 **Summary:** Send targeted communications to parish members.
 
-**Channels Supported:** Email, SMS (optional), app notifications (optional)
+**Channels Supported:** Email (Resend/SendGrid), SMS (Twilio). Browser push notifications are planned for a future phase.
 
 **Key Workflows:**
 1. Compose message using a rich-text editor
 2. Choose audience: all parishioners, specific families, program enrollees, organization members
-3. Schedule delivery or send immediately
-4. View delivery status and open/click metrics
-5. Member opt-out management
+3. Choose delivery channel: email, SMS, or both
+4. Schedule delivery or send immediately
+5. View delivery status and open/click metrics
+6. Member opt-out management per channel
 
 **Templates:** Common templates provided (weekly bulletin, event reminder, sacramental prep reminder, giving statement).
 
@@ -252,28 +253,48 @@ This document provides a detailed description of each feature area of the Dioces
 
 ### 2.9 Giving & Stewardship
 
-#### 2.9.1 Giving Campaigns
+#### 2.9.1 Chart of Accounts
+- Each parish maintains a chart of accounts defining funds and expense/income categories
+- Standard account types: General Fund, Building Fund, Missions, Salaries, Utilities, etc.
+- Accounts can be added or customized per parish
+
+#### 2.9.2 General Ledger
+- Double-entry journal entries record all financial transactions
+- Each entry includes: date, accounts debited/credited, amounts, description, and reference
+- Ledger supports month-end and year-end close processes
+- Full transaction history with audit trail
+- Export to CSV for import into external accounting tools (QuickBooks, etc.)
+
+#### 2.9.3 Giving Campaigns
 - Create campaigns with goals, dates, and fund designations
 - Track progress against goal (total received vs. pledged vs. goal)
-- Assign campaign to specific fund type
+- Assign campaign to specific account in the chart of accounts
 
-#### 2.9.2 Donation Recording
+#### 2.9.4 Donation Recording
 - Record individual donations linked to a family or member
 - Support multiple payment methods (cash, check, online, ACH)
 - Track check numbers and payment processor transaction IDs
 - Import donation batches from CSV
+- Donations automatically generate ledger journal entries
 
-#### 2.9.3 Pledge Management
+#### 2.9.5 Pledge Management
 - Create pledge commitments for campaigns
 - Track fulfillment status and reminders
 - Generate pledge reminders for lapsed pledges
 
-#### 2.9.4 Online Giving Integration
-- Accept payments via integrated payment processor (Stripe or similar)
-- Donations automatically create records in the system
-- One-time and recurring giving options
+#### 2.9.6 Online Giving Integration (Stripe)
+- Accept payments via Stripe (one-time and recurring)
+- Donations automatically create records and ledger entries
+- Webhook-driven: Stripe events trigger database updates
 
-#### 2.9.5 Annual Giving Statements
+#### 2.9.7 Financial Reports
+- Income statement (revenue vs. expenses by period)
+- Balance sheet
+- Fund balance summary
+- Giving summary by fund, campaign, and period
+- Pledge fulfillment report
+
+#### 2.9.8 Annual Giving Statements
 - Generate IRS-compliant giving statements per family
 - Batch generation and bulk email delivery
 - Export as PDF
@@ -369,12 +390,12 @@ This document provides a detailed description of each feature area of the Dioces
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
-| Mobile App | Native iOS/Android app for parish staff and members | TBD |
-| Volunteer Scheduling | Schedule volunteers for Masses and events | TBD |
+| Expo Mobile App | Separate React Native / Expo project with offline capability and native device features. Consumes the CMS REST API. | High (future project) |
+| Browser Push Notifications | In-app and browser push notifications for event reminders and communications | Medium |
+| Volunteer Scheduling | Schedule volunteers for Masses and events by ministry/role | TBD |
 | Cemetery Records | Track parish cemetery plots and burials | TBD |
 | School Integration | Link CMS to parish school student records | TBD |
-| Confession Scheduling | Member-facing scheduling for Sacrament of Reconciliation | TBD |
-| Mass Intentions | Record and manage Mass intention requests | TBD |
+| Mass Intentions | Record and manage Mass intention requests and scheduling | TBD |
 | Property Management | Track parish-owned property assets and maintenance | TBD |
-| Multi-language Support | Localization for Spanish and other languages | TBD |
-| Public Parish Website | CMS-powered public-facing website per parish | TBD |
+| Multi-language Support | Localization for Spanish and other common languages | TBD |
+| Multiple Diocese Support | Extend the tenancy model to support additional dioceses | Future priority |

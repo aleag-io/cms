@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Diocese Church Management System (CMS) is a **multi-tenant web application** built on a hierarchical tenancy model: one diocese containing multiple parishes. This document describes the system architecture, technology choices (to be confirmed), and key architectural decisions.
+The Diocese Church Management System (CMS) is a **multi-tenant web application** built on a hierarchical tenancy model: one diocese containing multiple parishes. This document describes the system architecture, confirmed technology choices, and key architectural decisions.
 
 ---
 
@@ -56,36 +56,48 @@ Parish Admin
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                        Clients                          │
-│  Web Browser        Mobile Browser      API Consumers   │
+│  Desktop Browser    Mobile Browser      API Consumers   │
+│  (responsive web)   (responsive web)                    │
 └────────────┬───────────────┬────────────────┬───────────┘
              │               │                │
              ▼               ▼                ▼
 ┌─────────────────────────────────────────────────────────┐
-│                     CDN / Load Balancer                 │
-│           (static assets, SSL termination)              │
+│                   Vercel Edge Network                   │
+│        (CDN, SSL termination, Edge Middleware)          │
 └──────────────────────────┬──────────────────────────────┘
                            │
              ┌─────────────▼──────────────┐
-             │    Web / API Application   │
-             │   (Next.js or similar SPA  │
-             │    + REST/GraphQL API)      │
+             │   Next.js Application      │
+             │   (App Router, RSC, API    │
+             │    Routes — on Vercel)     │
              └─────────────┬──────────────┘
                            │
         ┌──────────────────┼────────────────────┐
         │                  │                    │
         ▼                  ▼                    ▼
 ┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐
-│  Auth Service │  │  Background Jobs │  │  File Storage    │
-│  (SSO / MFA)  │  │  (Queue Worker)  │  │  (S3 / Blob)     │
+│  Supabase    │  │  Background Jobs │  │  Vercel Blob     │
+│  Auth        │  │  (Vercel Cron /  │  │  (File Storage)  │
+│  (SSO / MFA) │  │   Queue Workers) │  │                  │
 └──────────────┘  └─────────────────┘  └──────────────────┘
-                           │
-        ┌──────────────────┼────────────────────┐
-        │                  │                    │
-        ▼                  ▼                    ▼
-┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐
-│  Primary DB   │  │  Cache (Redis)   │  │  Email/SMS       │
-│  (PostgreSQL) │  │                 │  │  Provider        │
-└──────────────┘  └─────────────────┘  └──────────────────┘
+        │
+        ▼
+┌──────────────────────────────────────┐
+│           Supabase Platform          │
+│  ┌─────────────┐  ┌───────────────┐  │
+│  │  PostgreSQL  │  │  Realtime /   │  │
+│  │  (primary   │  │  Edge Funcs   │  │
+│  │   database) │  │               │  │
+│  └─────────────┘  └───────────────┘  │
+└──────────────────────────────────────┘
+        │
+        ▼
+┌──────────────────────────────────────┐
+│         External Integrations        │
+│  Email (Resend / SendGrid)           │
+│  SMS (Twilio)                        │
+│  Payments (Stripe)                   │
+└──────────────────────────────────────┘
 ```
 
 ---
@@ -94,34 +106,42 @@ Parish Admin
 
 ### 3.1 Frontend (Web Application)
 
-- **Type:** Single-page application (SPA) or server-rendered (Next.js / React recommended)
+- **Framework:** Next.js (App Router with React Server Components)
+- **UI Library:** shadcn/ui (built on Radix UI + Tailwind CSS)
+- **Hosting:** Vercel
 - **Responsibilities:**
   - Diocesan admin portal
   - Parish admin portal
   - Member self-service portal
-  - Responsive design for mobile and desktop
+  - **Fully responsive layout supporting desktop, tablet, and mobile browsers**
 - **Key Considerations:**
   - Role-aware navigation (menus differ by user role and tenant level)
-  - Tenant context communicated via JWT claims or session
+  - Tenant context carried in Supabase session JWT claims
+  - Server Components for data-heavy views; Client Components for interactive UI
+  - shadcn/ui components are customized per the diocese branding theme
+
+> **Mobile strategy:** The web app is the primary interface for all platforms via responsive design. A separate **Expo mobile app** is planned as a future project to add offline capability and native device features.
 
 ### 3.2 API Layer
 
-- **Type:** RESTful API (JSON) with optional GraphQL for flexible queries
+- **Style:** Next.js API Routes (Route Handlers in App Router)
 - **Responsibilities:**
   - Business logic enforcement
-  - Tenant isolation middleware (all queries scoped to current tenant)
+  - Tenant isolation middleware (all queries scoped to current tenant via Supabase RLS)
   - Input validation and error handling
-  - Rate limiting per tenant
-- **Authentication:** JWT ****** issued by the Auth Service
+  - Rate limiting per tenant (via Vercel Edge Middleware)
+- **Authentication:** Supabase Auth JWT, verified server-side via Supabase SSR client
 
-### 3.3 Auth Service
+### 3.3 Auth Service — Supabase Auth
 
+- **Provider:** Supabase Auth
 - **Responsibilities:**
-  - User authentication (username/password, SSO)
-  - MFA enforcement
-  - JWT issuance (includes `diocese_id`, `parish_id`, `role` claims)
-  - Session management and token refresh
-- **Options:** Auth0, AWS Cognito, Keycloak, or custom implementation
+  - Email/password authentication
+  - SSO via OAuth 2.0 / OIDC (Google Workspace, Microsoft Entra)
+  - MFA enforcement (TOTP)
+  - Session management and JWT refresh
+  - User management (invite, deactivate, password reset)
+- **Integration:** Supabase Auth JWTs carry custom claims (`diocese_id`, `parish_id`, `roles`) injected via a Supabase Auth hook (PostgreSQL function or Edge Function)
 
 ### 3.4 Background Job Queue
 
@@ -130,39 +150,40 @@ Parish Admin
   - Generating large reports (PDF, Excel)
   - Importing member data from CSV uploads
   - Sending scheduled reminders (event reminders, anniversary notifications)
-- **Technology Options:** Redis + BullMQ, AWS SQS + Lambda, RabbitMQ
+- **Technology:** Vercel Cron Jobs for scheduled tasks; Supabase Edge Functions or Vercel background functions for queue processing. Third-party queue (Inngest or similar) if more complex job orchestration is needed.
 
-### 3.5 Primary Database
+### 3.5 Primary Database — Supabase PostgreSQL
 
-- **Type:** PostgreSQL (recommended)
-- **Tenant Isolation:** Row-level security (RLS) policies enforced at DB level as secondary defense-in-depth
+- **Type:** PostgreSQL (managed by Supabase)
+- **Tenant Isolation:** Supabase Row-Level Security (RLS) policies enforced at DB level — all queries are automatically scoped to the authenticated user's tenant
 - **Key Schemas:**
   - `diocese` — diocese-level entities
   - `parish` — parish-level entities
   - `membership` — families and members
   - `sacraments` — sacramental records
-  - `giving` — financial/giving records
+  - `ledger` — full financial ledger (accounts, journal entries, transactions)
+  - `giving` — giving campaigns, donations, and pledges
   - `events` — events and scheduling
   - `communications` — message history
   - `audit` — audit log
 
-### 3.6 File Storage
+### 3.6 File Storage — Vercel Blob
 
+- **Provider:** Vercel Blob
 - **Responsibilities:**
   - Member photos
   - Parish documents (bulletins, policies)
-  - Report exports
+  - Report exports (PDF, Excel)
   - Imported CSV files
-- **Access:** Signed URLs generated by the API, objects stored per-tenant prefixed path (`/{diocese_id}/{parish_id}/...`)
+- **Access:** Signed URLs generated server-side; objects stored with per-tenant path prefix (`/{diocese_id}/{parish_id}/...`)
 
 ### 3.7 Cache
 
-- **Type:** Redis
+- **Provider:** Vercel Data Cache (built into Next.js fetch caching) + Supabase query caching
 - **Responsibilities:**
-  - Session store
-  - Frequently accessed reference data (liturgical calendar, parish profile)
-  - Rate limiting counters
-  - Job queue backend
+  - Cached server-side fetches for reference data (liturgical calendar, parish profile)
+  - Next.js ISR / on-demand revalidation for semi-static pages
+- **Note:** Dedicated Redis is not required initially; Vercel's built-in caching is sufficient for v1.
 
 ---
 
@@ -202,7 +223,9 @@ Request
 | Parish Admin | Own parish data only (full read/write) |
 | Parish Staff | Assigned parish, limited write scope |
 | Member | Own profile and family record |
-| Anonymous | Public parish information only (if enabled) |
+| Anonymous | Login page only — no public parish pages |
+
+> **Note:** Public-facing parish pages (bulletin, Mass schedule, events) are **out of scope**. The CMS is an internal management tool only.
 
 ---
 
@@ -212,51 +235,64 @@ Request
 
 | Environment | Purpose |
 |-------------|---------|
-| Development | Local developer machines |
-| Staging | Pre-production testing, mirrors production config |
-| Production | Live system |
+| Development | Local developer machines (Supabase local via `supabase start`) |
+| Preview | Vercel preview deployments per PR (linked to a staging Supabase project) |
+| Production | Live Vercel production deployment (linked to production Supabase project) |
 
-### 5.2 Infrastructure (Cloud-Native)
+### 5.2 Infrastructure Stack
 
 ```
-Cloud Provider (AWS / Azure / GCP)
-├── Compute: Container service (ECS, App Service, Cloud Run)
-├── Database: Managed PostgreSQL (RDS, Azure DB, Cloud SQL)
-├── Cache: Managed Redis (ElastiCache, Azure Cache)
-├── Storage: Object storage (S3, Azure Blob, GCS)
-├── CDN: CloudFront / Azure CDN / Cloud CDN
-├── Queue: SQS / Service Bus / Pub Sub
-├── Email: SES / SendGrid
-└── Auth: Cognito / Auth0 / Keycloak
+Vercel
+├── Next.js application hosting (serverless functions + edge)
+├── Edge Middleware (auth guards, tenant routing)
+├── Vercel Blob (file storage)
+├── Vercel Cron Jobs (scheduled background tasks)
+└── Vercel Analytics (performance monitoring)
+
+Supabase
+├── PostgreSQL database (primary data store)
+├── Supabase Auth (authentication, SSO, MFA)
+├── Row-Level Security (tenant data isolation)
+├── Realtime (optional: live dashboard updates)
+└── Edge Functions (custom Auth hooks, webhooks)
+
+External Services
+├── Resend or SendGrid (transactional & bulk email)
+├── Twilio (SMS notifications)
+└── Stripe (online giving / payment processing)
 ```
 
 ### 5.3 CI/CD Pipeline
 
 ```
 Developer pushes to feature branch
+  → Vercel Preview deployment (automatic)
   → Automated tests (unit + integration)
   → Code review / PR approval
   → Merge to main
-  → Build Docker image
-  → Deploy to Staging
-  → Integration / E2E tests
-  → Manual approval gate
-  → Deploy to Production
+  → Vercel Production deployment (automatic)
   → Post-deploy health checks
+  → Supabase migrations applied via CI (supabase db push)
 ```
 
 ---
 
 ## 6. Integration Points
 
-| Integration | Purpose | Protocol |
-|-------------|---------|---------|
-| Email provider (SendGrid / SES) | Transactional & bulk email | HTTPS API |
-| SMS provider (Twilio / SNS) | SMS notifications | HTTPS API |
-| Payment processor (Stripe) | Online giving | HTTPS API + Webhooks |
-| Accounting software (QuickBooks) | Export giving data | CSV export / API |
-| SSO provider (Google, Microsoft) | Staff login | OAuth 2.0 / OIDC |
-| Calendar (Google Calendar, iCal) | Event sync | iCal / CalDAV |
+| Integration | Purpose | Provider | Protocol |
+|-------------|---------|----------|---------|
+| Authentication | User login, SSO, MFA | Supabase Auth | Built-in |
+| Database | Primary data store | Supabase PostgreSQL | Supabase client SDK |
+| File storage | Blobs, photos, exports | Vercel Blob | HTTPS API |
+| Email (transactional) | Invites, notifications | Resend or SendGrid | HTTPS API |
+| Email (bulk) | Parish communications | Resend or SendGrid | HTTPS API |
+| SMS | Notification messages | Twilio | HTTPS API |
+| Push notifications | In-app / browser push | Web Push API (future) | HTTPS |
+| Payment processing | Online giving | Stripe | HTTPS API + Webhooks |
+| Accounting export | Export giving/ledger data | External (QuickBooks, etc.) | CSV export |
+| SSO providers | Staff login | Google Workspace, Microsoft Entra | OAuth 2.0 / OIDC |
+| Calendar export | Event sync | Standard iCal format | iCal (.ics) |
+| Expo mobile app | Offline mobile experience | Separate project (future) | REST API |
 
 ---
 
@@ -264,20 +300,34 @@ Developer pushes to feature branch
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Tenancy model | Shared DB, shared schema with discriminator | Simplest to operate; can migrate later |
-| API style | REST with optional GraphQL | REST for simplicity; GraphQL for flexible reporting queries |
-| Auth | JWT with role claims | Stateless, works well for SPA and API clients |
-| Database | PostgreSQL | Strong ACID, RLS support, rich query capabilities |
-| Background jobs | Queue-based async processing | Prevents long-running requests from impacting UX |
-| File storage | Object storage (S3-compatible) | Scalable, durable, cost-effective |
+| Hosting | Vercel | Zero-config deployments, preview URLs per PR, edge network, built-in cron |
+| Framework | Next.js (App Router) | Server Components reduce client bundle; API Routes co-located; Vercel-native |
+| UI library | shadcn/ui + Tailwind CSS | Accessible, composable components; easy theming; ships only used components |
+| Auth | Supabase Auth | Built-in SSO, MFA, JWT, user management; integrates directly with PostgreSQL RLS |
+| Database | Supabase PostgreSQL | Managed Postgres with RLS for tenant isolation; real-time subscriptions available |
+| Tenancy model | Shared DB, shared schema with RLS discriminator | RLS enforces isolation at DB level; simplest to operate; can migrate later |
+| File storage | Vercel Blob | Native Vercel integration; signed URLs; no separate S3 bucket management |
+| Financial model | Full ledger (chart of accounts, journal entries) | Supports accurate financial reporting and integration with accounting tools |
+| Mobile | Responsive web (primary); Expo app (future, separate project) | Avoids app store overhead for v1; full mobile browser support via responsive design |
+| Offline support | Not in v1 web app | Deferred to future Expo mobile app |
+| Multiple dioceses | Future phase | Architecture uses `diocese_id` discriminator everywhere; migration path exists |
+| Public pages | Not in scope | CMS is internal management tool only |
+| Notifications | Email + SMS (Twilio) + browser push (future) | SMS confirmed; push notifications deferred to v2 |
+| Background jobs | Vercel Cron + Supabase Edge Functions | Sufficient for v1; upgrade to dedicated queue (Inngest) if complexity grows |
 
 ---
 
-## 8. Open Questions (To Be Resolved)
+## 8. Architecture Decisions — Resolved
 
-1. **Mobile apps:** Will native iOS/Android apps be required, or is mobile browser sufficient?
-2. **Offline support:** Should parish admins be able to use the app offline (e.g., during Mass)?
-3. **Multiple dioceses:** Timeline and priority for supporting multiple diocese tenants?
-4. **Financial integration depth:** Full ledger or only giving/donation tracking?
-5. **Public-facing pages:** Should parishes have public-facing web pages (bulletin, Mass schedule) generated by the CMS?
-6. **Notification channels:** SMS and push notifications in addition to email?
+All open questions from the initial design phase have been answered:
+
+| Question | Decision |
+|----------|----------|
+| Mobile apps | Responsive web for all platforms; separate Expo project planned for offline/native features |
+| Offline support | Not in v1; planned for future Expo mobile app |
+| Multiple dioceses | Future priority; architecture is prepared with `diocese_id` discriminators |
+| Financial integration depth | **Full ledger** — chart of accounts, journal entries, and full financial reporting |
+| Public-facing pages | **Out of scope** — CMS is internal only |
+| SMS/push notifications | **SMS confirmed** (Twilio); browser push notifications planned for v2 |
+| Tech stack | Next.js + shadcn/ui on Vercel; Supabase (auth + PostgreSQL); Vercel Blob |
+| Confession scheduling | Out of scope |
