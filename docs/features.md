@@ -125,15 +125,28 @@ This document provides a detailed description of each feature area of the Dioces
 3. Set relationship role within family
 4. Upload member photo
 5. Record initial sacramental information
+6. Enter education level and work notes
+7. (Clergy only) Enter private notes — this field is only visible to parish clergy
 
 #### 2.2.3 Member Search & Directory
 **Summary:** Search and browse parish membership.
 
 **Key Features:**
-- Search by name, family, status, sacrament, program, organization
-- Export member directories (PDF, CSV)
+- Search by name, family, member number, status, sacrament, program, organization
+- Export member directories (PDF, CSV) — private notes are always excluded from exports
 - Filter by ministry, age group, status
 - View complete member profile
+
+#### 2.2.4 Extended Family Relationships
+**Summary:** Link members across separate family records to capture extended family ties within the parish.
+
+**Key Workflows:**
+1. From a member's profile, add a relationship to another member at the same parish
+2. Select the relationship type (parent, grandparent, sibling, aunt/uncle, cousin, in-law, etc.)
+3. Relationship is stored bidirectionally so both members show the link
+4. Extended family relationships are visible on the member profile for pastoral context
+
+**Example:** John Smith (family #100) is the son of Robert Smith (family #101). The `MemberRelationship` record links John → Robert as `parent` / Robert → John as `child`, even though they belong to separate family records.
 
 #### 2.2.4 Member Transfers
 **Summary:** Handle parishioners moving to or from another parish.
@@ -223,13 +236,32 @@ This document provides a detailed description of each feature area of the Dioces
 
 ### 2.7 Parish Organizations
 
-**Summary:** Manage guilds, councils, and apostolates within the parish.
+**Summary:** Manage guilds, councils, apostolates, fellowship groups, and other organizations within the parish.
+
+**Supported Organization Types:** Youth Fellowship, Young Family Fellowship, Sunday School, Prayer Group, Women's Guild, Men's Group, Choir, Knights of Columbus chapter, Parish Council, Finance Committee, Apostolate, Confraternity, Sodality, Third Order, and other custom types.
 
 **Key Workflows:**
-1. Create organization record
-2. Manage membership roster and leadership
-3. Track meeting history
-4. Link to related events and programs
+
+1. Create organization record (name, type, description, meeting schedule)
+2. Manage membership roster
+3. Manage **organization officers**: add officers with formal titles (President, Vice President, Secretary, Treasurer, Chaplain, etc.) and optional term dates. Multiple officers may hold different roles simultaneously. Track officer history when terms end.
+4. Track meeting history
+5. Link to related events and programs
+6. (When `has_own_ledger = true`) Manage organization-level chart of accounts and double-entry journal entries, separate from the parish general ledger. The parish admin retains read-only visibility into all organization ledgers.
+
+---
+
+### 2.8 Parish Officers & Board
+
+**Summary:** Manage the official officers of the parish itself — both clergy and lay leadership.
+
+**Key Workflows:**
+1. Add clergy officers (Vicar, Associate Pastor, Deacon) with title and effective dates
+2. Add lay board/committee officers (Board Chairman, Executive Committee member, Trustee, Finance Committee member, Secretary, Treasurer)
+3. View current officer roster and historical terms
+4. Officers designated as clergy automatically receive access to member private notes within the parish
+
+**User:** Parish Admin
 
 ---
 
@@ -298,6 +330,34 @@ This document provides a detailed description of each feature area of the Dioces
 - Generate IRS-compliant giving statements per family
 - Batch generation and bulk email delivery
 - Export as PDF
+
+---
+
+## 2.10 Church Admin Settings
+
+**Summary:** A dedicated settings area for Parish Admins to configure parish-specific behavior, including member ID formatting, granular role permissions, and parish officer management.
+
+### 2.10.1 Member ID Configuration
+- Set the member number format: prefix (optional), digit width, starting value, auto-increment on/off
+- Preview how a sample number will look with current settings
+- Reassign or manually override individual member numbers
+
+### 2.10.2 Granular Permissions
+- View a permission matrix showing every role's capabilities for the parish's resources
+- Override individual role/resource/action combinations above or below the system defaults
+- Examples of configurable overrides:
+  - Allow `parish_staff` to read and write sacramental records
+  - Restrict `organization_leader` from exporting member data
+  - Allow a specific `ministry_leader` to send communications directly without approval
+- All overrides are logged to the audit trail and can be reset to system defaults
+- Parish Admins cannot grant permissions they do not themselves hold
+
+### 2.10.3 Parish Officers & Board
+*(See 2.8)*
+
+### 2.10.4 Organization Ledger Settings
+- Enable or disable the own-ledger feature per organization
+- View a summary of all active organization ledgers within the parish
 
 ---
 

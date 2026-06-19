@@ -55,6 +55,9 @@ This document captures the functional and non-functional requirements for the Di
 | PA-8 | Parish administrators shall be able to send **communications** to parish members via email and SMS; browser push notifications are planned for a future phase. |
 | PA-9 | The system shall support parish **financial management** including a full ledger (chart of accounts, journal entries), giving campaigns, pledge tracking, donation recording, and financial reporting. |
 | PA-10 | Each parish shall have its own **documents repository** for policies, bulletins, and announcements. |
+| PA-11 | Parish administrators shall manage **parish officers and board members** — clergy (vicar, associate pastors, deacons) and lay leadership (board chairman, executive committee, trustees, finance committee) — with defined titles and optional term dates. |
+| PA-12 | The system shall provide a **Church Admin Settings → Permissions** page where a Parish Admin can configure granular role-level permissions for their parish, overriding system defaults for individual resources and actions (e.g., allow Parish Staff to manage sacramental records, restrict Organization Leaders from exporting data). |
+| PA-13 | Parish organizations shall optionally maintain their **own separate ledger** (chart of accounts and journal entries) distinct from the parish general ledger. Parish Admins retain oversight visibility of all organization ledgers within their parish. |
 
 ---
 
@@ -86,6 +89,10 @@ This document captures the functional and non-functional requirements for the Di
 | MM-7 | The system shall record **emergency contacts** per member. |
 | MM-8 | Members shall be able to self-register and update their own profile via a member portal. |
 | MM-9 | The system shall track member **skills and interests** to assist in volunteer matching. |
+| MM-10 | Each family record shall have a **member number** assigned by the parish, formatted according to the parish's configurable member ID scheme (numeric, alphanumeric, optional prefix, configurable digit width, configurable starting value). The system shall support auto-increment assignment or manual entry. Member numbers shall be unique per parish. |
+| MM-11 | The system shall store **education level** and **work notes** on each member profile, visible to authorized parish staff. |
+| MM-12 | The system shall support **private notes** on each member record, accessible **only** to parish clergy (vicar, associate pastors, deacons as designated in the ParishOfficer table). Private notes shall be excluded from all reports, exports, directory views, and data sharing grants. Access to private notes shall be enforced at the database layer (RLS). |
+| MM-13 | The system shall record **extended family relationships** between members across different family records within the same parish (e.g., a member's parents, grandparents, siblings, aunts/uncles, cousins who belong to separate family units at the same parish). |
 
 ---
 

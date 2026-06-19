@@ -73,17 +73,19 @@ The following data categories can be shared independently. A sharing grant alway
 | Category ID | Name | What It Includes |
 |-------------|------|-----------------|
 | `member_directory` | Member Directory | Full name, contact info, address, status, photo for all active members |
-| `member_demographics_detail` | Member Demographics (Detail) | Full demographic data per member (DOB, gender, skills, interests) |
-| `family_records` | Family Records | Household data, addresses, preferred contact, envelope numbers |
+| `member_demographics_detail` | Member Demographics (Detail) | Full demographic data per member (DOB, gender, education level, work notes, skills, interests). Does **not** include private notes — those are never shareable. |
+| `family_records` | Family Records | Household data, addresses, preferred contact, member numbers, envelope numbers |
 | `sacramental_records` | Sacramental Records | Individual sacramental history (most sensitive category) |
 | `giving_detail` | Giving Detail | Per-family or per-member donation amounts, dates, methods |
 | `giving_statements` | Giving Statements | Annual IRS-style giving statements per family |
 | `program_roster` | Program / Ministry Roster | Member names + enrollment details for a specific program |
 | `financial_statements` | Financial Statements | Income statement, balance sheet, fund balances |
-| `ledger_detail` | General Ledger Detail | Full journal entry / transaction history |
+| `ledger_detail` | General Ledger Detail | Full journal entry / transaction history (parish ledger only; organization ledgers are not included) |
 | `attendance_detail` | Attendance Detail | Per-member attendance records for events and programs |
 | `audit_log` | Parish Audit Log | Full audit log of parish-level actions |
 | `communications_history` | Communications History | Message content and delivery records |
+
+> **Private notes are never a shareable data category.** The `private_notes` field on member records is accessible only to clergy within the parish and is excluded from all sharing grants, exports, reports, and data transfers.
 
 ### 3.2 Grant Mechanics
 
