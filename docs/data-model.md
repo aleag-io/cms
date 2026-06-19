@@ -1,0 +1,398 @@
+# Data Model
+
+## Overview
+
+This document describes the core entities, their attributes, and relationships in the Diocese Church Management System. Entities are grouped by domain.
+
+> **Note:** This is a logical data model. Physical column types and indexing strategies will be finalized during implementation.
+
+---
+
+## 1. Entity Relationship Summary
+
+```
+Diocese
+  ├── has many Parishes
+  ├── has many DiocesanPrograms
+  ├── has many DiocesanOrganizations
+  └── has many Users (diocese-level)
+
+Parish
+  ├── belongs to Diocese
+  ├── has many Families
+  ├── has many Members (directly, without family)
+  ├── has many ParishPrograms
+  ├── has many ParishOrganizations
+  ├── has many Events
+  ├── has many SacramentalRecords
+  ├── has many GivingCampaigns
+  ├── has many Facilities
+  └── has many Users (parish-level)
+
+Family
+  ├── belongs to Parish
+  ├── has many FamilyMembers (join: Member + relationship role)
+  └── has many GivingRecords
+
+Member
+  ├── belongs to Family (optional — can exist without family)
+  ├── belongs to Parish
+  ├── has many SacramentalRecords
+  ├── has many MemberMinistries (join: Programs/Organizations)
+  ├── has many AttendanceRecords
+  └── has one User account (optional)
+```
+
+---
+
+## 2. Core Entities
+
+### 2.1 Diocese
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `name` | string | Full name of the diocese (e.g., "Archdiocese of Chicago") |
+| `short_name` | string | Abbreviated name for display |
+| `bishop_name` | string | Name of the current Bishop/Archbishop |
+| `address` | Address | Mailing address |
+| `phone` | string | Main contact phone |
+| `email` | string | Main contact email |
+| `website` | string | Diocese website URL |
+| `logo_url` | string | URL to diocese logo |
+| `timezone` | string | Default timezone (e.g., "America/Chicago") |
+| `fiscal_year_start` | integer | Month the fiscal year starts (1–12) |
+| `created_at` | datetime | Record creation timestamp |
+| `updated_at` | datetime | Last updated timestamp |
+
+---
+
+### 2.2 Parish
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `diocese_id` | UUID (FK) | Parent diocese |
+| `name` | string | Parish name (e.g., "Saint Mary Parish") |
+| `short_name` | string | Abbreviated name |
+| `pastor_name` | string | Current pastor name |
+| `address` | Address | Physical address |
+| `mailing_address` | Address | Mailing address (if different) |
+| `phone` | string | Main parish phone |
+| `email` | string | Main parish email |
+| `website` | string | Parish website |
+| `logo_url` | string | Parish logo URL |
+| `established_date` | date | Date parish was established |
+| `status` | enum | `active`, `merged`, `closed` |
+| `created_at` | datetime | |
+| `updated_at` | datetime | |
+
+---
+
+### 2.3 Family
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | Owning parish |
+| `family_name` | string | Family/household name (e.g., "The Smith Family") |
+| `envelope_number` | string | Giving envelope number (unique per parish) |
+| `mailing_address` | Address | Household mailing address |
+| `email` | string | Primary family email |
+| `phone` | string | Primary family phone |
+| `preferred_contact` | enum | `email`, `phone`, `mail` |
+| `registration_date` | date | Date joined this parish |
+| `anniversary_date` | date | Wedding anniversary (if applicable) |
+| `status` | enum | `active`, `inactive`, `transferred` |
+| `notes` | text | Free-text notes |
+| `created_at` | datetime | |
+| `updated_at` | datetime | |
+
+---
+
+### 2.4 Member
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | Home parish |
+| `first_name` | string | |
+| `middle_name` | string | Optional |
+| `last_name` | string | |
+| `preferred_name` | string | Name they go by |
+| `date_of_birth` | date | |
+| `gender` | enum | `male`, `female`, `other`, `prefer_not_to_say` |
+| `email` | string | Personal email |
+| `phone_mobile` | string | |
+| `phone_home` | string | |
+| `photo_url` | string | Profile photo |
+| `status` | enum | `active`, `inactive`, `deceased`, `moved` |
+| `date_of_death` | date | If deceased |
+| `moved_to_parish_id` | UUID (FK) | If transferred |
+| `skills_interests` | text[] | Skills/interests for volunteer matching |
+| `emergency_contact_name` | string | |
+| `emergency_contact_phone` | string | |
+| `user_id` | UUID (FK) | Linked user account (nullable) |
+| `created_at` | datetime | |
+| `updated_at` | datetime | |
+
+---
+
+### 2.5 FamilyMember (Join Table)
+
+Represents the relationship between a Member and a Family.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `family_id` | UUID (FK) | |
+| `member_id` | UUID (FK) | |
+| `relationship` | enum | `head_of_household`, `spouse`, `child`, `dependent`, `other` |
+| `is_primary_contact` | boolean | Receives primary family communications |
+| `joined_at` | date | When member joined this family |
+
+---
+
+## 3. Sacramental Records
+
+### 3.1 SacramentalRecord
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `member_id` | UUID (FK) | Member who received the sacrament |
+| `parish_id` | UUID (FK) | Parish where sacrament was administered |
+| `sacrament_type` | enum | `baptism`, `first_communion`, `confirmation`, `marriage`, `anointing`, `holy_orders` |
+| `sacrament_date` | date | Date sacrament was received |
+| `minister_name` | string | Presiding minister/priest |
+| `sponsor_name` | string | Godparent/sponsor (for Baptism, Confirmation) |
+| `spouse_name` | string | Spouse name (for Marriage) |
+| `book_number` | string | Parish register book number |
+| `page_number` | string | Page in register |
+| `entry_number` | string | Entry number in register |
+| `notes` | text | Additional notes |
+| `created_at` | datetime | |
+| `updated_at` | datetime | |
+
+---
+
+## 4. Programs & Organizations
+
+### 4.1 Program
+
+Represents a structured educational, social, or ministry program at either the diocese or parish level.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `diocese_id` | UUID (FK) | Owning diocese |
+| `parish_id` | UUID (FK) | Owning parish (null = diocesan program) |
+| `name` | string | Program name |
+| `description` | text | |
+| `program_type` | enum | `religious_education`, `social_ministry`, `youth`, `adult_formation`, `sacramental_prep`, `other` |
+| `is_diocesan` | boolean | True if diocese-level program |
+| `start_date` | date | |
+| `end_date` | date | (null = ongoing) |
+| `coordinator_member_id` | UUID (FK) | Member who coordinates the program |
+| `status` | enum | `active`, `inactive`, `completed` |
+| `created_at` | datetime | |
+| `updated_at` | datetime | |
+
+### 4.2 ProgramEnrollment
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `program_id` | UUID (FK) | |
+| `member_id` | UUID (FK) | |
+| `role` | enum | `participant`, `facilitator`, `coordinator` |
+| `enrolled_at` | date | |
+| `completed_at` | date | (null = in progress) |
+| `notes` | text | |
+
+---
+
+### 4.3 Organization
+
+Represents a group or association within the diocese or parish (e.g., Knights of Columbus, parish council, choir).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `diocese_id` | UUID (FK) | |
+| `parish_id` | UUID (FK) | Null = diocesan organization |
+| `name` | string | |
+| `description` | text | |
+| `organization_type` | enum | `ministry`, `council`, `committee`, `apostolate`, `youth`, `other` |
+| `is_diocesan` | boolean | |
+| `leader_member_id` | UUID (FK) | |
+| `meeting_schedule` | text | Human-readable schedule description |
+| `status` | enum | `active`, `inactive` |
+| `created_at` | datetime | |
+| `updated_at` | datetime | |
+
+### 4.4 OrganizationMembership
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `organization_id` | UUID (FK) | |
+| `member_id` | UUID (FK) | |
+| `role` | string | Title/role within organization |
+| `joined_at` | date | |
+| `left_at` | date | (null = current member) |
+
+---
+
+## 5. Events
+
+### 5.1 Event
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `diocese_id` | UUID (FK) | |
+| `parish_id` | UUID (FK) | Null = diocesan event |
+| `title` | string | |
+| `description` | text | |
+| `event_type` | enum | `mass`, `meeting`, `retreat`, `fundraiser`, `sacrament`, `celebration`, `other` |
+| `is_recurring` | boolean | |
+| `recurrence_rule` | string | iCal RRULE string |
+| `start_datetime` | datetime | |
+| `end_datetime` | datetime | |
+| `location` | string | Address or facility name |
+| `facility_id` | UUID (FK) | Linked facility (if applicable) |
+| `max_capacity` | integer | Optional attendee cap |
+| `is_public` | boolean | Visible on public calendar |
+| `created_by_user_id` | UUID (FK) | |
+| `created_at` | datetime | |
+| `updated_at` | datetime | |
+
+### 5.2 EventAttendance
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `event_id` | UUID (FK) | |
+| `member_id` | UUID (FK) | |
+| `rsvp_status` | enum | `attending`, `not_attending`, `maybe` |
+| `attended` | boolean | Actual attendance (recorded after event) |
+| `rsvp_at` | datetime | |
+
+---
+
+## 6. Giving & Finances
+
+### 6.1 GivingCampaign
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | |
+| `name` | string | Campaign name (e.g., "Annual Fund 2025") |
+| `description` | text | |
+| `fund_type` | enum | `general`, `building`, `missions`, `special`, `other` |
+| `goal_amount` | decimal | Target fundraising goal |
+| `start_date` | date | |
+| `end_date` | date | |
+| `status` | enum | `active`, `completed`, `cancelled` |
+| `created_at` | datetime | |
+
+### 6.2 Donation
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | |
+| `family_id` | UUID (FK) | |
+| `member_id` | UUID (FK) | Optional (if given by individual) |
+| `campaign_id` | UUID (FK) | Optional (general giving if null) |
+| `amount` | decimal | Donation amount in USD |
+| `donation_date` | date | |
+| `method` | enum | `cash`, `check`, `online`, `ach`, `stock`, `other` |
+| `check_number` | string | |
+| `transaction_id` | string | Payment processor transaction ID |
+| `is_pledged` | boolean | Part of a pledge |
+| `pledge_id` | UUID (FK) | |
+| `created_at` | datetime | |
+
+### 6.3 Pledge
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | |
+| `family_id` | UUID (FK) | |
+| `campaign_id` | UUID (FK) | |
+| `pledged_amount` | decimal | Total pledge commitment |
+| `frequency` | enum | `one_time`, `weekly`, `monthly`, `annual` |
+| `start_date` | date | |
+| `end_date` | date | |
+| `fulfilled_amount` | decimal | Amount paid to date (computed) |
+| `status` | enum | `active`, `fulfilled`, `lapsed`, `cancelled` |
+
+---
+
+## 7. Users & Access
+
+### 7.1 User
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `email` | string | Login email (unique) |
+| `name` | string | Display name |
+| `password_hash` | string | Hashed password (or null if SSO only) |
+| `is_sso` | boolean | True if account uses SSO |
+| `mfa_enabled` | boolean | |
+| `diocese_id` | UUID (FK) | Associated diocese |
+| `parish_id` | UUID (FK) | Associated parish (null for diocese-level users) |
+| `member_id` | UUID (FK) | Linked member record (nullable) |
+| `status` | enum | `active`, `inactive`, `locked` |
+| `last_login_at` | datetime | |
+| `created_at` | datetime | |
+| `updated_at` | datetime | |
+
+### 7.2 UserRole
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `user_id` | UUID (FK) | |
+| `role` | enum | See [user-roles.md](user-roles.md) |
+| `granted_at` | datetime | |
+| `granted_by_user_id` | UUID (FK) | |
+
+---
+
+## 8. Audit Log
+
+### 8.1 AuditEntry
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `user_id` | UUID (FK) | Actor |
+| `diocese_id` | UUID (FK) | Context |
+| `parish_id` | UUID (FK) | Context (nullable) |
+| `action` | string | Action performed (e.g., `member.create`, `donation.update`) |
+| `entity_type` | string | Table/entity affected |
+| `entity_id` | UUID | ID of affected record |
+| `changes` | jsonb | Before/after values |
+| `ip_address` | string | Requestor IP |
+| `timestamp` | datetime | When action occurred |
+
+---
+
+## 9. Shared Value Objects
+
+### Address (Embedded)
+
+| Field | Type |
+|-------|------|
+| `street1` | string |
+| `street2` | string |
+| `city` | string |
+| `state` | string |
+| `zip` | string |
+| `country` | string (default: "US") |
