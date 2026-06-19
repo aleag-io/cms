@@ -43,17 +43,21 @@ Diocese Admin
 
 ### 2.2 Diocese Staff
 
-**Scope:** Diocese-level read access; limited write access
+**Scope:** Diocese-level structural and aggregate data; detailed parish data only via explicit sharing grant
 
-**Description:** Diocesan office staff who need visibility across parishes for coordination purposes but do not have full administrative authority.
+**Description:** Diocesan office staff who need visibility across parishes for coordination purposes but do not have full administrative authority. Under the **Parish Data Sovereignty** model, Diocese Staff no longer have implicit read access to raw parish data (member records, family records, sacramental records, giving records). They see aggregate/anonymized metrics by default and detailed data only when a Parish Admin has issued a sharing grant for that data category.
 
 **Capabilities:**
-- View (read-only) all parish data and member records
-- Run diocese-level reports
+- View parish structural data (name, address, pastor, status) for all parishes — always available
+- View aggregate metrics (member counts, sacrament counts, total giving, attendance totals) for all parishes — always available
+- View detailed parish data **only** for data categories where an active sharing grant exists (e.g., `member_directory`, `giving_detail`)
+- Run diocese-level aggregate reports
 - Manage assigned diocese programs or organizations (if designated coordinator)
-- View audit logs (own actions only)
+- View own audit log entries
 - Cannot create or deactivate parishes
 - Cannot manage users at the parish level
+- Cannot issue DataSharingRequests (only Diocese Admin can)
+- Cannot access any individual member, family, sacramental, or financial records without an explicit sharing grant
 
 ---
 
@@ -143,46 +147,89 @@ Diocese Admin
 
 ---
 
+### 2.8 Diocese Report Viewer (New)
+
+**Scope:** Diocese-level aggregate and shared-report data only
+
+**Description:** A read-only diocesan role for staff or leadership who need only aggregate statistics and reports — no operational access. Suitable for a bishop's office staff member, a finance committee reviewer, or a program evaluator.
+
+**Capabilities:**
+- View all Tier 1 (structural) parish data: names, addresses, pastor, status
+- View all Tier 2 (aggregate/anonymized) metrics: member counts, giving totals, sacrament counts
+- View reports explicitly published to the diocese by Parish Admins (summary scope only)
+- Cannot view any raw parish records even if a sharing grant exists
+- Cannot issue DataSharingRequests
+- Cannot manage any data
+
+---
+
+### 2.9 Parish Data Sharing Manager (New)
+
+**Scope:** Own parish data sharing configuration only
+
+**Description:** An optional parish-level role delegated by a Parish Admin to a trusted staff member to manage the parish's data sharing settings without granting full Parish Admin authority.
+
+**Capabilities:**
+- View all active DataSharingGrants for own parish
+- Create and revoke DataSharingGrants for own parish
+- Approve or reject incoming DataSharingRequests from the diocese
+- View sharing request history and audit entries for sharing events
+- Cannot access data outside their parish
+- Cannot manage parish members, finances, or sacramental records
+- All actions are attributed to them in the audit log
+
+---
+
 ## 3. Permission Matrix
 
 The table below summarizes access by resource and role. **D** = Diocese only, **P** = Parish only.
 
-| Resource | Diocese Admin | Diocese Staff | Parish Admin | Parish Staff | Ministry Leader | Member | Guest |
-|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Diocese settings | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Parish management (D) | ✅ | 👁️ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Parish settings (P) | ✅ | 👁️ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Member records | ✅ | 👁️ | ✅ | ✅ | 👁️ (own program) | 👁️ (own) | ❌ |
-| Family records | ✅ | 👁️ | ✅ | ✅ | ❌ | 👁️ (own) | ❌ |
-| Sacramental records | ✅ | 👁️ | ✅ | ⚙️ config | ❌ | 👁️ (own) | ❌ |
-| Giving records | ✅ | 👁️ | ✅ | ✅ | ❌ | 👁️ (own) | ❌ |
-| Events (P) | ✅ | 👁️ | ✅ | ✅ | ✅ (own) | 👁️ | 👁️ public |
-| Facilities | ✅ | 👁️ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Programs / Ministries | ✅ | 👁️ | ✅ | ✅ | ✅ (own) | 👁️ | ❌ |
-| Organizations | ✅ | 👁️ | ✅ | ✅ | ✅ (own) | 👁️ | ❌ |
-| Communications | ✅ | ❌ | ✅ | ⚙️ config | ✅ (own) | ❌ | ❌ |
-| Reports (D-wide) | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Reports (parish) | ✅ | 👁️ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| User management (D) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| User management (P) | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Audit logs (D) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Audit logs (P) | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+> **Key:** ✅ Full access | 👁️ Read-only | 📊 Aggregate/anonymized counts only (no raw records) | ⚙️ Configurable | 🔑 Requires active sharing grant | ❌ No access
 
-**Legend:** ✅ Full access | 👁️ Read-only | ⚙️ Configurable | ❌ No access
+| Resource | Diocese Admin | Diocese Staff | Diocese Report Viewer | Parish Admin | Parish Staff | Ministry Leader | Member | Guest |
+|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Diocese settings | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Parish management — create/deactivate (D) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Parish profile / structural data (D) | ✅ | 👁️ | 👁️ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Parish aggregate metrics (D) | 📊 | 📊 | 📊 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Parish settings (P) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Parish data sharing grants (P) | 👁️ | ❌ | ❌ | ✅ | ⚙️ Data Sharing Manager | ❌ | ❌ | ❌ |
+| Member records — raw (P) | 🔑 grant | 🔑 grant | ❌ | ✅ | ✅ | 👁️ (own program) | 👁️ (own) | ❌ |
+| Family records — raw (P) | 🔑 grant | 🔑 grant | ❌ | ✅ | ✅ | ❌ | 👁️ (own) | ❌ |
+| Sacramental records (P) | 🔑 grant | 🔑 grant | ❌ | ✅ | ⚙️ config | ❌ | 👁️ (own) | ❌ |
+| Giving records — raw (P) | 🔑 grant | 🔑 grant | ❌ | ✅ | ✅ | ❌ | 👁️ (own) | ❌ |
+| Financial ledger (P) | 🔑 grant | 🔑 grant | ❌ | ✅ | ⚙️ config | ❌ | ❌ | ❌ |
+| Events (P) | 📊 agg | ❌ | ❌ | ✅ | ✅ | ✅ (own) | 👁️ | 👁️ public |
+| Facilities (P) | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Programs / Ministries (P) | 📊 agg | ❌ | ❌ | ✅ | ✅ | ✅ (own) | 👁️ enrolled | ❌ |
+| Organizations (P) | 📊 agg | ❌ | ❌ | ✅ | ✅ | ✅ (own) | 👁️ enrolled | ❌ |
+| Communications (P) | ❌ | ❌ | ❌ | ✅ | ⚙️ config | ✅ (own) | ❌ | ❌ |
+| Diocese-wide aggregate reports | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Shared parish reports (published by parish) | 🔑 grant | 🔑 grant | 🔑 grant (summary only) | ✅ (own) | ❌ | ❌ | ❌ | ❌ |
+| Parish standard reports (P) | 🔑 grant | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| User management — diocese level | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| User management — parish level (P) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Data sharing requests — create (D→P) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Data sharing requests — approve/reject (P) | ❌ | ❌ | ❌ | ✅ | ⚙️ Data Sharing Manager | ❌ | ❌ | ❌ |
+| Emergency access — invoke (D) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Audit logs — diocese level | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Audit logs — parish level (P) | 🔑 grant | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+**Legend:** ✅ Full access | 👁️ Read-only | 📊 Aggregate/anonymized counts only | ⚙️ Configurable | 🔑 Requires active sharing grant | ❌ No access
 
 ---
 
 ## 4. Role Assignment Rules
 
 1. Roles are assigned by a user one level above in the hierarchy:
-   - Diocese Admin assigns Diocese Staff roles
+   - Diocese Admin assigns Diocese Staff, Diocese Report Viewer, and Parish Admin roles
    - Diocese Admin assigns Parish Admin roles
-   - Parish Admin assigns Parish Staff and Ministry Leader roles
+   - Parish Admin assigns Parish Staff, Parish Data Sharing Manager, and Ministry Leader roles
    - Ministry Leaders and Members receive their access upon parish enrollment
 
 2. A user may hold **multiple roles** (e.g., a Parish Admin who is also a Member).
 
-3. When a user has roles at both the diocese and parish level, **the most permissive applicable role is used** for each resource.
+3. When a user has roles at both the diocese and parish level, **the most permissive applicable role is used** for each resource — but diocese roles never override the parish data sovereignty boundary. A diocese-level role does not grant raw parish data access; only an active sharing grant does.
 
 4. Parish-level roles are **scoped to a specific parish** — a Parish Admin for Parish A has no access to Parish B.
 
@@ -207,3 +254,5 @@ Parish Staff or Ministry Leaders who need temporary elevated access for a specif
 | Sacramental Records Secretary | Create and manage sacramental records only |
 | Communications Manager | Send communications; no membership write access |
 | IT Administrator | User management only (no member data access) |
+
+> **Note:** The Diocese Report Viewer and Parish Data Sharing Manager roles were elevated from "future" to confirmed roles as part of the parish data sovereignty model. See [access-control.md](access-control.md) for the full model.

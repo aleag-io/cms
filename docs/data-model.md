@@ -431,7 +431,76 @@ Each `JournalEntry` has two or more lines (debits and credits must balance).
 
 ---
 
-## 9. Shared Value Objects
+## 9. Data Sharing
+
+These entities implement the **Parish Data Sovereignty** sharing model. See [access-control.md](access-control.md) for full details.
+
+### 9.1 DataSharingGrant
+
+Authorizes a specific grantee (diocese or another parish, for transfer workflows) to access a specific data category for a parish. Created by a Parish Admin or Parish Data Sharing Manager.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | The parish whose data is being shared |
+| `data_category` | enum | One of: `member_directory`, `member_demographics_detail`, `family_records`, `sacramental_records`, `giving_detail`, `giving_statements`, `program_roster`, `financial_statements`, `ledger_detail`, `attendance_detail`, `audit_log`, `communications_history` |
+| `grantee_type` | enum | `diocese` |
+| `grantee_id` | UUID (FK) | UUID of the diocese |
+| `grantee_role_filter` | string[] | Optional: restrict to specific roles (e.g., `["diocese_admin"]`) |
+| `scope` | enum | `all_records`, `summary_only`, `program_scoped`, `period_scoped` |
+| `scope_detail` | jsonb | Optional: `{ "program_id": "uuid" }` or `{ "year": 2025 }` |
+| `access_type` | enum | `read_only` (default) |
+| `granted_by_user_id` | UUID (FK) | Parish Admin or Data Sharing Manager who issued the grant |
+| `granted_at` | datetime | |
+| `expires_at` | datetime | Optional; null = permanent until revoked |
+| `is_active` | boolean | `false` = revoked |
+| `revoked_at` | datetime | Timestamp of revocation (nullable) |
+| `revoked_by_user_id` | UUID (FK) | User who revoked (nullable) |
+| `notes` | text | Reason for grant |
+| `created_at` | datetime | |
+
+### 9.2 DataSharingRequest
+
+A request initiated by a Diocese Admin asking a parish to issue a sharing grant for a specific data category.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `diocese_id` | UUID (FK) | Requesting diocese |
+| `parish_id` | UUID (FK) | Target parish |
+| `requested_by_user_id` | UUID (FK) | Diocese Admin who submitted the request |
+| `data_category` | enum | Same enum as `DataSharingGrant.data_category` |
+| `scope` | enum | Requested scope |
+| `scope_detail` | jsonb | Optional scope parameters |
+| `reason` | text | Required: justification for the request |
+| `status` | enum | `pending`, `approved`, `rejected`, `expired` |
+| `reviewed_by_user_id` | UUID (FK) | Parish Admin who approved/rejected (nullable) |
+| `reviewed_at` | datetime | Nullable |
+| `resulting_grant_id` | UUID (FK) | FK to `DataSharingGrant` if approved (nullable) |
+| `expires_at` | datetime | Auto-expires 14 days after creation if not acted upon |
+| `created_at` | datetime | |
+
+### 9.3 EmergencyAccessGrant
+
+A Diocese Admin–only override granting temporary access to parish data in exceptional circumstances. Separate from standard sharing grants.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `diocese_id` | UUID (FK) | |
+| `parish_id` | UUID (FK) | Target parish |
+| `invoked_by_user_id` | UUID (FK) | Diocese Admin |
+| `data_categories` | enum[] | List of categories covered by the override |
+| `reason` | text | Mandatory justification |
+| `invoked_at` | datetime | |
+| `expires_at` | datetime | Maximum 7 days from `invoked_at`; system-enforced |
+| `is_active` | boolean | Set to `false` on expiry or early revocation |
+| `revoked_at` | datetime | Nullable |
+| `notified_parish_admin_at` | datetime | When notification was sent to Parish Admin |
+
+---
+
+## 10. Shared Value Objects
 
 ### Address (Embedded)
 

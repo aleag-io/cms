@@ -14,10 +14,16 @@ This document captures the functional and non-functional requirements for the Di
 |----|-------------|
 | MT-1 | The system shall support a single diocese as the root organizational tenant. |
 | MT-2 | A diocese shall contain one or more parishes (churches). |
-| MT-3 | Each parish shall be a sub-tenant with isolated data, visible to the diocese but not to other parishes. |
-| MT-4 | The system shall enforce data boundaries so that Parish A cannot read or write data belonging to Parish B. |
-| MT-5 | Diocese-level administrators shall have read access to aggregate data across all parishes. |
+| MT-3 | Each parish shall be a sub-tenant with isolated data. By default, parish operational data (member records, family records, sacramental records, giving records, financial ledger) is **private to that parish only**. Diocese-level users and other parishes cannot access this data unless a Parish Admin has issued an explicit sharing grant. |
+| MT-4 | The system shall enforce data boundaries so that Parish A cannot read or write data belonging to Parish B, under any circumstance. |
+| MT-5 | Diocese-level administrators shall have read access to **aggregate (anonymized) statistics** across all parishes without requiring a sharing grant. Access to any raw or detailed parish records requires an explicit **DataSharingGrant** issued by the Parish Admin for the relevant data category. |
 | MT-6 | Tenant onboarding shall allow the diocese to add new parishes with their own administrators. |
+| MT-7 | The system shall provide a **Parish Data Sharing** interface where Parish Admins can view, create, and revoke sharing grants, and approve or reject incoming sharing requests from the diocese. |
+| MT-8 | The system shall support **DataSharingRequests**: diocese administrators may request access to specific parish data categories; the Parish Admin receives a notification and approves or rejects the request. No access is granted until the Parish Admin approves. |
+| MT-9 | Diocese sharing grants shall be scoped to a specific **data category** (e.g., `member_directory`, `sacramental_records`, `giving_detail`) and shall not imply access to any other category. |
+| MT-10 | Sharing grants shall support an optional **expiry date**; expired grants shall be automatically deactivated and access revoked without requiring manual action. |
+| MT-11 | Parish Admins shall be able to **revoke any active sharing grant** at any time with immediate effect; revocation shall invalidate any cached results for that grant within the same request cycle. |
+| MT-12 | In exceptional circumstances, Diocese Admins may invoke a time-limited **Emergency Access** override (≤ 7 days) for a specific parish; this event shall generate an automated notification to the Parish Admin, require a documented justification, and be prominently visible in both the parish and diocese audit logs. |
 
 ---
 
@@ -116,9 +122,10 @@ This document captures the functional and non-functional requirements for the Di
 |----|-------------|
 | SE-1 | All data in transit shall be encrypted via TLS 1.2 or higher. |
 | SE-2 | All data at rest shall be encrypted using AES-256 or equivalent. |
-| SE-3 | The system shall enforce tenant data isolation — no cross-tenant data leakage. |
-| SE-4 | Sensitive fields (SSN, sacramental records) shall have additional access controls and audit logging. |
+| SE-3 | The system shall enforce **parish data sovereignty**: no diocese-level role may read raw parish member, family, sacramental, giving, or financial records unless an active DataSharingGrant exists for the relevant data category. This boundary shall be enforced at the database layer via Row-Level Security policies, not only at the application layer. |
+| SE-4 | Sensitive fields (sacramental records, giving detail, financial ledger) shall have additional access controls and audit logging. Access to these categories shall generate a per-record audit entry. |
 | SE-5 | The system shall pass annual security audits and support GDPR/CCPA-compatible data handling. |
+| SE-6 | Parishes shall be **opaque to each other**: no parish-level role shall have any access to data belonging to another parish. The only defined cross-parish data flows are the member transfer workflow and diocese program enrollment, both of which expose only the minimum required fields. |
 
 ### 2.2 Performance
 

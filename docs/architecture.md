@@ -217,15 +217,38 @@ Request
 
 ### 4.3 Data Isolation Rules
 
+The system enforces a **Parish Data Sovereignty** model. Access to parish data is divided into three tiers:
+
+**Tier 1 — Always visible to diocese (no grant required):**
+
 | Actor | Can Access |
 |-------|-----------|
-| Diocese Admin | All parishes (read aggregate), diocese entities (read/write) |
-| Parish Admin | Own parish data only (full read/write) |
-| Parish Staff | Assigned parish, limited write scope |
-| Member | Own profile and family record |
-| Anonymous | Login page only — no public parish pages |
+| Diocese Admin / Staff / Report Viewer | Parish profile, status, structural metadata |
+| Diocese Admin / Staff / Report Viewer | Aggregate/anonymized metrics (member counts, sacrament counts, giving totals — no individual records) |
 
-> **Note:** Public-facing parish pages (bulletin, Mass schedule, events) are **out of scope**. The CMS is an internal management tool only.
+**Tier 2 — Visible only with an active DataSharingGrant:**
+
+| Actor | Can Access (when grant exists for that category) |
+|-------|-----------|
+| Diocese Admin | Raw parish records (members, families, sacramental, giving, ledger) for the granted category |
+| Diocese Staff | Raw parish records for categories explicitly granted with `diocese_staff` role filter |
+| Diocese Report Viewer | Summary-scoped or period-scoped reports only; never full raw records |
+
+**Tier 3 — Parish-only (no external access regardless of grants):**
+
+| Actor | Can Access |
+|-------|-----------|
+| Parish Admin | Own parish — all records, full read/write |
+| Parish Staff | Own parish — configurable scope |
+| Ministry Leader | Own parish — own program/ministry members only |
+| Member | Own profile and own family record only |
+| Anonymous | Login page only |
+
+**Cross-parish boundary rules:**
+- Parish A has **zero visibility** into Parish B data under any circumstance.
+- The only defined cross-parish flows are: (a) member transfer (structured workflow, minimum data exposure), (b) diocese program enrollment (name + status only), (c) joint events (aggregate attendance only).
+
+> **See [access-control.md](access-control.md)** for the full parish data sovereignty model, sharing grant mechanics, RLS policy patterns, and audit requirements.
 
 ---
 
