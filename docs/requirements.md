@@ -127,6 +127,15 @@ This document captures the functional and non-functional requirements for the Di
 | PE-1 | Page load times shall be under 2 seconds for 95% of requests under normal load. |
 | PE-2 | The system shall support up to 500 concurrent users per diocese deployment. |
 | PE-3 | Bulk operations (import, mass communications) shall process asynchronously with status feedback. |
+| PE-4 | Core Web Vitals shall meet Google's "Good" thresholds: LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1. |
+| PE-5 | API route handlers shall respond within 500 ms at p95 under normal load. |
+| PE-6 | Database queries shall complete within 200 ms at p95; queries exceeding 1 s shall be considered a regression. |
+| PE-7 | All paginated list views (members, families, donations, audit log) shall use cursor- or offset-based pagination with a default page size of 25–50 records; full table scans without pagination are not permitted. |
+| PE-8 | Frequently read, slowly changing reference data (parish profile, liturgical calendar, chart of accounts) shall be cached using Next.js `fetch` cache or ISR with appropriate revalidation intervals (minimum 60 s). |
+| PE-9 | Member profile photos and any other user-uploaded images shall be served through Next.js Image Optimization (`next/image`) with appropriate `sizes` and `priority` attributes to avoid layout shift. |
+| PE-10 | Client-side JavaScript bundles shall be code-split at the route level; no single route chunk shall exceed 200 KB (gzipped). |
+| PE-11 | Search and filter queries on large member or donation lists shall return results within 1 second at p95 for datasets of up to 100,000 records; full-text search shall leverage PostgreSQL `tsvector` indexes or equivalent. |
+| PE-12 | The diocese-level dashboard aggregate query shall complete within 3 seconds at p95 even when aggregating across 200 parishes. |
 
 ### 2.3 Availability & Reliability
 
@@ -143,6 +152,16 @@ This document captures the functional and non-functional requirements for the Di
 | UX-1 | The system shall be responsive and accessible on desktop, tablet, and mobile browsers. |
 | UX-2 | The system shall meet WCAG 2.1 AA accessibility standards. |
 | UX-3 | Key administrative workflows shall be completable in 5 steps or fewer. |
+| UX-4 | Every data-fetching view shall display a skeleton loader or spinner while content is loading; blank screens with no loading indicator are not permitted. |
+| UX-5 | Write operations (save, delete, status change) shall use optimistic UI updates where safe: the UI shall reflect the change immediately and revert with an error message if the server request fails. |
+| UX-6 | Form fields shall display inline validation messages in real time (on blur or on change) before the user submits the form; all required fields shall be clearly marked. |
+| UX-7 | Every list or search result view shall display a clear empty state (icon + message + a call-to-action) when no records are found, rather than a blank area. |
+| UX-8 | All destructive actions (delete, deactivate, transfer, bulk send) shall require explicit confirmation (confirmation dialog or typed confirmation for irreversible actions). |
+| UX-9 | The system shall provide non-blocking toast or notification feedback for all successful and failed actions (e.g., "Member saved", "Failed to send — try again"). |
+| UX-10 | Navigation shall remain accessible and functional without a mouse; all interactive elements shall be reachable and operable via keyboard (Tab, Enter, Escape, arrow keys). |
+| UX-11 | Error pages (404, 500, unauthorized) shall provide a meaningful message and a clear path to navigate back to a safe page, not a generic browser error. |
+| UX-12 | The sidebar and top-level navigation shall be role-aware: users shall only see menu items relevant to their role and tenant scope. |
+| UX-13 | Data tables shall support inline sorting by clicking column headers and shall preserve sort/filter/page state when the user navigates away and returns within the same session. |
 
 ### 2.5 Scalability
 

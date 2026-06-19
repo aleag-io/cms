@@ -331,3 +331,91 @@ All open questions from the initial design phase have been answered:
 | SMS/push notifications | **SMS confirmed** (Twilio); browser push notifications planned for v2 |
 | Tech stack | Next.js + shadcn/ui on Vercel; Supabase (auth + PostgreSQL); Vercel Blob |
 | Confession scheduling | Out of scope |
+
+---
+
+## 9. Performance Architecture Patterns
+
+Performance and user experience are first-class concerns. The following patterns and guidelines apply during implementation.
+
+### 9.1 Rendering Strategy (Next.js App Router)
+
+| Page Type | Strategy | Rationale |
+|-----------|----------|-----------|
+| Dashboard (diocese, parish) | Server Component + `cache: 'no-store'` | Always fresh aggregate data; no stale counts |
+| Reference data (liturgical calendar, parish profile, chart of accounts) | Server Component + ISR (`revalidate: 300`) | Changes infrequently; serve from cache, revalidate every 5 min |
+| Large list views (members, donations, audit log) | Server Component with cursor pagination | Avoid loading full dataset; stream first page server-side |
+| Interactive forms, modals, search | Client Component | Requires immediate interactivity; minimize bundle size |
+| Static content (error pages, login) | Static generation | Zero server compute on every request |
+
+**Rules:**
+- Default to Server Components. Reach for `"use client"` only when interactivity or browser APIs are needed.
+- Keep Client Components as leaf nodes; push data fetching up to the nearest Server Component.
+- Never fetch data inside a Client Component on mount if the same data can be fetched in the parent Server Component.
+
+### 9.2 Caching Layers
+
+```
+Request
+  → Vercel Edge CDN (static assets, ISR pages)
+  → Next.js fetch() cache (deduplicated per request, shared across parallel Server Component renders)
+  → Supabase PostgreSQL (query plan cache, connection pooling via PgBouncer)
+```
+
+**Cache invalidation triggers:**
+- On-demand revalidation (`revalidatePath` / `revalidateTag`) for mutations (member save, donation post, etc.)
+- ISR with short TTL (60–300 s) for reference data that rarely changes
+- `cache: 'no-store'` for security-sensitive and always-fresh data (audit log, user sessions)
+
+### 9.3 Database Performance
+
+**Mandatory indexes (to be created in migrations):**
+
+| Table | Indexed Columns | Reason |
+|-------|----------------|--------|
+| `members` | `parish_id`, `status`, `last_name` | Primary member list queries |
+| `members` | `parish_id` + full-text (`tsvector` on name + email) | Member search |
+| `families` | `parish_id`, `status` | Family list queries |
+| `donations` | `parish_id`, `donation_date`, `family_id` | Giving history, statements |
+| `journal_entries` | `parish_id`, `entry_date` | Ledger reports |
+| `events` | `parish_id`, `start_datetime` | Upcoming events queries |
+| `audit_entries` | `parish_id`, `timestamp`, `entity_type` | Audit log browsing |
+| `program_enrollments` | `program_id`, `member_id` | Roster queries |
+
+**Query rules:**
+- All queries must be tenant-scoped by `parish_id` (or `diocese_id`) first — leveraged by RLS and indexes.
+- Use `EXPLAIN ANALYZE` on any query touching tables with > 10,000 rows before merging.
+- Avoid `SELECT *`; select only the columns required for the view.
+- Paginate all list queries; never fetch an unbounded result set.
+- Diocese-level aggregate queries (cross-parish) shall use materialized views or pre-aggregated summary tables for large datasets, refreshed on a schedule.
+
+### 9.4 Image Optimization
+
+- All member photos and parish logos shall be rendered with `next/image`.
+- Images stored in Vercel Blob shall be served via the Vercel Image Optimization CDN.
+- Upload endpoint shall validate file type (JPEG/PNG/WebP only) and enforce a 5 MB size limit before storing.
+- Profile photo thumbnails (list views) shall request an appropriate `width` (e.g., 64 px or 128 px) so that the optimizer serves a correctly sized variant.
+
+### 9.5 Bundle Size and Code Splitting
+
+- Heavy libraries (chart libraries, PDF generators, rich-text editors) shall be dynamically imported with `next/dynamic` and only loaded on the routes that use them.
+- Vercel Analytics and Speed Insights are enabled to track real-user Core Web Vitals in production.
+- The `@next/bundle-analyzer` is to be run during CI to catch regressions; no route chunk shall exceed 200 KB gzipped.
+
+### 9.6 UX Performance Patterns
+
+**Loading states:**
+- Use React Suspense boundaries with shadcn/ui `Skeleton` components for server-rendered list views and dashboards.
+- Show a spinner or progress indicator for any user-initiated action that takes > 300 ms to complete.
+
+**Optimistic UI:**
+- Toggle-style actions (mark attended, activate/deactivate member, RSVP) shall update the UI immediately via `useOptimistic` (React 19) and revert on error.
+- Destructive actions (delete) require a confirmation dialog before optimistic update; revert if server returns error.
+
+**Search and filter:**
+- Member directory and donation list searches shall debounce input by 300 ms before issuing queries.
+- URL search params (`?q=`, `?status=`, `?page=`) shall drive filter state so that filter/sort/page position is bookmarkable and restored on back-navigation.
+
+**Pagination:**
+- Default page size: 25 rows. User-selectable: 25 / 50 / 100.
+- Infinite scroll is acceptable for event feeds and activity timelines; traditional pagination preferred for administrative tables where precise navigation matters.
