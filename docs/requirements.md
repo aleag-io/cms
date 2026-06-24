@@ -1,0 +1,216 @@
+# Requirements
+
+## Overview
+
+This document captures the functional and non-functional requirements for the Diocese Church Management System (CMS). Requirements are organized by the four levels of the system hierarchy: **Diocese**, **Parish**, **Family**, and **Member**.
+
+---
+
+## 1. Functional Requirements
+
+### 1.1 Multi-Tenancy & Hierarchy
+
+| ID | Requirement |
+|----|-------------|
+| MT-1 | The system shall support a single diocese as the root organizational tenant. |
+| MT-2 | A diocese shall contain one or more parishes (churches). |
+| MT-3 | Each parish shall be a sub-tenant with isolated data. By default, parish operational data (member records, family records, sacramental records, giving records, financial ledger) is **private to that parish only**. Diocese-level users and other parishes cannot access this data unless a Parish Admin has issued an explicit sharing grant. |
+| MT-4 | The system shall enforce data boundaries so that Parish A cannot read or write data belonging to Parish B, under any circumstance. |
+| MT-5 | Diocese-level administrators shall have read access to **aggregate (anonymized) statistics** across all parishes without requiring a sharing grant. Access to any raw or detailed parish records requires an explicit **DataSharingGrant** issued by the Parish Admin for the relevant data category. |
+| MT-6 | Tenant onboarding shall allow the diocese to add new parishes with their own administrators. |
+| MT-7 | The system shall provide a **Parish Data Sharing** interface where Parish Admins can view, create, and revoke sharing grants, and approve or reject incoming sharing requests from the diocese. |
+| MT-8 | The system shall support **DataSharingRequests**: diocese administrators may request access to specific parish data categories; the Parish Admin receives a notification and approves or rejects the request. No access is granted until the Parish Admin approves. |
+| MT-9 | Diocese sharing grants shall be scoped to a specific **data category** (e.g., `member_directory`, `sacramental_records`, `giving_detail`) and shall not imply access to any other category. |
+| MT-10 | Sharing grants shall support an optional **expiry date**; expired grants shall be automatically deactivated and access revoked without requiring manual action. |
+| MT-11 | Parish Admins shall be able to **revoke any active sharing grant** at any time with immediate effect; revocation shall invalidate any cached results for that grant within the same request cycle. |
+| MT-12 | In exceptional circumstances, Diocese Admins may invoke a time-limited **Emergency Access** override (≤ 7 days) for a specific parish; this event shall generate an automated notification to the Parish Admin, require a documented justification, and be prominently visible in both the parish and diocese audit logs. |
+
+---
+
+### 1.2 Diocese Administration
+
+| ID | Requirement |
+|----|-------------|
+| DA-1 | The system shall provide a diocese-level dashboard showing aggregate statistics (total members, upcoming events, etc.). |
+| DA-2 | Diocese administrators shall be able to create and manage diocese-wide **programs** (e.g., religious education programs, social ministry). |
+| DA-3 | Diocese administrators shall be able to create and manage diocese-level **organizations** (e.g., Knights of Columbus, Catholic Youth Organization). |
+| DA-4 | The system shall support diocese-wide **communications** sent to all parishes or selected subsets. |
+| DA-5 | Diocese administrators shall be able to create and publish a **liturgical calendar** visible across all parishes. |
+| DA-6 | The system shall generate diocese-level **reports** (membership trends, sacramental statistics, financial summaries). |
+| DA-7 | Diocese administrators shall be able to configure system-wide settings (branding, fiscal year, sacramental record templates). |
+
+---
+
+### 1.3 Parish (Church) Administration
+
+| ID | Requirement |
+|----|-------------|
+| PA-1 | Each parish shall have its own **profile** (name, address, contact details, parish website, pastor name). |
+| PA-2 | Parish administrators shall manage **parish membership**: add, update, deactivate, and transfer members. |
+| PA-3 | The system shall support parish-level **programs** and **ministries** (RCIA, choir, youth group, etc.). |
+| PA-4 | Parish administrators shall manage **events** (Masses, meetings, retreats, fundraisers) with scheduling and RSVP support. |
+| PA-5 | The system shall support **facility management** for each parish (rooms, halls, equipment booking). |
+| PA-6 | Parish administrators shall manage **staff and volunteers**, including role assignments. |
+| PA-7 | The system shall record and manage **sacramental records** (Baptism, First Communion, Confirmation, Marriage, Anointing) per parish. |
+| PA-8 | Parish administrators shall be able to send **communications** to parish members via email and SMS; browser push notifications are planned for a future phase. |
+| PA-9 | The system shall support parish **financial management** including a full ledger (chart of accounts, journal entries), giving campaigns, pledge tracking, donation recording, and financial reporting. |
+| PA-10 | Each parish shall have its own **documents repository** for policies, bulletins, and announcements. |
+| PA-11 | Parish administrators shall manage **parish officers and board members** — clergy (vicar, associate pastors, deacons) and lay leadership (board chairman, executive committee, trustees, finance committee) — with defined titles and optional term dates. |
+| PA-12 | The system shall provide a **Church Admin Settings → Permissions** page where a Parish Admin can configure granular role-level permissions for their parish, overriding system defaults for individual resources and actions (e.g., allow Parish Staff to manage sacramental records, restrict Organization Leaders from exporting data). |
+| PA-13 | Parish organizations shall optionally maintain their **own separate ledger** (chart of accounts and journal entries) distinct from the parish general ledger. Parish Admins retain oversight visibility of all organization ledgers within their parish. |
+| PA-14 | When creating a parish organization (group, ministry, council, etc.), the admin shall be **required to specify the organization type** from the supported type list. The type may not be left unspecified. |
+| PA-15 | Each organization shall have a **membership mode** (`open` or `exclusive`) that governs whether a member may hold simultaneous active memberships across organizations of the same type within the same parish. The membership mode shall default based on the selected type (`exclusive` for Prayer Group; `open` for all other types) and may be overridden by the admin at creation or edit time. |
+| PA-16 | The system shall **enforce the exclusive membership constraint** at the database layer: when a member is added to an `exclusive`-mode organization, the system shall reject the operation if the member already holds an active membership in any other organization of the same type within the same parish. The admin interface shall surface a clear error identifying the conflicting membership. |
+
+---
+
+### 1.4 Family Management
+
+| ID | Requirement |
+|----|-------------|
+| FM-1 | The system shall represent a **household/family** as a unit that belongs to a parish. |
+| FM-2 | A family record shall contain contact information, mailing address, preferred contact method, and registration date. |
+| FM-3 | A family shall be composed of one or more **members** with defined relationships (head of household, spouse, child, dependent). |
+| FM-4 | The system shall support the concept of a **primary contact** within a family for parish communications. |
+| FM-5 | Family records shall track **envelope numbers** or giving IDs for contribution tracking. |
+| FM-6 | The system shall allow families to be marked as **inactive** while preserving historical records. |
+| FM-7 | Families shall be transferable between parishes when they change their home church. |
+| FM-8 | The system shall record family **anniversaries** (wedding anniversary, registration anniversary) for outreach purposes. |
+
+---
+
+### 1.5 Member Management
+
+| ID | Requirement |
+|----|-------------|
+| MM-1 | Each member shall have a profile including: name, date of birth, gender, contact details, and photo. |
+| MM-2 | The system shall track each member's **sacramental history** (dates and parishes for each sacrament received). |
+| MM-3 | Members shall be assignable to **ministries, programs, and organizations** at the parish or diocese level. |
+| MM-4 | The system shall track member **attendance** for events, Masses, and programs. |
+| MM-5 | The system shall support member **giving history** linked to their family record. |
+| MM-6 | Members shall have a defined **status**: Active, Inactive, Deceased, Moved. |
+| MM-7 | The system shall record **emergency contacts** per member. |
+| MM-8 | Members shall be able to self-register and update their own profile via a member portal. |
+| MM-9 | The system shall track member **skills and interests** to assist in volunteer matching. |
+| MM-10 | Each family record shall have a **member number** assigned by the parish, formatted according to the parish's configurable member ID scheme (numeric, alphanumeric, optional prefix, configurable digit width, configurable starting value). The system shall support auto-increment assignment or manual entry. Member numbers shall be unique per parish. |
+| MM-11 | The system shall store **education level** and **work notes** on each member profile, visible to authorized parish staff. |
+| MM-12 | The system shall support **private notes** on each member record, accessible **only** to parish clergy (vicar, associate pastors, deacons as designated in the ParishOfficer table). Private notes shall be excluded from all reports, exports, directory views, and data sharing grants. Access to private notes shall be enforced at the database layer (RLS). |
+| MM-13 | The system shall record **extended family relationships** between members across different family records within the same parish (e.g., a member's parents, grandparents, siblings, aunts/uncles, cousins who belong to separate family units at the same parish). |
+
+---
+
+### 1.6 Authentication & Access
+
+| ID | Requirement |
+|----|-------------|
+| AU-1 | The system shall require authenticated login for all users. |
+| AU-2 | The system shall support **role-based access control** (see [user-roles.md](user-roles.md)). |
+| AU-3 | The system shall support **Single Sign-On (SSO)** via OAuth 2.0 / OIDC providers (Google, Microsoft). |
+| AU-4 | The system shall support **multi-factor authentication (MFA)**. |
+| AU-5 | User sessions shall expire after a configurable period of inactivity. |
+| AU-6 | All user actions shall be **audited** with timestamp, user identity, and action taken. |
+
+---
+
+### 1.7 Reporting & Analytics
+
+| ID | Requirement |
+|----|-------------|
+| RP-1 | The system shall provide pre-built **standard reports** at diocese and parish levels. |
+| RP-2 | Reports shall be exportable in PDF, CSV, and Excel formats. |
+| RP-3 | The system shall provide an **ad-hoc query builder** for power users. |
+| RP-4 | Dashboard visualizations shall include membership trends, event attendance, and giving summaries. |
+| RP-5 | The system shall generate **annual giving statements** for members and families. |
+
+---
+
+## 2. Non-Functional Requirements
+
+### 2.1 Security
+
+| ID | Requirement |
+|----|-------------|
+| SE-1 | All data in transit shall be encrypted via TLS 1.2 or higher. |
+| SE-2 | All data at rest shall be encrypted using AES-256 or equivalent. |
+| SE-3 | The system shall enforce **parish data sovereignty**: no diocese-level role may read raw parish member, family, sacramental, giving, or financial records unless an active DataSharingGrant exists for the relevant data category. This boundary shall be enforced at the database layer via Row-Level Security policies, not only at the application layer. |
+| SE-4 | Sensitive fields (sacramental records, giving detail, financial ledger) shall have additional access controls and audit logging. Access to these categories shall generate a per-record audit entry. |
+| SE-5 | The system shall pass annual security audits and support GDPR/CCPA-compatible data handling. |
+| SE-6 | Parishes shall be **opaque to each other**: no parish-level role shall have any access to data belonging to another parish. The only defined cross-parish data flows are the member transfer workflow and diocese program enrollment, both of which expose only the minimum required fields. |
+
+### 2.2 Performance
+
+| ID | Requirement |
+|----|-------------|
+| PE-1 | Page load times shall be under 2 seconds for 95% of requests under normal load. |
+| PE-2 | The system shall support up to 500 concurrent users per diocese deployment. |
+| PE-3 | Bulk operations (import, mass communications) shall process asynchronously with status feedback. |
+| PE-4 | Core Web Vitals shall meet Google's "Good" thresholds: LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1. |
+| PE-5 | API route handlers shall respond within 500 ms at p95 under normal load. |
+| PE-6 | Database queries shall complete within 200 ms at p95; queries exceeding 1 s shall be considered a regression. |
+| PE-7 | All paginated list views (members, families, donations, audit log) shall use cursor- or offset-based pagination with a default page size of 25–50 records; full table scans without pagination are not permitted. |
+| PE-8 | Frequently read, slowly changing reference data (parish profile, liturgical calendar, chart of accounts) shall be cached using Next.js `fetch` cache or ISR with appropriate revalidation intervals (minimum 60 s). |
+| PE-9 | Member profile photos and any other user-uploaded images shall be served through Next.js Image Optimization (`next/image`) with appropriate `sizes` and `priority` attributes to avoid layout shift. |
+| PE-10 | Client-side JavaScript bundles shall be code-split at the route level; no single route chunk shall exceed 200 KB (gzipped). |
+| PE-11 | Search and filter queries on large member or donation lists shall return results within 1 second at p95 for datasets of up to 100,000 records; full-text search shall leverage PostgreSQL `tsvector` indexes or equivalent. |
+| PE-12 | The diocese-level dashboard aggregate query shall complete within 3 seconds at p95 even when aggregating across 200 parishes. |
+
+### 2.3 Availability & Reliability
+
+| ID | Requirement |
+|----|-------------|
+| AV-1 | The system shall target 99.9% uptime (excluding planned maintenance). |
+| AV-2 | Automated database backups shall occur daily with a 30-day retention period. |
+| AV-3 | The system shall support disaster recovery with a Recovery Point Objective (RPO) of 24 hours. |
+
+### 2.4 Usability
+
+| ID | Requirement |
+|----|-------------|
+| UX-1 | The system shall be responsive and accessible on desktop, tablet, and mobile browsers. |
+| UX-2 | The system shall meet WCAG 2.1 AA accessibility standards. |
+| UX-3 | Key administrative workflows shall be completable in 5 steps or fewer. |
+| UX-4 | Every data-fetching view shall display a skeleton loader or spinner while content is loading; blank screens with no loading indicator are not permitted. |
+| UX-5 | Write operations (save, delete, status change) shall use optimistic UI updates where safe: the UI shall reflect the change immediately and revert with an error message if the server request fails. |
+| UX-6 | Form fields shall display inline validation messages in real time (on blur or on change) before the user submits the form; all required fields shall be clearly marked. |
+| UX-7 | Every list or search result view shall display a clear empty state (icon + message + a call-to-action) when no records are found, rather than a blank area. |
+| UX-8 | All destructive actions (delete, deactivate, transfer, bulk send) shall require explicit confirmation (confirmation dialog or typed confirmation for irreversible actions). |
+| UX-9 | The system shall provide non-blocking toast or notification feedback for all successful and failed actions (e.g., "Member saved", "Failed to send — try again"). |
+| UX-10 | Navigation shall remain accessible and functional without a mouse; all interactive elements shall be reachable and operable via keyboard (Tab, Enter, Escape, arrow keys). |
+| UX-11 | Error pages (404, 500, unauthorized) shall provide a meaningful message and a clear path to navigate back to a safe page, not a generic browser error. |
+| UX-12 | The sidebar and top-level navigation shall be role-aware: users shall only see menu items relevant to their role and tenant scope. |
+| UX-13 | Data tables shall support inline sorting by clicking column headers and shall preserve sort/filter/page state when the user navigates away and returns within the same session. |
+
+### 2.5 Scalability
+
+| ID | Requirement |
+|----|-------------|
+| SC-1 | The architecture shall support horizontal scaling of application and database tiers. |
+| SC-2 | A single deployment shall support 1 diocese with up to 200 parishes and 100,000 members. |
+| SC-3 | The system shall be designed to eventually support multiple dioceses as separate tenants. |
+
+### 2.6 Integration
+
+| ID | Requirement |
+|----|-------------|
+| IN-1 | The system shall expose a **REST API** for third-party integrations. |
+| IN-2 | The system shall support **webhook notifications** for key events (new member, donation received). |
+| IN-3 | The system shall support data **import/export** via CSV and standard church data formats. |
+| IN-4 | The system shall integrate with **Stripe** for online giving (one-time and recurring). |
+| IN-5 | The system shall integrate with **Resend or SendGrid** for transactional and bulk email delivery. |
+| IN-6 | The system shall integrate with **Twilio** for SMS notifications to members. |
+| IN-7 | The system shall use **Supabase Auth** for user authentication, SSO, and MFA. |
+| IN-8 | The system shall use **Vercel Blob** for file storage (photos, documents, exports). |
+
+---
+
+## 3. Constraints
+
+- The system will support a **full financial ledger** (chart of accounts, journal entries, transaction history) for each parish, in addition to giving campaigns and donations.
+- The system is intended to **integrate with** but not replace dedicated accounting software; the ledger tracks church finances and can export data to QuickBooks or similar tools.
+- The system will initially be deployed for **one diocese** (single-diocese multi-tenant model). Support for multiple dioceses is a future priority.
+- All monetary values shall be stored and displayed in **USD**.
+- The system shall be hosted on **Vercel** using **Next.js**, **Supabase** (auth and PostgreSQL), and **Vercel Blob** (file storage).
+- The web application shall be fully responsive and support desktop, tablet, and mobile browsers. A separate **Expo mobile app** with offline capability is planned as a future project.
+- **Offline support** is not in scope for the web application.
+- **Public-facing parish pages** (bulletin, Mass schedule, events calendar) are **out of scope**. The CMS is an internal management tool.
+- **Confession scheduling** is out of scope.
