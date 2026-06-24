@@ -19,6 +19,8 @@ Diocese
 
 Parish
   ├── belongs to Diocese
+  ├── has one ParishMemberIdConfig
+  ├── has many ParishOfficers (clergy + board)
   ├── has many Families
   ├── has many Members (directly, without family)
   ├── has many ParishPrograms
@@ -27,10 +29,12 @@ Parish
   ├── has many SacramentalRecords
   ├── has many GivingCampaigns
   ├── has many Facilities
+  ├── has many ParishPermissionOverrides
   └── has many Users (parish-level)
 
 Family
   ├── belongs to Parish
+  ├── has a parish-assigned member_number
   ├── has many FamilyMembers (join: Member + relationship role)
   └── has many GivingRecords
 
@@ -40,7 +44,14 @@ Member
   ├── has many SacramentalRecords
   ├── has many MemberMinistries (join: Programs/Organizations)
   ├── has many AttendanceRecords
+  ├── has many MemberRelationships (cross-family extended family links)
   └── has one User account (optional)
+
+Organization
+  ├── belongs to Parish (or Diocese for diocesan orgs)
+  ├── has many OrganizationMembers
+  ├── has many OrganizationOfficers
+  └── optionally has own Accounts + JournalEntries (when has_own_ledger = true)
 ```
 
 ---
@@ -96,6 +107,7 @@ Member
 | `id` | UUID | Primary key |
 | `parish_id` | UUID (FK) | Owning parish |
 | `family_name` | string | Family/household name (e.g., "The Smith Family") |
+| `member_number` | string | Parish-assigned member ID (format configured per parish; e.g., "100", "101"). Unique per parish. |
 | `envelope_number` | string | Giving envelope number (unique per parish) |
 | `mailing_address` | Address | Household mailing address |
 | `email` | string | Primary family email |
@@ -129,12 +141,17 @@ Member
 | `status` | enum | `active`, `inactive`, `deceased`, `moved` |
 | `date_of_death` | date | If deceased |
 | `moved_to_parish_id` | UUID (FK) | If transferred |
+| `education_level` | enum | `less_than_high_school`, `high_school`, `some_college`, `associate`, `bachelor`, `master`, `doctorate`, `trade_certificate`, `other` |
+| `work_notes` | text | Occupation / employer notes visible to authorized parish staff |
+| `private_notes` | text | **Clergy-only** notes (vicar, associate pastor, deacon). Access restricted at RLS and application layers; not visible to parish staff or admins. |
 | `skills_interests` | text[] | Skills/interests for volunteer matching |
 | `emergency_contact_name` | string | |
 | `emergency_contact_phone` | string | |
 | `user_id` | UUID (FK) | Linked user account (nullable) |
 | `created_at` | datetime | |
 | `updated_at` | datetime | |
+
+> **Privacy note:** `private_notes` is enforced as a separate RLS-protected column. It is excluded from all reports, exports, directory views, and data sharing grants. Only users whose `member_id` appears in the `ParishOfficer` table with an `officer_type` of `clergy` may read or write this field.
 
 ---
 
@@ -152,6 +169,63 @@ Represents the relationship between a Member and a Family.
 | `joined_at` | date | When member joined this family |
 
 ---
+
+### 2.6 ParishMemberIdConfig
+
+Stores the configurable member ID (family number) format for a parish. Each parish can define its own numbering scheme independently.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | One-to-one with Parish |
+| `prefix` | string | Optional prefix (e.g., "SMB-", "ST-"). Null = numeric only. |
+| `min_digits` | integer | Zero-pad to this many digits (e.g., 3 → "100", "101"). Default: 3 |
+| `start_value` | integer | First number assigned (e.g., 100). Default: 1 |
+| `next_value` | integer | Next number to be auto-assigned (incremented on each new family) |
+| `auto_increment` | boolean | If true, the system auto-assigns the next number on family creation. If false, admin must supply the number manually. |
+| `allow_manual_override` | boolean | Allow admins to assign a specific number outside the sequence |
+| `updated_at` | datetime | |
+
+> **Example:** A church using 3-digit IDs starting at 100 sets `min_digits=3`, `start_value=100`, `auto_increment=true`. The formatted member number is `prefix + zero_pad(next_value, min_digits)` → "100", "101", "102".
+
+---
+
+### 2.7 MemberRelationship
+
+Tracks extended family relationships between members **across different family records**. This captures connections like grandparents, uncles/aunts, cousins, and in-laws who belong to separate households/families within the same parish.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | Owning parish (both members must belong to this parish) |
+| `member_id` | UUID (FK) | The member this relationship is recorded from |
+| `related_member_id` | UUID (FK) | The related member |
+| `relationship_type` | enum | `parent`, `child`, `grandparent`, `grandchild`, `sibling`, `aunt_uncle`, `niece_nephew`, `cousin`, `spouse`, `in_law`, `step_parent`, `step_child`, `guardian`, `other` |
+| `notes` | text | Optional clarifying note |
+| `created_at` | datetime | |
+
+> **Note:** Spouse relationships *within* the same family unit are captured via `FamilyMember.relationship = 'spouse'`. `MemberRelationship` is for **cross-family** links — e.g., a member's parents who have their own separate family/member number at the same parish.
+
+---
+
+### 2.8 ParishOfficer
+
+Tracks the official officers of the parish itself — clergy (vicar, associate pastors, deacons) and lay leadership (board members, executive committee, trustees, finance committee).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | |
+| `member_id` | UUID (FK) | The member serving in this role |
+| `title` | string | Official title (e.g., "Vicar", "Associate Pastor", "Deacon", "Board Chairman", "Treasurer", "Secretary") |
+| `officer_type` | enum | `clergy`, `board`, `executive_committee`, `finance_committee`, `trustee`, `other` |
+| `term_start` | date | |
+| `term_end` | date | Null = current/indefinite |
+| `is_active` | boolean | |
+| `notes` | text | |
+| `created_at` | datetime | |
+
+> **Access note:** Members with `officer_type = 'clergy'` are automatically granted access to `private_notes` on member records within their parish.
 
 ## 3. Sacramental Records
 
@@ -214,7 +288,7 @@ Represents a structured educational, social, or ministry program at either the d
 
 ### 4.3 Organization
 
-Represents a group or association within the diocese or parish (e.g., Knights of Columbus, parish council, choir).
+Represents a group or association within the diocese or parish (e.g., Knights of Columbus, youth fellowship, Sunday school, prayer group, women's guild).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -223,13 +297,22 @@ Represents a group or association within the diocese or parish (e.g., Knights of
 | `parish_id` | UUID (FK) | Null = diocesan organization |
 | `name` | string | |
 | `description` | text | |
-| `organization_type` | enum | `ministry`, `council`, `committee`, `apostolate`, `youth`, `other` |
+| `organization_type` | enum | **Required at creation.** `ministry`, `council`, `committee`, `apostolate`, `youth_fellowship`, `young_family_fellowship`, `sunday_school`, `prayer_group`, `womens_guild`, `mens_group`, `choir`, `confraternity`, `sodality`, `third_order`, `other` |
+| `membership_mode` | enum | `open` (default) or `exclusive`. Controls whether a member may belong to more than one active organization of this type simultaneously. Defaults to `exclusive` for `prayer_group`; defaults to `open` for all other types. Admins may override the default when creating or editing the organization. |
 | `is_diocesan` | boolean | |
-| `leader_member_id` | UUID (FK) | |
 | `meeting_schedule` | text | Human-readable schedule description |
+| `has_own_ledger` | boolean | If true, this organization maintains its own chart of accounts and journal entries, separate from the parish ledger |
 | `status` | enum | `active`, `inactive` |
 | `created_at` | datetime | |
 | `updated_at` | datetime | |
+
+> **Type defaults for `membership_mode`:**
+> | `organization_type` | Default `membership_mode` |
+> |---------------------|--------------------------|
+> | `prayer_group` | `exclusive` |
+> | All other types | `open` |
+>
+> When `membership_mode = 'exclusive'`, the system enforces that a member may hold at most one **active** membership (`left_at IS NULL`) across all organizations of the same `organization_type` within the same parish. This constraint is enforced at the database layer (unique partial index or CHECK via trigger).
 
 ### 4.4 OrganizationMembership
 
@@ -238,9 +321,27 @@ Represents a group or association within the diocese or parish (e.g., Knights of
 | `id` | UUID | Primary key |
 | `organization_id` | UUID (FK) | |
 | `member_id` | UUID (FK) | |
-| `role` | string | Title/role within organization |
+| `role` | string | General participation role (e.g., "member", "volunteer") |
 | `joined_at` | date | |
 | `left_at` | date | (null = current member) |
+
+> **Exclusivity constraint:** When the parent `Organization.membership_mode = 'exclusive'`, the system prevents a member from having more than one active membership (`left_at IS NULL`) across all organizations sharing the same `organization_type` within the same parish. Attempting to add a member to a second exclusive organization of the same type will surface a validation error. An admin may resolve the conflict by first ending the member's existing membership.
+
+### 4.5 OrganizationOfficer
+
+Tracks elected or appointed officers of a parish or diocesan organization. An organization may have multiple officers simultaneously (president, vice president, secretary, treasurer, etc.).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `organization_id` | UUID (FK) | |
+| `member_id` | UUID (FK) | The member serving as officer |
+| `title` | string | Officer title (e.g., "President", "Vice President", "Secretary", "Treasurer", "Chaplain") |
+| `term_start` | date | |
+| `term_end` | date | Null = current/indefinite |
+| `is_active` | boolean | |
+| `notes` | text | |
+| `created_at` | datetime | |
 
 ---
 
@@ -291,7 +392,9 @@ The financial model supports a **full double-entry ledger** in addition to givin
 |-------|------|-------------|
 | `id` | UUID | Primary key |
 | `parish_id` | UUID (FK) | Owning parish |
-| `account_code` | string | Account number (e.g., "1000", "4100") |
+| `organization_id` | UUID (FK) | Owning organization (null = parish-level account). Must be null when `ledger_scope = 'parish'`. |
+| `ledger_scope` | enum | `parish` (default) or `organization`. Determines which ledger this account belongs to. |
+| `account_code` | string | Account number (e.g., "1000", "4100"). Unique per ledger scope (parish or org). |
 | `name` | string | Account name (e.g., "General Fund", "Building Fund", "Salaries") |
 | `account_type` | enum | `asset`, `liability`, `equity`, `income`, `expense` |
 | `parent_account_id` | UUID (FK) | Parent account for hierarchical chart (nullable) |
@@ -307,6 +410,8 @@ Represents a single accounting transaction (double-entry).
 |-------|------|-------------|
 | `id` | UUID | Primary key |
 | `parish_id` | UUID (FK) | |
+| `organization_id` | UUID (FK) | Null = parish-level entry. Set when this entry belongs to an organization's own ledger. |
+| `ledger_scope` | enum | `parish` or `organization` — mirrors the owning Account's scope |
 | `entry_date` | date | Transaction date |
 | `reference` | string | Reference number (check #, transaction ID, etc.) |
 | `description` | text | Memo / description |
@@ -315,6 +420,8 @@ Represents a single accounting transaction (double-entry).
 | `created_by_user_id` | UUID (FK) | |
 | `posted_at` | datetime | When entry was posted (null = draft) |
 | `created_at` | datetime | |
+
+> **Note:** Organization ledgers are financially separate from the parish ledger. An organization with `has_own_ledger = true` manages its own chart of accounts and journal entries. The parish admin retains visibility into all organization ledgers within the parish via the parish settings panel.
 
 ### 6.3 JournalLine
 
@@ -377,6 +484,26 @@ Each `JournalEntry` has two or more lines (debits and credits must balance).
 | `end_date` | date | |
 | `fulfilled_amount` | decimal | Amount paid to date (computed) |
 | `status` | enum | `active`, `fulfilled`, `lapsed`, `cancelled` |
+
+---
+
+## 6.7 ParishPermissionOverride
+
+Enables a Parish Admin to grant or deny specific capabilities to specific roles at a granular level, beyond the system defaults. This supports the parish settings page where admins configure exactly what each role can do within their parish.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `parish_id` | UUID (FK) | |
+| `role` | enum | The role being configured (e.g., `parish_staff`, `ministry_leader`, `organization_leader`) |
+| `resource` | string | The resource or module (e.g., `sacramental_records`, `giving_records`, `private_notes`, `org_ledger`, `communications`) |
+| `action` | enum | `read`, `write`, `delete`, `export`, `send` |
+| `is_allowed` | boolean | True = allow; false = explicitly deny (overrides role default) |
+| `granted_by_user_id` | UUID (FK) | Parish Admin who set this override |
+| `created_at` | datetime | |
+| `updated_at` | datetime | |
+
+> **Design note:** The system ships with a default permission set per role (matching the permission matrix in [user-roles.md](user-roles.md)). Parish Admins may override individual permissions up or down (within the bounds of their own authority). Overrides are applied on top of defaults at query time, logged in the audit trail, and visible on the Church Admin Settings → Permissions page.
 
 ---
 
