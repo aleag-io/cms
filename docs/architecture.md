@@ -208,7 +208,7 @@ Request
   "sub": "user-uuid",
   "email": "admin@stmary.diocese.org",
   "diocese_id": "uuid-diocese",
-  "parish_id": "uuid-parish",        // null for diocese-level admins
+  "parish_id": "uuid-parish", // null for diocese-level admins
   "roles": ["parish_admin"],
   "iat": 1700000000,
   "exp": 1700003600
@@ -221,30 +221,31 @@ The system enforces a **Parish Data Sovereignty** model. Access to parish data i
 
 **Tier 1 — Always visible to diocese (no grant required):**
 
-| Actor | Can Access |
-|-------|-----------|
-| Diocese Admin / Staff / Report Viewer | Parish profile, status, structural metadata |
+| Actor                                 | Can Access                                                                                            |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Diocese Admin / Staff / Report Viewer | Parish profile, status, structural metadata                                                           |
 | Diocese Admin / Staff / Report Viewer | Aggregate/anonymized metrics (member counts, sacrament counts, giving totals — no individual records) |
 
 **Tier 2 — Visible only with an active DataSharingGrant:**
 
-| Actor | Can Access (when grant exists for that category) |
-|-------|-----------|
-| Diocese Admin | Raw parish records (members, families, sacramental, giving, ledger) for the granted category |
-| Diocese Staff | Raw parish records for categories explicitly granted with `diocese_staff` role filter |
-| Diocese Report Viewer | Summary-scoped or period-scoped reports only; never full raw records |
+| Actor                 | Can Access (when grant exists for that category)                                             |
+| --------------------- | -------------------------------------------------------------------------------------------- |
+| Diocese Admin         | Raw parish records (members, families, sacramental, giving, ledger) for the granted category |
+| Diocese Staff         | Raw parish records for categories explicitly granted with `diocese_staff` role filter        |
+| Diocese Report Viewer | Summary-scoped or period-scoped reports only; never full raw records                         |
 
 **Tier 3 — Parish-only (no external access regardless of grants):**
 
-| Actor | Can Access |
-|-------|-----------|
-| Parish Admin | Own parish — all records, full read/write |
-| Parish Staff | Own parish — configurable scope |
+| Actor           | Can Access                                     |
+| --------------- | ---------------------------------------------- |
+| Parish Admin    | Own parish — all records, full read/write      |
+| Parish Staff    | Own parish — configurable scope                |
 | Ministry Leader | Own parish — own program/ministry members only |
-| Member | Own profile and own family record only |
-| Anonymous | Login page only |
+| Member          | Own profile and own family record only         |
+| Anonymous       | Login page only                                |
 
 **Cross-parish boundary rules:**
+
 - Parish A has **zero visibility** into Parish B data under any circumstance.
 - The only defined cross-parish flows are: (a) member transfer (structured workflow, minimum data exposure), (b) diocese program enrollment (name + status only), (c) joint events (aggregate attendance only).
 
@@ -256,11 +257,11 @@ The system enforces a **Parish Data Sovereignty** model. Access to parish data i
 
 ### 5.1 Environments
 
-| Environment | Purpose |
-|-------------|---------|
-| Development | Local developer machines (Supabase local via `supabase start`) |
-| Preview | Vercel preview deployments per PR (linked to a staging Supabase project) |
-| Production | Live Vercel production deployment (linked to production Supabase project) |
+| Environment | Purpose                                                                   |
+| ----------- | ------------------------------------------------------------------------- |
+| Development | Local developer machines (Supabase local via `supabase start`)            |
+| Preview     | Vercel preview deployments per PR (linked to a staging Supabase project)  |
+| Production  | Live Vercel production deployment (linked to production Supabase project) |
 
 ### 5.2 Infrastructure Stack
 
@@ -302,41 +303,41 @@ Developer pushes to feature branch
 
 ## 6. Integration Points
 
-| Integration | Purpose | Provider | Protocol |
-|-------------|---------|----------|---------|
-| Authentication | User login, SSO, MFA | Supabase Auth | Built-in |
-| Database | Primary data store | Supabase PostgreSQL | Supabase client SDK |
-| File storage | Blobs, photos, exports | Vercel Blob | HTTPS API |
-| Email (transactional) | Invites, notifications | Resend or SendGrid | HTTPS API |
-| Email (bulk) | Parish communications | Resend or SendGrid | HTTPS API |
-| SMS | Notification messages | Twilio | HTTPS API |
-| Push notifications | In-app / browser push | Web Push API (future) | HTTPS |
-| Payment processing | Online giving | Stripe | HTTPS API + Webhooks |
-| Accounting export | Export giving/ledger data | External (QuickBooks, etc.) | CSV export |
-| SSO providers | Staff login | Google Workspace, Microsoft Entra | OAuth 2.0 / OIDC |
-| Calendar export | Event sync | Standard iCal format | iCal (.ics) |
-| Expo mobile app | Offline mobile experience | Separate project (future) | REST API |
+| Integration           | Purpose                   | Provider                          | Protocol             |
+| --------------------- | ------------------------- | --------------------------------- | -------------------- |
+| Authentication        | User login, SSO, MFA      | Supabase Auth                     | Built-in             |
+| Database              | Primary data store        | Supabase PostgreSQL               | Supabase client SDK  |
+| File storage          | Blobs, photos, exports    | Vercel Blob                       | HTTPS API            |
+| Email (transactional) | Invites, notifications    | Resend or SendGrid                | HTTPS API            |
+| Email (bulk)          | Parish communications     | Resend or SendGrid                | HTTPS API            |
+| SMS                   | Notification messages     | Twilio                            | HTTPS API            |
+| Push notifications    | In-app / browser push     | Web Push API (future)             | HTTPS                |
+| Payment processing    | Online giving             | Stripe                            | HTTPS API + Webhooks |
+| Accounting export     | Export giving/ledger data | External (QuickBooks, etc.)       | CSV export           |
+| SSO providers         | Staff login               | Google Workspace, Microsoft Entra | OAuth 2.0 / OIDC     |
+| Calendar export       | Event sync                | Standard iCal format              | iCal (.ics)          |
+| Expo mobile app       | Offline mobile experience | Separate project (future)         | REST API             |
 
 ---
 
 ## 7. Key Architectural Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Hosting | Vercel | Zero-config deployments, preview URLs per PR, edge network, built-in cron |
-| Framework | Next.js (App Router) | Server Components reduce client bundle; API Routes co-located; Vercel-native |
-| UI library | shadcn/ui + Tailwind CSS | Accessible, composable components; easy theming; ships only used components |
-| Auth | Supabase Auth | Built-in SSO, MFA, JWT, user management; integrates directly with PostgreSQL RLS |
-| Database | Supabase PostgreSQL | Managed Postgres with RLS for tenant isolation; real-time subscriptions available |
-| Tenancy model | Shared DB, shared schema with RLS discriminator | RLS enforces isolation at DB level; simplest to operate; can migrate later |
-| File storage | Vercel Blob | Native Vercel integration; signed URLs; no separate S3 bucket management |
-| Financial model | Full ledger (chart of accounts, journal entries) | Supports accurate financial reporting and integration with accounting tools |
-| Mobile | Responsive web (primary); Expo app (future, separate project) | Avoids app store overhead for v1; full mobile browser support via responsive design |
-| Offline support | Not in v1 web app | Deferred to future Expo mobile app |
-| Multiple dioceses | Future phase | Architecture uses `diocese_id` discriminator everywhere; migration path exists |
-| Public pages | Not in scope | CMS is internal management tool only |
-| Notifications | Email + SMS (Twilio) + browser push (future) | SMS confirmed; push notifications deferred to v2 |
-| Background jobs | Vercel Cron + Supabase Edge Functions | Sufficient for v1; upgrade to dedicated queue (Inngest) if complexity grows |
+| Decision          | Choice                                                        | Rationale                                                                           |
+| ----------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Hosting           | Vercel                                                        | Zero-config deployments, preview URLs per PR, edge network, built-in cron           |
+| Framework         | Next.js (App Router)                                          | Server Components reduce client bundle; API Routes co-located; Vercel-native        |
+| UI library        | shadcn/ui + Tailwind CSS                                      | Accessible, composable components; easy theming; ships only used components         |
+| Auth              | Supabase Auth                                                 | Built-in SSO, MFA, JWT, user management; integrates directly with PostgreSQL RLS    |
+| Database          | Supabase PostgreSQL                                           | Managed Postgres with RLS for tenant isolation; real-time subscriptions available   |
+| Tenancy model     | Shared DB, shared schema with RLS discriminator               | RLS enforces isolation at DB level; simplest to operate; can migrate later          |
+| File storage      | Vercel Blob                                                   | Native Vercel integration; signed URLs; no separate S3 bucket management            |
+| Financial model   | Full ledger (chart of accounts, journal entries)              | Supports accurate financial reporting and integration with accounting tools         |
+| Mobile            | Responsive web (primary); Expo app (future, separate project) | Avoids app store overhead for v1; full mobile browser support via responsive design |
+| Offline support   | Not in v1 web app                                             | Deferred to future Expo mobile app                                                  |
+| Multiple dioceses | Future phase                                                  | Architecture uses `diocese_id` discriminator everywhere; migration path exists      |
+| Public pages      | Not in scope                                                  | CMS is internal management tool only                                                |
+| Notifications     | Email + SMS (Twilio) + browser push (future)                  | SMS confirmed; push notifications deferred to v2                                    |
+| Background jobs   | Vercel Cron + Supabase Edge Functions                         | Sufficient for v1; upgrade to dedicated queue (Inngest) if complexity grows         |
 
 ---
 
@@ -344,16 +345,16 @@ Developer pushes to feature branch
 
 All open questions from the initial design phase have been answered:
 
-| Question | Decision |
-|----------|----------|
-| Mobile apps | Responsive web for all platforms; separate Expo project planned for offline/native features |
-| Offline support | Not in v1; planned for future Expo mobile app |
-| Multiple dioceses | Future priority; architecture is prepared with `diocese_id` discriminators |
-| Financial integration depth | **Full ledger** — chart of accounts, journal entries, and full financial reporting |
-| Public-facing pages | **Out of scope** — CMS is internal only |
-| SMS/push notifications | **SMS confirmed** (Twilio); browser push notifications planned for v2 |
-| Tech stack | Next.js + shadcn/ui on Vercel; Supabase (auth + PostgreSQL); Vercel Blob |
-| Confession scheduling | Out of scope |
+| Question                    | Decision                                                                                    |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| Mobile apps                 | Responsive web for all platforms; separate Expo project planned for offline/native features |
+| Offline support             | Not in v1; planned for future Expo mobile app                                               |
+| Multiple dioceses           | Future priority; architecture is prepared with `diocese_id` discriminators                  |
+| Financial integration depth | **Full ledger** — chart of accounts, journal entries, and full financial reporting          |
+| Public-facing pages         | **Out of scope** — CMS is internal only                                                     |
+| SMS/push notifications      | **SMS confirmed** (Twilio); browser push notifications planned for v2                       |
+| Tech stack                  | Next.js + shadcn/ui on Vercel; Supabase (auth + PostgreSQL); Vercel Blob                    |
+| Confession scheduling       | Out of scope                                                                                |
 
 ---
 
@@ -363,15 +364,16 @@ Performance and user experience are first-class concerns. The following patterns
 
 ### 9.1 Rendering Strategy (Next.js App Router)
 
-| Page Type | Strategy | Rationale |
-|-----------|----------|-----------|
-| Dashboard (diocese, parish) | Server Component + `cache: 'no-store'` | Always fresh aggregate data; no stale counts |
+| Page Type                                                               | Strategy                                   | Rationale                                                      |
+| ----------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------- |
+| Dashboard (diocese, parish)                                             | Server Component + `cache: 'no-store'`     | Always fresh aggregate data; no stale counts                   |
 | Reference data (liturgical calendar, parish profile, chart of accounts) | Server Component + ISR (`revalidate: 300`) | Changes infrequently; serve from cache, revalidate every 5 min |
-| Large list views (members, donations, audit log) | Server Component with cursor pagination | Avoid loading full dataset; stream first page server-side |
-| Interactive forms, modals, search | Client Component | Requires immediate interactivity; minimize bundle size |
-| Static content (error pages, login) | Static generation | Zero server compute on every request |
+| Large list views (members, donations, audit log)                        | Server Component with cursor pagination    | Avoid loading full dataset; stream first page server-side      |
+| Interactive forms, modals, search                                       | Client Component                           | Requires immediate interactivity; minimize bundle size         |
+| Static content (error pages, login)                                     | Static generation                          | Zero server compute on every request                           |
 
 **Rules:**
+
 - Default to Server Components. Reach for `"use client"` only when interactivity or browser APIs are needed.
 - Keep Client Components as leaf nodes; push data fetching up to the nearest Server Component.
 - Never fetch data inside a Client Component on mount if the same data can be fetched in the parent Server Component.
@@ -386,6 +388,7 @@ Request
 ```
 
 **Cache invalidation triggers:**
+
 - On-demand revalidation (`revalidatePath` / `revalidateTag`) for mutations (member save, donation post, etc.)
 - ISR with short TTL (60–300 s) for reference data that rarely changes
 - `cache: 'no-store'` for security-sensitive and always-fresh data (audit log, user sessions)
@@ -394,18 +397,19 @@ Request
 
 **Mandatory indexes (to be created in migrations):**
 
-| Table | Indexed Columns | Reason |
-|-------|----------------|--------|
-| `members` | `parish_id`, `status`, `last_name` | Primary member list queries |
-| `members` | `parish_id` + full-text (`tsvector` on name + email) | Member search |
-| `families` | `parish_id`, `status` | Family list queries |
-| `donations` | `parish_id`, `donation_date`, `family_id` | Giving history, statements |
-| `journal_entries` | `parish_id`, `entry_date` | Ledger reports |
-| `events` | `parish_id`, `start_datetime` | Upcoming events queries |
-| `audit_entries` | `parish_id`, `timestamp`, `entity_type` | Audit log browsing |
-| `program_enrollments` | `program_id`, `member_id` | Roster queries |
+| Table                 | Indexed Columns                                      | Reason                      |
+| --------------------- | ---------------------------------------------------- | --------------------------- |
+| `members`             | `parish_id`, `status`, `last_name`                   | Primary member list queries |
+| `members`             | `parish_id` + full-text (`tsvector` on name + email) | Member search               |
+| `families`            | `parish_id`, `status`                                | Family list queries         |
+| `donations`           | `parish_id`, `donation_date`, `family_id`            | Giving history, statements  |
+| `journal_entries`     | `parish_id`, `entry_date`                            | Ledger reports              |
+| `events`              | `parish_id`, `start_datetime`                        | Upcoming events queries     |
+| `audit_entries`       | `parish_id`, `timestamp`, `entity_type`              | Audit log browsing          |
+| `program_enrollments` | `program_id`, `member_id`                            | Roster queries              |
 
 **Query rules:**
+
 - All queries must be tenant-scoped by `parish_id` (or `diocese_id`) first — leveraged by RLS and indexes.
 - Use `EXPLAIN ANALYZE` on any query touching tables with > 10,000 rows before merging.
 - Avoid `SELECT *`; select only the columns required for the view.
@@ -428,17 +432,21 @@ Request
 ### 9.6 UX Performance Patterns
 
 **Loading states:**
+
 - Use React Suspense boundaries with shadcn/ui `Skeleton` components for server-rendered list views and dashboards.
 - Show a spinner or progress indicator for any user-initiated action that takes > 300 ms to complete.
 
 **Optimistic UI:**
+
 - Toggle-style actions (mark attended, activate/deactivate member, RSVP) shall update the UI immediately via `useOptimistic` (React 19) and revert on error.
 - Destructive actions (delete) require a confirmation dialog before optimistic update; revert if server returns error.
 
 **Search and filter:**
+
 - Member directory and donation list searches shall debounce input by 300 ms before issuing queries.
 - URL search params (`?q=`, `?status=`, `?page=`) shall drive filter state so that filter/sort/page position is bookmarkable and restored on back-navigation.
 
 **Pagination:**
+
 - Default page size: 25 rows. User-selectable: 25 / 50 / 100.
 - Infinite scroll is acceptable for event feeds and activity timelines; traditional pagination preferred for administrative tables where precise navigation matters.

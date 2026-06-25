@@ -13,16 +13,16 @@ The CMS provides a unified system for managing:
 
 ## Documentation
 
-| Document | Description |
-|---|---|
-| [Requirements](docs/requirements.md) | Functional and non-functional requirements |
-| [Architecture](docs/architecture.md) | System architecture and multi-tenancy design |
-| [Tech Stack](docs/tech-stack.md) | Confirmed technology choices and setup |
-| [Data Model](docs/data-model.md) | Entity relationships and data model |
-| [User Roles & Permissions](docs/user-roles.md) | Role-based access control |
+| Document                                                | Description                                        |
+| ------------------------------------------------------- | -------------------------------------------------- |
+| [Requirements](docs/requirements.md)                    | Functional and non-functional requirements         |
+| [Architecture](docs/architecture.md)                    | System architecture and multi-tenancy design       |
+| [Tech Stack](docs/tech-stack.md)                        | Confirmed technology choices and setup             |
+| [Data Model](docs/data-model.md)                        | Entity relationships and data model                |
+| [User Roles & Permissions](docs/user-roles.md)          | Role-based access control                          |
 | [Access Control & Data Sharing](docs/access-control.md) | Parish data sovereignty and granular sharing model |
-| [Features](docs/features.md) | Detailed feature descriptions |
-| [Glossary](docs/glossary.md) | Domain terminology |
+| [Features](docs/features.md)                            | Detailed feature descriptions                      |
+| [Glossary](docs/glossary.md)                            | Domain terminology                                 |
 
 ## Project Status
 

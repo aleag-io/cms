@@ -6,20 +6,20 @@ This document is the definitive reference for the confirmed technology choices f
 
 ## Summary
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| Framework | Next.js (App Router) | Full-stack React framework |
-| UI Library | shadcn/ui + Tailwind CSS | Component library and styling |
-| Hosting | Vercel | Application hosting, CDN, cron, preview deployments |
-| Auth | Supabase Auth | Authentication, SSO, MFA |
-| Database | Supabase PostgreSQL | Primary relational data store |
-| ORM / Query | Supabase JS client + `drizzle-orm` or `prisma` (TBD) | Type-safe database access |
-| File Storage | Vercel Blob | Photos, documents, exported reports |
-| Email | Resend (preferred) or SendGrid | Transactional and bulk email |
-| SMS | Twilio | SMS notifications |
-| Payments | Stripe | Online giving (one-time and recurring) |
-| Background Jobs | Vercel Cron Jobs + Supabase Edge Functions | Scheduled tasks, async processing |
-| Language | TypeScript | Type-safe JavaScript across the stack |
+| Layer           | Technology                                           | Purpose                                             |
+| --------------- | ---------------------------------------------------- | --------------------------------------------------- |
+| Framework       | Next.js (App Router)                                 | Full-stack React framework                          |
+| UI Library      | shadcn/ui + Tailwind CSS                             | Component library and styling                       |
+| Hosting         | Vercel                                               | Application hosting, CDN, cron, preview deployments |
+| Auth            | Supabase Auth                                        | Authentication, SSO, MFA                            |
+| Database        | Supabase PostgreSQL                                  | Primary relational data store                       |
+| ORM / Query     | Supabase JS client + `drizzle-orm` or `prisma` (TBD) | Type-safe database access                           |
+| File Storage    | Vercel Blob                                          | Photos, documents, exported reports                 |
+| Email           | Resend (preferred) or SendGrid                       | Transactional and bulk email                        |
+| SMS             | Twilio                                               | SMS notifications                                   |
+| Payments        | Stripe                                               | Online giving (one-time and recurring)              |
+| Background Jobs | Vercel Cron Jobs + Supabase Edge Functions           | Scheduled tasks, async processing                   |
+| Language        | TypeScript                                           | Type-safe JavaScript across the stack               |
 
 ---
 
@@ -28,6 +28,7 @@ This document is the definitive reference for the confirmed technology choices f
 **Why:** Next.js with the App Router provides React Server Components (RSC), co-located API route handlers, built-in caching and ISR, and first-class Vercel deployment support. Server Components reduce the client-side JavaScript bundle for data-heavy admin pages.
 
 **Key Patterns:**
+
 - Server Components for data fetching (direct Supabase queries server-side)
 - Client Components for interactive UI (forms, modals, real-time updates)
 - API Route Handlers (`/app/api/...`) for webhooks (Stripe, Twilio) and REST endpoints
@@ -40,6 +41,7 @@ This document is the definitive reference for the confirmed technology choices f
 **Why:** shadcn/ui provides accessible, composable React components built on Radix UI primitives. Components are copied into the project (not a black-box dependency), making them fully customizable. Tailwind CSS provides utility-first styling with a design token system for branding.
 
 **Key Usage:**
+
 - Data tables for member/family/donation lists
 - Forms with validation (react-hook-form + zod)
 - Modals, sheets, and dialogs for CRUD operations
@@ -54,6 +56,7 @@ This document is the definitive reference for the confirmed technology choices f
 **Why:** Zero-config deployments for Next.js, automatic preview URLs per pull request, edge network for global performance, built-in cron jobs, and Vercel Blob storage.
 
 **Key Features Used:**
+
 - **Vercel Edge Middleware** — Auth guards, redirect unauthenticated users
 - **Vercel Cron Jobs** — Scheduled tasks (anniversary reminders, batch email, report generation)
 - **Vercel Preview Deployments** — Each PR gets a unique URL for QA
@@ -67,6 +70,7 @@ This document is the definitive reference for the confirmed technology choices f
 **Why:** Supabase Auth integrates directly with the PostgreSQL database and Row-Level Security policies. Provides email/password, SSO (Google, Microsoft), MFA (TOTP), and user management out of the box.
 
 **Key Features Used:**
+
 - Email/password login for all users
 - OAuth SSO for diocese and parish staff (Google Workspace, Microsoft Entra)
 - TOTP-based MFA (enforced for admin roles)
@@ -75,6 +79,7 @@ This document is the definitive reference for the confirmed technology choices f
 - Row-Level Security (RLS) policies reference `auth.uid()` and custom JWT claims for tenant isolation
 
 **JWT Custom Claims Example:**
+
 ```json
 {
   "sub": "user-uuid",
@@ -94,6 +99,7 @@ This document is the definitive reference for the confirmed technology choices f
 **Why:** Managed PostgreSQL with built-in Row-Level Security, real-time subscriptions, and direct integration with Supabase Auth. Eliminates the need to manage a separate database server.
 
 **Key Usage:**
+
 - All application data stored in PostgreSQL
 - RLS policies enforce tenant isolation at the database level (defense-in-depth)
 - Supabase migrations (`supabase/migrations/`) for schema version control
@@ -101,6 +107,7 @@ This document is the definitive reference for the confirmed technology choices f
 - `pg_cron` (available in Supabase) for database-level scheduled jobs if needed
 
 **Schema Strategy:**
+
 - Separate PostgreSQL schemas by domain (e.g., `public`, `membership`, `financials`, `sacraments`, `communications`)
 - Every tenant-scoped table includes `diocese_id` and `parish_id` columns
 - RLS policies filter all queries to the current user's tenant
@@ -112,12 +119,14 @@ This document is the definitive reference for the confirmed technology choices f
 **Why:** Native Vercel integration with no additional infrastructure. Supports presigned upload/download URLs, making it secure and straightforward.
 
 **Key Usage:**
+
 - Member profile photos
 - Parish document repository (bulletins, policies, forms)
 - Exported reports (PDF, Excel, CSV)
 - Uploaded CSV files for member/donation imports
 
 **Path Convention:**
+
 ```
 /{diocese_id}/{parish_id}/members/{member_id}/photo.jpg
 /{diocese_id}/{parish_id}/documents/{filename}
@@ -131,6 +140,7 @@ This document is the definitive reference for the confirmed technology choices f
 **Why:** Resend has native React Email template support, making it straightforward to build and maintain transactional email templates alongside the Next.js codebase. SendGrid is a fallback if Resend doesn't meet volume needs.
 
 **Key Usage:**
+
 - User invite and password reset emails
 - Welcome emails for new parishioner registrations
 - Event reminders and RSVP confirmations
@@ -144,6 +154,7 @@ This document is the definitive reference for the confirmed technology choices f
 **Why:** Industry-standard SMS provider with broad number availability and reliable delivery.
 
 **Key Usage:**
+
 - Opt-in SMS communications from parish to members
 - Event reminders
 - Urgent notifications (e.g., Mass cancellations)
@@ -156,6 +167,7 @@ This document is the definitive reference for the confirmed technology choices f
 **Why:** Best-in-class payment processing with strong nonprofit/church support, recurring billing, and webhooks for event-driven donation recording.
 
 **Key Usage:**
+
 - One-time online donations
 - Recurring giving (weekly, monthly, annual)
 - Stripe Checkout or Stripe Elements embedded in the member portal
@@ -169,11 +181,13 @@ This document is the definitive reference for the confirmed technology choices f
 **Why:** Vercel Cron Jobs cover scheduled tasks without additional infrastructure. Supabase Edge Functions handle webhook processing and lightweight async tasks.
 
 **Vercel Cron Job Use Cases:**
+
 - Daily: send anniversary reminders, pledge fulfillment reminders
 - Weekly: generate weekly bulletin digest
 - Monthly: generate and email giving statements
 
 **Supabase Edge Function Use Cases:**
+
 - Auth hooks (inject custom JWT claims)
 - Stripe webhook handler
 - Twilio status callback handler
@@ -212,25 +226,26 @@ pnpm dev
 
 ## 12. Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous/public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only) |
-| `STRIPE_SECRET_KEY` | Stripe secret key (server-only) |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `TWILIO_ACCOUNT_SID` | Twilio account SID |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token |
-| `TWILIO_PHONE_NUMBER` | Twilio SMS sender number |
-| `RESEND_API_KEY` | Resend API key |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token |
+| Variable                             | Description                             |
+| ------------------------------------ | --------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`           | Supabase project URL                    |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`      | Supabase anonymous/public key           |
+| `SUPABASE_SERVICE_ROLE_KEY`          | Supabase service role key (server-only) |
+| `STRIPE_SECRET_KEY`                  | Stripe secret key (server-only)         |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key                  |
+| `STRIPE_WEBHOOK_SECRET`              | Stripe webhook signing secret           |
+| `TWILIO_ACCOUNT_SID`                 | Twilio account SID                      |
+| `TWILIO_AUTH_TOKEN`                  | Twilio auth token                       |
+| `TWILIO_PHONE_NUMBER`                | Twilio SMS sender number                |
+| `RESEND_API_KEY`                     | Resend API key                          |
+| `BLOB_READ_WRITE_TOKEN`              | Vercel Blob read/write token            |
 
 ---
 
 ## 13. Future — Expo Mobile App
 
 A separate **Expo (React Native)** project is planned to complement the web CMS with:
+
 - Offline data sync for parish staff
 - Native push notifications
 - Mobile-optimized member check-in and attendance tracking

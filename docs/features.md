@@ -9,9 +9,11 @@ This document provides a detailed description of each feature area of the Mar Th
 ## 1. Diocese Administration
 
 ### 1.1 Diocese Dashboard
+
 **Summary:** A high-level overview of the entire diocese with at-a-glance statistics.
 
 **Key Information Displayed:**
+
 - Total parishes, active families, and registered members
 - Recent registrations and membership changes
 - Upcoming diocese-wide events
@@ -23,9 +25,11 @@ This document provides a detailed description of each feature area of the Mar Th
 ---
 
 ### 1.2 Parish Management
+
 **Summary:** Create and manage all parishes within the diocese.
 
 **Key Workflows:**
+
 1. Create a new parish (name, address, pastor, contact info)
 2. Assign a Parish Admin user to a parish
 3. Update parish profile and settings
@@ -38,11 +42,13 @@ This document provides a detailed description of each feature area of the Mar Th
 ---
 
 ### 1.3 Diocese Programs
+
 **Summary:** Manage programs that operate across the entire diocese or are shared with parishes.
 
 **Examples:** Religious education standards, diocesan youth ministry, RCIA curriculum
 
 **Key Workflows:**
+
 1. Create a diocese-wide program with description and dates
 2. Associate program with participating parishes
 3. Track enrollment counts by parish
@@ -52,11 +58,13 @@ This document provides a detailed description of each feature area of the Mar Th
 ---
 
 ### 1.4 Diocese Organizations
+
 **Summary:** Manage organizations that operate at the diocese level.
 
 **Examples:** Diocesan pastoral council, Knights of Columbus chapter, Catholic Charities
 
 **Key Workflows:**
+
 1. Create and describe an organization
 2. Manage organization leadership (diocese-level)
 3. Link chapters at the parish level
@@ -65,9 +73,11 @@ This document provides a detailed description of each feature area of the Mar Th
 ---
 
 ### 1.5 Diocese Communications
+
 **Summary:** Send mass communications to all parishes or targeted subsets.
 
 **Key Workflows:**
+
 1. Compose message (email/newsletter)
 2. Select recipients: all parishes, specific parishes, all Parish Admins
 3. Schedule or send immediately
@@ -77,9 +87,11 @@ This document provides a detailed description of each feature area of the Mar Th
 ---
 
 ### 1.6 Liturgical Calendar
+
 **Summary:** Maintain and publish the official diocesan liturgical calendar.
 
 **Key Features:**
+
 - Feast days, holy days of obligation, diocesan events
 - Publishable to all parishes
 - Exportable as iCal / PDF
@@ -90,9 +102,11 @@ This document provides a detailed description of each feature area of the Mar Th
 ## 2. Parish Administration
 
 ### 2.1 Parish Dashboard
+
 **Summary:** A parish-specific overview for daily operations.
 
 **Key Information Displayed:**
+
 - Total families and members
 - New registrations this month
 - Upcoming events this week
@@ -107,9 +121,11 @@ This document provides a detailed description of each feature area of the Mar Th
 ### 2.2 Membership Management
 
 #### 2.2.1 Family Registration
+
 **Summary:** Register a new family unit with the parish.
 
 **Key Workflows:**
+
 1. Enter family name, mailing address, primary contact info
 2. Assign envelope number
 3. Add family members and define relationships
@@ -117,9 +133,11 @@ This document provides a detailed description of each feature area of the Mar Th
 5. Optionally send welcome communication
 
 #### 2.2.2 Member Registration
+
 **Summary:** Add individual members, either as part of a family or standalone.
 
 **Key Workflows:**
+
 1. Enter personal information (name, DOB, gender, contact)
 2. Link to an existing family or create a new family record
 3. Set relationship role within family
@@ -129,18 +147,22 @@ This document provides a detailed description of each feature area of the Mar Th
 7. (Clergy only) Enter private notes — this field is only visible to parish clergy
 
 #### 2.2.3 Member Search & Directory
+
 **Summary:** Search and browse parish membership.
 
 **Key Features:**
+
 - Search by name, family, member number, status, sacrament, program, organization
 - Export member directories (PDF, CSV) — private notes are always excluded from exports
 - Filter by ministry, age group, status
 - View complete member profile
 
 #### 2.2.4 Extended Family Relationships
+
 **Summary:** Link members across separate family records to capture extended family ties within the parish.
 
 **Key Workflows:**
+
 1. From a member's profile, add a relationship to another member at the same parish
 2. Select the relationship type (parent, grandparent, sibling, aunt/uncle, cousin, in-law, etc.)
 3. Relationship is stored bidirectionally so both members show the link
@@ -149,9 +171,11 @@ This document provides a detailed description of each feature area of the Mar Th
 **Example:** John Smith (family #100) is the son of Robert Smith (family #101). The `MemberRelationship` record links John → Robert as `parent` / Robert → John as `child`, even though they belong to separate family records.
 
 #### 2.2.4 Member Transfers
+
 **Summary:** Handle parishioners moving to or from another parish.
 
 **Key Workflows:**
+
 1. Initiate transfer request (from origin or destination parish)
 2. Transfer carries member record, sacramental history, giving history
 3. Receiving parish reviews and accepts transfer
@@ -174,6 +198,7 @@ This document provides a detailed description of each feature area of the Mar Th
 | Holy Orders | Date, ordaining bishop, parish |
 
 **Key Workflows:**
+
 1. Search for member
 2. Add sacramental record with all required fields
 3. Record book/page/entry numbers for official register reference
@@ -189,6 +214,7 @@ This document provides a detailed description of each feature area of the Mar Th
 **Summary:** Plan, publish, and track parish events.
 
 **Key Workflows:**
+
 1. Create an event with title, type, date/time, location, description
 2. Set recurrence for regular events (weekly Mass, monthly meeting)
 3. Publish to parish calendar (and optionally public)
@@ -197,6 +223,7 @@ This document provides a detailed description of each feature area of the Mar Th
 6. Send reminders to registered attendees
 
 **Event Types:**
+
 - Mass / Liturgy
 - Sacramental preparation class
 - Parish meeting
@@ -212,6 +239,7 @@ This document provides a detailed description of each feature area of the Mar Th
 **Summary:** Manage rooms and spaces within the parish and coordinate bookings.
 
 **Key Features:**
+
 - Define facilities (names, capacity, equipment, availability)
 - Book a facility for an event
 - View facility calendar to avoid conflicts
@@ -226,6 +254,7 @@ This document provides a detailed description of each feature area of the Mar Th
 **Examples:** RCIA, Faith Formation, Choir, Altar Servers, Youth Group, Men's Group, Women's Group
 
 **Key Workflows:**
+
 1. Create a program with type, description, schedule, and coordinator
 2. Enroll members (admin-initiated or self-enrollment via portal)
 3. Track session attendance within the program
@@ -244,9 +273,9 @@ This document provides a detailed description of each feature area of the Mar Th
 
 When an admin creates an organization, the **type is required**. The type determines the default **membership mode**:
 
-| Membership Mode | Behavior |
-|-----------------|----------|
-| `open` (default for most types) | A member may belong to any number of active organizations of this type simultaneously. |
+| Membership Mode                        | Behavior                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `open` (default for most types)        | A member may belong to any number of active organizations of this type simultaneously.            |
 | `exclusive` (default for Prayer Group) | A member may belong to **only one** active organization of this type at a time within the parish. |
 
 The admin may override the default membership mode when creating or editing an organization. This allows, for example, designating a particular choir as exclusive if the parish policy requires it.
@@ -267,6 +296,7 @@ The admin may override the default membership mode when creating or editing an o
 **Summary:** Manage the official officers of the parish itself — both clergy and lay leadership.
 
 **Key Workflows:**
+
 1. Add clergy officers (Vicar, Associate Pastor, Deacon) with title and effective dates
 2. Add lay board/committee officers (Board Chairman, Executive Committee member, Trustee, Finance Committee member, Secretary, Treasurer)
 3. View current officer roster and historical terms
@@ -283,6 +313,7 @@ The admin may override the default membership mode when creating or editing an o
 **Channels Supported:** Email (Resend/SendGrid), SMS (Twilio). Browser push notifications are planned for a future phase.
 
 **Key Workflows:**
+
 1. Compose message using a rich-text editor
 2. Choose audience: all parishioners, specific families, program enrollees, organization members
 3. Choose delivery channel: email, SMS, or both
@@ -297,11 +328,13 @@ The admin may override the default membership mode when creating or editing an o
 ### 2.9 Giving & Stewardship
 
 #### 2.9.1 Chart of Accounts
+
 - Each parish maintains a chart of accounts defining funds and expense/income categories
 - Standard account types: General Fund, Building Fund, Missions, Salaries, Utilities, etc.
 - Accounts can be added or customized per parish
 
 #### 2.9.2 General Ledger
+
 - Double-entry journal entries record all financial transactions
 - Each entry includes: date, accounts debited/credited, amounts, description, and reference
 - Ledger supports month-end and year-end close processes
@@ -309,11 +342,13 @@ The admin may override the default membership mode when creating or editing an o
 - Export to CSV for import into external accounting tools (QuickBooks, etc.)
 
 #### 2.9.3 Giving Campaigns
+
 - Create campaigns with goals, dates, and fund designations
 - Track progress against goal (total received vs. pledged vs. goal)
 - Assign campaign to specific account in the chart of accounts
 
 #### 2.9.4 Donation Recording
+
 - Record individual donations linked to a family or member
 - Support multiple payment methods (cash, check, online, ACH)
 - Track check numbers and payment processor transaction IDs
@@ -321,16 +356,19 @@ The admin may override the default membership mode when creating or editing an o
 - Donations automatically generate ledger journal entries
 
 #### 2.9.5 Pledge Management
+
 - Create pledge commitments for campaigns
 - Track fulfillment status and reminders
 - Generate pledge reminders for lapsed pledges
 
 #### 2.9.6 Online Giving Integration (Stripe)
+
 - Accept payments via Stripe (one-time and recurring)
 - Donations automatically create records and ledger entries
 - Webhook-driven: Stripe events trigger database updates
 
 #### 2.9.7 Financial Reports
+
 - Income statement (revenue vs. expenses by period)
 - Balance sheet
 - Fund balance summary
@@ -338,6 +376,7 @@ The admin may override the default membership mode when creating or editing an o
 - Pledge fulfillment report
 
 #### 2.9.8 Annual Giving Statements
+
 - Generate IRS-compliant giving statements per family
 - Batch generation and bulk email delivery
 - Export as PDF
@@ -349,11 +388,13 @@ The admin may override the default membership mode when creating or editing an o
 **Summary:** A dedicated settings area for Parish Admins to configure parish-specific behavior, including member ID formatting, granular role permissions, and parish officer management.
 
 ### 2.10.1 Member ID Configuration
+
 - Set the member number format: prefix (optional), digit width, starting value, auto-increment on/off
 - Preview how a sample number will look with current settings
 - Reassign or manually override individual member numbers
 
 ### 2.10.2 Granular Permissions
+
 - View a permission matrix showing every role's capabilities for the parish's resources
 - Override individual role/resource/action combinations above or below the system defaults
 - Examples of configurable overrides:
@@ -364,9 +405,11 @@ The admin may override the default membership mode when creating or editing an o
 - Parish Admins cannot grant permissions they do not themselves hold
 
 ### 2.10.3 Parish Officers & Board
-*(See 2.8)*
+
+_(See 2.8)_
 
 ### 2.10.4 Organization Ledger Settings
+
 - Enable or disable the own-ledger feature per organization
 - View a summary of all active organization ledgers within the parish
 
@@ -377,29 +420,35 @@ The admin may override the default membership mode when creating or editing an o
 **Summary:** A simplified interface for parishioners to manage their own information and engage with the parish.
 
 ### 3.1 Profile Management
+
 - Update personal contact information
 - Upload profile photo
 - Manage communication preferences (email, SMS, opt-outs)
 
 ### 3.2 Family Record View
+
 - View household members and relationships (read-only)
 - Request updates via parish office
 
 ### 3.3 Sacramental History
+
 - View own sacramental records (read-only)
 - Request official certificates via portal (fulfilled by parish admin)
 
 ### 3.4 Giving History
+
 - View personal/family giving history
 - Download annual giving statement
 - Set up or modify recurring online giving
 
 ### 3.5 Events & RSVP
+
 - Browse parish event calendar
 - RSVP to upcoming events
 - View registered events
 
 ### 3.6 Ministry Enrollment
+
 - Browse available parish programs and ministries
 - Request enrollment (approved by Ministry Leader or Parish Admin)
 - View enrolled programs and upcoming sessions
@@ -410,23 +459,25 @@ The admin may override the default membership mode when creating or editing an o
 
 ### 4.1 Standard Reports
 
-| Report | Level | Description |
-|--------|-------|-------------|
-| Membership Summary | Diocese / Parish | Counts by status, age, gender |
-| New & Lost Members | Parish | Registrations and departures by period |
-| Sacramental Statistics | Diocese / Parish | Sacraments administered by type and period |
-| Event Attendance | Parish | Attendance by event and aggregate |
-| Program Enrollment | Parish | Enrollment by program and completion rates |
-| Giving Summary | Parish | Total donations by fund, campaign, period |
-| Pledge Fulfillment | Parish | Pledge status and fulfillment rate |
-| Annual Giving Statements | Parish | Per-family tax statements |
-| Parish Health Dashboard | Diocese | Comparative metrics across parishes |
+| Report                   | Level            | Description                                |
+| ------------------------ | ---------------- | ------------------------------------------ |
+| Membership Summary       | Diocese / Parish | Counts by status, age, gender              |
+| New & Lost Members       | Parish           | Registrations and departures by period     |
+| Sacramental Statistics   | Diocese / Parish | Sacraments administered by type and period |
+| Event Attendance         | Parish           | Attendance by event and aggregate          |
+| Program Enrollment       | Parish           | Enrollment by program and completion rates |
+| Giving Summary           | Parish           | Total donations by fund, campaign, period  |
+| Pledge Fulfillment       | Parish           | Pledge status and fulfillment rate         |
+| Annual Giving Statements | Parish           | Per-family tax statements                  |
+| Parish Health Dashboard  | Diocese          | Comparative metrics across parishes        |
 
 ### 4.2 Ad-Hoc Reporting
+
 - Filter-based query builder for advanced users
 - Exportable to CSV, Excel, PDF
 
 ### 4.3 Audit Reports
+
 - Access log: who accessed what and when
 - Change history for sensitive records
 
@@ -435,22 +486,26 @@ The admin may override the default membership mode when creating or editing an o
 ## 5. System Administration
 
 ### 5.1 User Management
+
 - Create, update, deactivate, and unlock user accounts
 - Assign roles and scoped access
 - Force MFA enrollment
 - View user login history
 
 ### 5.2 Audit Log Viewer
+
 - Browse and search audit entries
 - Filter by user, action type, entity, and date range
 - Export audit reports
 
 ### 5.3 Data Import/Export
+
 - Import members from CSV
 - Import historical donation data from CSV
 - Export full parish data snapshot
 
 ### 5.4 Notification Settings
+
 - Configure which system events trigger notifications
 - Set notification channels per event type
 - Manage parish communication templates
@@ -459,14 +514,14 @@ The admin may override the default membership mode when creating or editing an o
 
 ## 6. Feature Backlog (Proposed for Future Phases)
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Expo Mobile App | Separate React Native / Expo project with offline capability and native device features. Consumes the CMS REST API. | High (future project) |
-| Browser Push Notifications | In-app and browser push notifications for event reminders and communications | Medium |
-| Volunteer Scheduling | Schedule volunteers for Masses and events by ministry/role | TBD |
-| Cemetery Records | Track parish cemetery plots and burials | TBD |
-| School Integration | Link CMS to parish school student records | TBD |
-| Mass Intentions | Record and manage Mass intention requests and scheduling | TBD |
-| Property Management | Track parish-owned property assets and maintenance | TBD |
-| Multi-language Support | Localization for Spanish and other common languages | TBD |
-| Multiple Diocese Support | Extend the tenancy model to support additional dioceses | Future priority |
+| Feature                    | Description                                                                                                         | Priority              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Expo Mobile App            | Separate React Native / Expo project with offline capability and native device features. Consumes the CMS REST API. | High (future project) |
+| Browser Push Notifications | In-app and browser push notifications for event reminders and communications                                        | Medium                |
+| Volunteer Scheduling       | Schedule volunteers for Masses and events by ministry/role                                                          | TBD                   |
+| Cemetery Records           | Track parish cemetery plots and burials                                                                             | TBD                   |
+| School Integration         | Link CMS to parish school student records                                                                           | TBD                   |
+| Mass Intentions            | Record and manage Mass intention requests and scheduling                                                            | TBD                   |
+| Property Management        | Track parish-owned property assets and maintenance                                                                  | TBD                   |
+| Multi-language Support     | Localization for Spanish and other common languages                                                                 | TBD                   |
+| Multiple Diocese Support   | Extend the tenancy model to support additional dioceses                                                             | Future priority       |
