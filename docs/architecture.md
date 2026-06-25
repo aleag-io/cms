@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Diocese Church Management System (CMS) is a **multi-tenant web application** built on a hierarchical tenancy model: one diocese containing multiple parishes. This document describes the system architecture, confirmed technology choices, and key architectural decisions.
+The Mar Thoma Church Management System (CMS) for the Diocese of North America is a **multi-tenant web application** built on a hierarchical tenancy model: one diocese containing multiple parishes. This document describes the system architecture, confirmed technology choices, and key architectural decisions.
 
 ---
 

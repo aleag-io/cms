@@ -1,6 +1,6 @@
 # Technology Stack
 
-This document is the definitive reference for the confirmed technology choices for the Diocese Church Management System.
+This document is the definitive reference for the confirmed technology choices for the Mar Thoma Church Management System (CMS) for the Diocese of North America.
 
 ---
 

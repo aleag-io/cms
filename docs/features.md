@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides a detailed description of each feature area of the Diocese Church Management System (CMS), organized by functional domain. Each feature includes a description, key workflows, and notes for refinement.
+This document provides a detailed description of each feature area of the Mar Thoma Church Management System (CMS) for the Diocese of North America, organized by functional domain. Each feature includes a description, key workflows, and notes for refinement.
 
 ---
 

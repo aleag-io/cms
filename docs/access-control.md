@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the full access control model for the Diocese Church Management System, with particular attention to **parish data sovereignty** — the principle that each parish owns and controls its data — and the **explicit sharing mechanism** that allows parishes to share defined categories of information with the diocese or with other parishes on their own terms.
+This document defines the full access control model for the Mar Thoma Church Management System (CMS) for the Diocese of North America, with particular attention to **parish data sovereignty** — the principle that each parish owns and controls its data — and the **explicit sharing mechanism** that allows parishes to share defined categories of information with the diocese or with other parishes on their own terms.
 
 ---
 

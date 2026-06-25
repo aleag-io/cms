@@ -1,6 +1,6 @@
-# Diocese Church Management System (CMS)
+# Mar Thoma Church Management System (CMS)
 
-A **multi-tenant church management platform** designed to serve an entire diocese — from diocesan-level administration down to individual parish families and members.
+A **multi-tenant church management platform** designed for the **Diocese of North America** of the **Mar Thoma Church** — from diocesan-level administration down to individual parish families and members.
 
 ## Purpose
 

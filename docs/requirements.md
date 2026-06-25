@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document captures the functional and non-functional requirements for the Diocese Church Management System (CMS). Requirements are organized by the four levels of the system hierarchy: **Diocese**, **Parish**, **Family**, and **Member**.
+This document captures the functional and non-functional requirements for the Mar Thoma Church Management System (CMS) for the Diocese of North America. Requirements are organized by the four levels of the system hierarchy: **Diocese**, **Parish**, **Family**, and **Member**.
 
 ---
 

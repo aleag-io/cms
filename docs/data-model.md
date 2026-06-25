@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the core entities, their attributes, and relationships in the Diocese Church Management System. Entities are grouped by domain.
+This document describes the core entities, their attributes, and relationships in the Mar Thoma Church Management System (CMS) for the Diocese of North America. Entities are grouped by domain.
 
 > **Note:** This is a logical data model. Physical column types and indexing strategies will be finalized during implementation.
 
