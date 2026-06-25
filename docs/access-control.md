@@ -18,7 +18,7 @@ This document defines the full access control model for the Mar Thoma Church Man
 
 4. **Enforcement is at the database layer.** Row-Level Security (RLS) policies in Supabase PostgreSQL enforce these boundaries for every query. Application-layer checks are an additional layer but are not the primary enforcement mechanism.
 
-5. **All access is audited.** Every read or write of sensitive parish data (sacramental records, giving records, personal member data) is recorded in the audit log with actor, timestamp, and data category accessed.
+5. **All operations are audited.** Audit logging is mandatory for authentication events, reads, writes, deletes, exports, imports, permission and role changes, sharing lifecycle actions, emergency access, and system-initiated background actions. Sensitive data categories (sacramental, giving, ledger, private notes) require per-record access audit entries.
 
 ---
 
@@ -117,15 +117,20 @@ A **DataSharingGrant** is a record created by a Parish Admin (or Diocese Admin a
 
 Diocese users may not create grants themselves for parish data. The workflow is:
 
-```
-Diocese Admin / Diocese Staff
-  → creates a DataSharingRequest (specifies parish, data_category, reason, requested_by)
-  → Parish Admin is notified (in-app + email)
-  → Parish Admin reviews the request
-    → Approves: system creates DataSharingGrant; diocese user can now access that category
-    → Rejects: request is closed; no access; Diocese Admin is notified of the rejection
-    → Ignores: request auto-expires after 14 days
-  → Parish Admin can revoke a grant at any time; revocation is immediate
+```mermaid
+flowchart TD
+    A[Diocese Admin or Diocese Staff creates DataSharingRequest]
+    B[Parish Admin is notified<br/>in-app and email]
+    C{Parish Admin decision}
+    D[Approve request<br/>create DataSharingGrant<br/>grant access]
+    E[Reject request<br/>close request and notify diocese]
+    F[No action<br/>auto-expire after 14 days]
+    G[Parish Admin may revoke grant anytime]
+
+    A --> B --> C
+    C -->|Approve| D --> G
+    C -->|Reject| E
+    C -->|Ignore| F
 ```
 
 Parish Admins can also proactively create grants without a request (e.g., as part of annual reporting cooperation).
@@ -138,6 +143,35 @@ All requests, approvals, rejections, and revocations are recorded in the audit l
 - Revocation takes effect immediately at the RLS layer; no grace period.
 - Upon revocation, any cached query results (Vercel Data Cache or ISR) for that parish + category are invalidated.
 - Diocese users who lose access via revocation are shown a "This data is no longer available" message; they are not told why.
+
+### 3.6 Universal In-App Sharing Workflow
+
+In addition to parish-to-diocese sharing grants, the application supports a **contextual sharing workflow** for supported resources (reports, filtered list views, record views, exports).
+
+**Entry point:**
+
+- A Share action is shown in the top menu bar on every page where the user has permission to share the current resource.
+
+**Share modes:**
+
+- **Specific user share** (`user_share`) — grants access to named internal users only.
+- **Role-scoped share** (`role_share`) — grants access to users with selected roles within tenant boundaries.
+- **Secure link share** (`secure_link`) — creates a tokenized URL with policy constraints.
+
+**Secure link policies:**
+
+- Expiration date/time is required for anonymous or externally forwarded links.
+- Optional max-view cap and optional passcode gate.
+- Link may be revoked immediately; revoked/expired/exhausted links are denied.
+- Tokens are stored hashed at rest and never logged in plaintext.
+
+**Anonymized link mode:**
+
+- When `anonymized = true`, only the approved de-identified projection for that resource may be returned.
+- Direct identifiers (name, email, phone, address, member number, private notes) are excluded.
+- Anonymized links are read-only and cannot be elevated to raw data access.
+
+All share creations, views, denials, expirations, and revocations are recorded in the audit log.
 
 ### 3.5 Diocese Admin Override (Emergency Access)
 
@@ -176,6 +210,12 @@ When a parish member enrolls in a diocese-wide program (e.g., a diocesan RCIA co
 - The diocese program coordinator sees only: member name, home parish name, enrollment date, and completion status.
 - The coordinator does NOT see contact details, giving history, sacramental records, or any other parish data.
 - Contact communications for diocese program participants flow through the home parish's communication system unless the member explicitly opts in to direct diocese contact.
+
+For **Special Diocese Programs**:
+
+- Default access is `restricted` to assigned diocesan coordinators and explicitly authorized parish roles.
+- Enrollment may require parish nomination and diocesan approval before participant status becomes `approved`.
+- Leadership dashboards should default to anonymized aggregate views unless an explicit sharing basis exists.
 
 ### 4.3 Joint Parish Events
 

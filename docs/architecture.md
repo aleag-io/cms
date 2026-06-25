@@ -10,18 +10,22 @@ The Mar Thoma Church Management System (CMS) for the Diocese of North America is
 
 ### 1.1 Hierarchy
 
-```
-Diocese (root tenant)
-└── Parish A (sub-tenant)
-│   ├── Families
-│   │   └── Members
-│   ├── Programs & Ministries
-│   ├── Events
-│   └── Organizations
-├── Parish B (sub-tenant)
-│   └── ...
-└── Parish N (sub-tenant)
-    └── ...
+```mermaid
+flowchart TD
+  D[Diocese<br/>root tenant]
+  PA[Parish A<br/>sub-tenant]
+  PB[Parish B<br/>sub-tenant]
+  PN[Parish N<br/>sub-tenant]
+
+  D --> PA
+  D --> PB
+  D --> PN
+
+  PA --> F[Families]
+  F --> M[Members]
+  PA --> PM[Programs and Ministries]
+  PA --> E[Events]
+  PA --> O[Organizations]
 ```
 
 ### 1.2 Tenancy Strategy
@@ -39,65 +43,59 @@ The system uses a **shared database, shared schema with tenant discriminator** s
 
 ### 1.3 Tenant Provisioning
 
-```
-Diocese Admin
-  → creates Parish record
-  → system generates Parish tenant context
-  → assigns Parish Admin user
-Parish Admin
-  → configures parish profile
-  → begins managing membership
+```mermaid
+flowchart TD
+    A[Diocese Admin] --> B[Create parish record]
+    B --> C[Generate parish tenant context]
+    C --> D[Assign Parish Admin user]
+    D --> E[Parish Admin configures parish profile]
+    E --> F[Parish starts membership management]
 ```
 
 ---
 
 ## 2. High-Level Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                        Clients                          │
-│  Desktop Browser    Mobile Browser      API Consumers   │
-│  (responsive web)   (responsive web)                    │
-└────────────┬───────────────┬────────────────┬───────────┘
-             │               │                │
-             ▼               ▼                ▼
-┌─────────────────────────────────────────────────────────┐
-│                   Vercel Edge Network                   │
-│        (CDN, SSL termination, Edge Middleware)          │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-             ┌─────────────▼──────────────┐
-             │   Next.js Application      │
-             │   (App Router, RSC, API    │
-             │    Routes — on Vercel)     │
-             └─────────────┬──────────────┘
-                           │
-        ┌──────────────────┼────────────────────┐
-        │                  │                    │
-        ▼                  ▼                    ▼
-┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐
-│  Supabase    │  │  Background Jobs │  │  Vercel Blob     │
-│  Auth        │  │  (Vercel Cron /  │  │  (File Storage)  │
-│  (SSO / MFA) │  │   Queue Workers) │  │                  │
-└──────────────┘  └─────────────────┘  └──────────────────┘
-        │
-        ▼
-┌──────────────────────────────────────┐
-│           Supabase Platform          │
-│  ┌─────────────┐  ┌───────────────┐  │
-│  │  PostgreSQL  │  │  Realtime /   │  │
-│  │  (primary   │  │  Edge Funcs   │  │
-│  │   database) │  │               │  │
-│  └─────────────┘  └───────────────┘  │
-└──────────────────────────────────────┘
-        │
-        ▼
-┌──────────────────────────────────────┐
-│         External Integrations        │
-│  Email (Resend / SendGrid)           │
-│  SMS (Twilio)                        │
-│  Payments (Stripe)                   │
-└──────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Clients
+      DB[Desktop Browser<br/>responsive web]
+      MB[Mobile Browser<br/>responsive web]
+      API[API Consumers]
+    end
+
+    subgraph VercelEdge["Vercel Edge Network"]
+      EDGE[CDN, SSL termination, Edge Middleware]
+    end
+
+    APP[Next.js Application<br/>App Router, RSC, API Routes]
+    AUTH[Supabase Auth<br/>SSO and MFA]
+    JOBS[Background Jobs<br/>Vercel Cron and workers]
+    BLOB[Vercel Blob<br/>File storage]
+
+    subgraph Supabase[Supabase Platform]
+      PG[PostgreSQL<br/>primary database]
+      RT[Realtime and Edge Functions]
+    end
+
+    subgraph External[External Integrations]
+      EMAIL[Email<br/>Resend or SendGrid]
+      SMS[SMS<br/>Twilio]
+      STRIPE[Payments<br/>Stripe]
+    end
+
+    DB --> EDGE
+    MB --> EDGE
+    API --> EDGE
+    EDGE --> APP
+    APP --> AUTH
+    APP --> JOBS
+    APP --> BLOB
+    APP --> PG
+    APP --> RT
+    APP --> EMAIL
+    APP --> SMS
+    APP --> STRIPE
 ```
 
 ---
@@ -116,6 +114,7 @@ Parish Admin
   - **Fully responsive layout supporting desktop, tablet, and mobile browsers**
 - **Key Considerations:**
   - Role-aware navigation (menus differ by user role and tenant level)
+  - A global **Share** entry in the top menu bar on every page where the user can share the current resource context
   - Tenant context carried in Supabase session JWT claims
   - Server Components for data-heavy views; Client Components for interactive UI
   - shadcn/ui components are customized per the diocese branding theme
@@ -129,8 +128,32 @@ Parish Admin
   - Business logic enforcement
   - Tenant isolation middleware (all queries scoped to current tenant via Supabase RLS)
   - Input validation and error handling
+  - Share workflow orchestration (recipient validation, anonymization policy enforcement, link token issuance/revocation)
   - Rate limiting per tenant (via Vercel Edge Middleware)
 - **Authentication:** Supabase Auth JWT, verified server-side via Supabase SSR client
+
+### 3.2.1 Universal Sharing Workflow (Cross-Cutting)
+
+The sharing workflow is a cross-cutting capability available from a top-bar Share action across supported pages.
+
+**Share modes:**
+
+- `user_share`: Share to one or more specific internal users.
+- `role_share`: Share to role-scoped recipients within tenant boundaries.
+- `secure_link`: Share via time-limited tokenized link.
+
+**Secure link controls:**
+
+- Expiration date/time (required for anonymous links)
+- Optional max views
+- Immediate revocation
+- Optional anonymized projection (resource-specific de-identification profile)
+
+**Enforcement path:**
+
+- The UI never authorizes sharing by itself; the API validates permissions and share policy for each create/read/revoke action.
+- Secure link tokens are stored hashed in the database and compared server-side.
+- Access to user-scoped shares requires authenticated identity and recipient match.
 
 ### 3.3 Auth Service — Supabase Auth
 
@@ -191,14 +214,14 @@ Parish Admin
 
 ### 4.1 Defense in Depth
 
-```
-Request
-  → TLS (in transit)
-  → CDN/WAF (DDoS, injection protection)
-  → Auth Service (identity verification)
-  → API Middleware (tenant scoping, authorization)
-  → Database RLS (data isolation)
-  → Audit Log (traceability)
+```mermaid
+flowchart LR
+    R[Request] --> T[TLS in transit]
+    T --> W[CDN and WAF]
+    W --> A[Auth service]
+    A --> M[API middleware<br/>tenant scoping and authorization]
+    M --> L[Database RLS]
+    L --> G[Audit log]
 ```
 
 ### 4.2 JWT Structure
@@ -251,6 +274,28 @@ The system enforces a **Parish Data Sovereignty** model. Access to parish data i
 
 > **See [access-control.md](access-control.md)** for the full parish data sovereignty model, sharing grant mechanics, RLS policy patterns, and audit requirements.
 
+### 4.4 Audit Logging Architecture
+
+Audit logging is treated as a core security control, not an optional analytics feature.
+
+**Coverage requirements:**
+
+- Every authenticated operation emits an audit event (read/write/delete/export/import/permission change).
+- Authentication and session lifecycle events (login success/failure, logout, MFA challenge result) are always logged.
+- System-initiated actions (cron jobs, webhooks, background workers) emit events with actor type `system`.
+
+**Write path and durability:**
+
+- Security-critical actions synchronously persist an audit entry within the same request lifecycle before response completion.
+- Non-critical high-volume events may be buffered through a durable queue, but replay is mandatory and loss is not acceptable.
+- If the queue/replay subsystem is degraded, the platform raises operational alerts and tracks ingestion lag.
+
+**Integrity and governance:**
+
+- Audit storage is append-only from the application perspective (no update/delete endpoints for historical entries).
+- Correlation IDs tie related events across UI requests, API calls, and async jobs.
+- Redaction is enforced at write time for secrets and sensitive credential material.
+
 ---
 
 ## 5. Deployment Architecture
@@ -265,38 +310,45 @@ The system enforces a **Parish Data Sovereignty** model. Access to parish data i
 
 ### 5.2 Infrastructure Stack
 
-```
-Vercel
-├── Next.js application hosting (serverless functions + edge)
-├── Edge Middleware (auth guards, tenant routing)
-├── Vercel Blob (file storage)
-├── Vercel Cron Jobs (scheduled background tasks)
-└── Vercel Analytics (performance monitoring)
+```mermaid
+flowchart TB
+    subgraph Vercel
+      V1[Next.js hosting<br/>serverless and edge]
+      V2[Edge Middleware]
+      V3[Vercel Blob]
+      V4[Vercel Cron Jobs]
+      V5[Vercel Analytics]
+    end
 
-Supabase
-├── PostgreSQL database (primary data store)
-├── Supabase Auth (authentication, SSO, MFA)
-├── Row-Level Security (tenant data isolation)
-├── Realtime (optional: live dashboard updates)
-└── Edge Functions (custom Auth hooks, webhooks)
+    subgraph Supabase
+      S1[PostgreSQL database]
+      S2[Supabase Auth]
+      S3[Row-Level Security]
+      S4[Realtime]
+      S5[Edge Functions]
+    end
 
-External Services
-├── Resend or SendGrid (transactional & bulk email)
-├── Twilio (SMS notifications)
-└── Stripe (online giving / payment processing)
+    subgraph ExternalServices[External Services]
+      E1[Resend or SendGrid]
+      E2[Twilio]
+      E3[Stripe]
+    end
 ```
 
 ### 5.3 CI/CD Pipeline
 
-```
-Developer pushes to feature branch
-  → Vercel Preview deployment (automatic)
-  → Automated tests (unit + integration)
-  → Code review / PR approval
-  → Merge to main
-  → Vercel Production deployment (automatic)
-  → Post-deploy health checks
-  → Supabase migrations applied via CI (supabase db push)
+```mermaid
+flowchart TD
+    A[Push to feature branch]
+    B[Vercel Preview deployment]
+    C[Automated tests]
+    D[Code review and PR approval]
+    E[Merge to main]
+    F[Vercel Production deployment]
+    G[Post-deploy health checks]
+    H[Apply Supabase migrations via CI]
+
+    A --> B --> C --> D --> E --> F --> G --> H
 ```
 
 ---
@@ -380,11 +432,11 @@ Performance and user experience are first-class concerns. The following patterns
 
 ### 9.2 Caching Layers
 
-```
-Request
-  → Vercel Edge CDN (static assets, ISR pages)
-  → Next.js fetch() cache (deduplicated per request, shared across parallel Server Component renders)
-  → Supabase PostgreSQL (query plan cache, connection pooling via PgBouncer)
+```mermaid
+flowchart LR
+    R[Request] --> C1[Vercel Edge CDN<br/>static assets and ISR pages]
+    C1 --> C2[Next.js fetch cache<br/>request dedupe and shared renders]
+    C2 --> C3[Supabase PostgreSQL<br/>query plan cache and PgBouncer]
 ```
 
 **Cache invalidation triggers:**

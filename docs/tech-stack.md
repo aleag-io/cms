@@ -196,7 +196,27 @@ This document is the definitive reference for the confirmed technology choices f
 
 ---
 
-## 11. Local Development Setup
+## 11. Audit Logging Stack
+
+**Why:** Audit logging is a core security and compliance requirement for this CMS and must cover user, admin, and system operations.
+
+**Implementation approach:**
+
+- Central audit event utility shared across route handlers, server actions, and background jobs
+- PostgreSQL `audit_entries` table in dedicated `audit` schema as system of record
+- Correlation/request IDs propagated from middleware through async jobs and webhook handlers
+- Redaction utility to remove secrets/tokens before persistence
+- Operational monitoring for ingestion failures and lag (alerts routed to ops channels)
+
+**Rules:**
+
+- No sampling for security/audit events
+- No production feature path may bypass audit logging
+- Audit entries are append-only at the application layer
+
+---
+
+## 12. Local Development Setup
 
 ```bash
 # Prerequisites

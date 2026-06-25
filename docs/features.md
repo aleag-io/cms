@@ -4,6 +4,8 @@
 
 This document provides a detailed description of each feature area of the Mar Thoma Church Management System (CMS) for the Diocese of North America, organized by functional domain. Each feature includes a description, key workflows, and notes for refinement.
 
+**Global UX rule:** For pages with shareable resources, a **Share** action is available from the top menu bar so users can initiate sharing without leaving the current page context.
+
 ---
 
 ## 1. Diocese Administration
@@ -45,7 +47,7 @@ This document provides a detailed description of each feature area of the Mar Th
 
 **Summary:** Manage programs that operate across the entire diocese or are shared with parishes.
 
-**Examples:** Religious education standards, diocesan youth ministry, RCIA curriculum
+**Examples:** Religious education standards, diocesan youth ministry, RCIA curriculum, scholarship initiatives, clergy formation cohorts, and emergency assistance programs.
 
 **Key Workflows:**
 
@@ -54,6 +56,16 @@ This document provides a detailed description of each feature area of the Mar Th
 3. Track enrollment counts by parish
 4. Assign a diocesan coordinator
 5. Archive or close completed programs
+6. Mark a program as **Special Diocese Program** with policy controls
+7. Configure enrollment governance (open enrollment, parish nomination, or invitation-only)
+8. Restrict program visibility to authorized diocesan coordinators and permitted parish admins/staff
+
+**Special Diocese Programs:**
+
+- Intended for policy-sensitive or high-priority initiatives requiring tighter oversight
+- Can require parish nomination and diocesan approval before enrollment
+- Provide separate tracking dashboards for nomination pipeline and cohort outcomes
+- Support anonymized reporting views for leadership-level summaries
 
 ---
 
@@ -496,19 +508,62 @@ _(See 2.8)_
 
 - Browse and search audit entries
 - Filter by user, action type, entity, and date range
+- View outcome (`success`, `denied`, `failed`) and source (`web`, `api`, `background job`, `webhook`)
+- Trace related events by request/correlation ID across UI + API + async workflows
 - Export audit reports
 
-### 5.3 Data Import/Export
+### 5.3 Audit Logging Controls
+
+- Audit logging is on by default and cannot be disabled in production
+- Coverage includes auth events, data reads/writes/deletes, imports/exports, role/permission changes, sharing lifecycle, emergency access, and system jobs
+- Detect and alert on ingestion failures, lag, and tamper attempts
+- Enforce redaction for secrets and sensitive credentials before log persistence
+
+### 5.4 Data Import/Export
 
 - Import members from CSV
 - Import historical donation data from CSV
 - Export full parish data snapshot
 
-### 5.4 Notification Settings
+### 5.5 Notification Settings
 
 - Configure which system events trigger notifications
 - Set notification channels per event type
 - Manage parish communication templates
+
+### 5.6 Universal Sharing Center
+
+- Launch from top menu bar on any share-enabled page (report, list, record view, export)
+- Consistent share flow:
+  1. Choose share mode (`specific users`, `role-scoped`, `secure link`)
+  2. Select recipients or generate link
+  3. Set expiration and optional max views
+  4. Choose anonymized vs full-data projection (subject to role and policy)
+  5. Review effective access scope and confirm
+
+**Specific-user sharing:**
+
+- Share to one or more internal users by name/email
+- Recipient must be authenticated and explicitly listed
+- Sender can revoke recipient access at any time
+
+**Secure link sharing:**
+
+- Generate tokenized URL
+- Set expiration date/time (required for anonymous access)
+- Optional passcode and max-view cap
+- Revoke instantly from the same share panel or sharing management view
+
+**Anonymized links:**
+
+- De-identified by default for external-style sharing
+- Excludes direct identifiers and private notes
+- Read-only access; cannot be escalated to raw data
+
+**Audit and visibility:**
+
+- Track created shares, active shares, expired/revoked shares, and access attempts
+- Show access history by recipient/link with timestamp and outcome
 
 ---
 

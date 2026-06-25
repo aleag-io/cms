@@ -10,48 +10,44 @@ This document describes the core entities, their attributes, and relationships i
 
 ## 1. Entity Relationship Summary
 
-```
-Diocese
-  ├── has many Parishes
-  ├── has many DiocesanPrograms
-  ├── has many DiocesanOrganizations
-  └── has many Users (diocese-level)
+```mermaid
+erDiagram
+    DIOCESE ||--o{ PARISH : has
+    DIOCESE ||--o{ DIOCESAN_PROGRAM : has
+    DIOCESE ||--o{ DIOCESAN_ORGANIZATION : has
+    DIOCESE ||--o{ USER : has_diocese_level_users
 
-Parish
-  ├── belongs to Diocese
-  ├── has one ParishMemberIdConfig
-  ├── has many ParishOfficers (clergy + board)
-  ├── has many Families
-  ├── has many Members (directly, without family)
-  ├── has many ParishPrograms
-  ├── has many ParishOrganizations
-  ├── has many Events
-  ├── has many SacramentalRecords
-  ├── has many GivingCampaigns
-  ├── has many Facilities
-  ├── has many ParishPermissionOverrides
-  └── has many Users (parish-level)
+    PARISH }o--|| DIOCESE : belongs_to
+    PARISH ||--|| PARISH_MEMBER_ID_CONFIG : has
+    PARISH ||--o{ PARISH_OFFICER : has
+    PARISH ||--o{ FAMILY : has
+    PARISH ||--o{ MEMBER : has
+    PARISH ||--o{ PARISH_PROGRAM : has
+    PARISH ||--o{ PARISH_ORGANIZATION : has
+    PARISH ||--o{ EVENT : has
+    PARISH ||--o{ SACRAMENTAL_RECORD : has
+    PARISH ||--o{ GIVING_CAMPAIGN : has
+    PARISH ||--o{ FACILITY : has
+    PARISH ||--o{ PARISH_PERMISSION_OVERRIDE : has
+    PARISH ||--o{ USER : has_parish_level_users
 
-Family
-  ├── belongs to Parish
-  ├── has a parish-assigned member_number
-  ├── has many FamilyMembers (join: Member + relationship role)
-  └── has many GivingRecords
+    FAMILY }o--|| PARISH : belongs_to
+    FAMILY ||--o{ FAMILY_MEMBER : has
+    FAMILY ||--o{ GIVING_RECORD : has
 
-Member
-  ├── belongs to Family (optional — can exist without family)
-  ├── belongs to Parish
-  ├── has many SacramentalRecords
-  ├── has many MemberMinistries (join: Programs/Organizations)
-  ├── has many AttendanceRecords
-  ├── has many MemberRelationships (cross-family extended family links)
-  └── has one User account (optional)
+    MEMBER }o--|| PARISH : belongs_to
+    MEMBER }o--o| FAMILY : belongs_to_optional
+    MEMBER ||--o{ SACRAMENTAL_RECORD : has
+    MEMBER ||--o{ MEMBER_MINISTRY : has
+    MEMBER ||--o{ ATTENDANCE_RECORD : has
+    MEMBER ||--o{ MEMBER_RELATIONSHIP : has
+    MEMBER ||--o| USER : has_optional_account
 
-Organization
-  ├── belongs to Parish (or Diocese for diocesan orgs)
-  ├── has many OrganizationMembers
-  ├── has many OrganizationOfficers
-  └── optionally has own Accounts + JournalEntries (when has_own_ledger = true)
+    ORGANIZATION }o--o| PARISH : belongs_to_parish_or_diocese
+    ORGANIZATION ||--o{ ORGANIZATION_MEMBER : has
+    ORGANIZATION ||--o{ ORGANIZATION_OFFICER : has
+    ORGANIZATION ||--o{ ACCOUNT : has_optional_ledger
+    ORGANIZATION ||--o{ JOURNAL_ENTRY : has_optional_ledger
 ```
 
 ---
@@ -256,33 +252,38 @@ Tracks the official officers of the parish itself — clergy (vicar, associate p
 
 Represents a structured educational, social, or ministry program at either the diocese or parish level.
 
-| Field                   | Type      | Description                                                                                       |
-| ----------------------- | --------- | ------------------------------------------------------------------------------------------------- |
-| `id`                    | UUID      | Primary key                                                                                       |
-| `diocese_id`            | UUID (FK) | Owning diocese                                                                                    |
-| `parish_id`             | UUID (FK) | Owning parish (null = diocesan program)                                                           |
-| `name`                  | string    | Program name                                                                                      |
-| `description`           | text      |                                                                                                   |
-| `program_type`          | enum      | `religious_education`, `social_ministry`, `youth`, `adult_formation`, `sacramental_prep`, `other` |
-| `is_diocesan`           | boolean   | True if diocese-level program                                                                     |
-| `start_date`            | date      |                                                                                                   |
-| `end_date`              | date      | (null = ongoing)                                                                                  |
-| `coordinator_member_id` | UUID (FK) | Member who coordinates the program                                                                |
-| `status`                | enum      | `active`, `inactive`, `completed`                                                                 |
-| `created_at`            | datetime  |                                                                                                   |
-| `updated_at`            | datetime  |                                                                                                   |
+| Field                       | Type      | Description                                                                                       |
+| --------------------------- | --------- | ------------------------------------------------------------------------------------------------- |
+| `id`                        | UUID      | Primary key                                                                                       |
+| `diocese_id`                | UUID (FK) | Owning diocese                                                                                    |
+| `parish_id`                 | UUID (FK) | Owning parish (null = diocesan program)                                                           |
+| `name`                      | string    | Program name                                                                                      |
+| `description`               | text      |                                                                                                   |
+| `program_type`              | enum      | `religious_education`, `social_ministry`, `youth`, `adult_formation`, `sacramental_prep`, `other` |
+| `is_diocesan`               | boolean   | True if diocese-level program                                                                     |
+| `program_class`             | enum      | `standard`, `special_diocesan`                                                                    |
+| `visibility_scope`          | enum      | `diocese_public`, `restricted`                                                                    |
+| `enrollment_policy`         | enum      | `open`, `parish_nomination`, `invitation_only`                                                    |
+| `requires_diocese_approval` | boolean   | True when final approval must be completed by diocesan coordinator/admin                          |
+| `start_date`                | date      |                                                                                                   |
+| `end_date`                  | date      | (null = ongoing)                                                                                  |
+| `coordinator_member_id`     | UUID (FK) | Member who coordinates the program                                                                |
+| `status`                    | enum      | `active`, `inactive`, `completed`                                                                 |
+| `created_at`                | datetime  |                                                                                                   |
+| `updated_at`                | datetime  |                                                                                                   |
 
 ### 4.2 ProgramEnrollment
 
-| Field          | Type      | Description                                 |
-| -------------- | --------- | ------------------------------------------- |
-| `id`           | UUID      | Primary key                                 |
-| `program_id`   | UUID (FK) |                                             |
-| `member_id`    | UUID (FK) |                                             |
-| `role`         | enum      | `participant`, `facilitator`, `coordinator` |
-| `enrolled_at`  | date      |                                             |
-| `completed_at` | date      | (null = in progress)                        |
-| `notes`        | text      |                                             |
+| Field               | Type      | Description                                                    |
+| ------------------- | --------- | -------------------------------------------------------------- |
+| `id`                | UUID      | Primary key                                                    |
+| `program_id`        | UUID (FK) |                                                                |
+| `member_id`         | UUID (FK) |                                                                |
+| `role`              | enum      | `participant`, `facilitator`, `coordinator`                    |
+| `enrollment_status` | enum      | `nominated`, `approved`, `waitlisted`, `declined`, `completed` |
+| `enrolled_at`       | date      |                                                                |
+| `completed_at`      | date      | (null = in progress)                                           |
+| `notes`             | text      |                                                                |
 
 ---
 
@@ -543,18 +544,52 @@ Enables a Parish Admin to grant or deny specific capabilities to specific roles 
 
 ### 8.1 AuditEntry
 
-| Field         | Type      | Description                                                 |
-| ------------- | --------- | ----------------------------------------------------------- |
-| `id`          | UUID      | Primary key                                                 |
-| `user_id`     | UUID (FK) | Actor                                                       |
-| `diocese_id`  | UUID (FK) | Context                                                     |
-| `parish_id`   | UUID (FK) | Context (nullable)                                          |
-| `action`      | string    | Action performed (e.g., `member.create`, `donation.update`) |
-| `entity_type` | string    | Table/entity affected                                       |
-| `entity_id`   | UUID      | ID of affected record                                       |
-| `changes`     | jsonb     | Before/after values                                         |
-| `ip_address`  | string    | Requestor IP                                                |
-| `timestamp`   | datetime  | When action occurred                                        |
+| Field           | Type      | Description                                                                |
+| --------------- | --------- | -------------------------------------------------------------------------- |
+| `id`            | UUID      | Primary key                                                                |
+| `timestamp`     | datetime  | When the event occurred                                                    |
+| `actor_type`    | enum      | `user`, `system`, `service_account`                                        |
+| `user_id`       | UUID (FK) | Actor user ID (nullable for non-user actors)                               |
+| `actor_label`   | string    | Displayable actor identity (email, job name, webhook source)               |
+| `diocese_id`    | UUID (FK) | Tenant context                                                             |
+| `parish_id`     | UUID (FK) | Tenant context (nullable for diocese-wide actions)                         |
+| `request_id`    | string    | Correlation ID for end-to-end tracing                                      |
+| `session_id`    | string    | Auth session reference when applicable                                     |
+| `source`        | enum      | `web`, `api`, `background_job`, `webhook`, `migration`                     |
+| `action`        | string    | Action performed (e.g., `member.create`, `donation.update`, `auth.login`)  |
+| `outcome`       | enum      | `success`, `denied`, `failed`                                              |
+| `http_method`   | string    | HTTP verb when applicable                                                  |
+| `route`         | string    | Request route/endpoint when applicable                                     |
+| `entity_type`   | string    | Table/entity affected                                                      |
+| `entity_id`     | UUID      | ID of affected record (nullable for non-entity events)                     |
+| `data_category` | string    | Security category (e.g., `sacramental_records`, `giving_detail`)           |
+| `changes`       | jsonb     | Before/after values or compact change set                                  |
+| `metadata`      | jsonb     | Additional structured context (filters, export scope, job run identifiers) |
+| `ip_address`    | string    | Requestor IP when available                                                |
+| `user_agent`    | string    | Requestor user-agent when available                                        |
+| `is_redacted`   | boolean   | Indicates payload includes masked/redacted sensitive values                |
+
+**AuditEntry invariants:**
+
+- Entries are append-only from application APIs (no update/delete).
+- Secret material (passwords, tokens, keys) must never be stored in plaintext.
+- Security-sensitive reads should capture enough context to support forensics (who, what category, when, why).
+
+### 8.2 AuditRetentionPolicy
+
+Defines retention, archival, and purge behavior for audit data.
+
+| Field                | Type      | Description                                                        |
+| -------------------- | --------- | ------------------------------------------------------------------ |
+| `id`                 | UUID      | Primary key                                                        |
+| `scope`              | enum      | `global`, `diocese`, `parish`                                      |
+| `scope_id`           | UUID      | Nullable; required for scoped policies                             |
+| `hot_retention_days` | integer   | Online query retention window                                      |
+| `archive_after_days` | integer   | Days after which records move to archive tier                      |
+| `delete_after_days`  | integer   | Days after which archived records are eligible for secure deletion |
+| `legal_hold`         | boolean   | Prevents deletion while compliance/legal hold is active            |
+| `updated_by_user_id` | UUID (FK) | Last actor who changed policy                                      |
+| `updated_at`         | datetime  | Last update timestamp                                              |
 
 ---
 
@@ -624,6 +659,74 @@ A Diocese Admin–only override granting temporary access to parish data in exce
 | `is_active`                | boolean   | Set to `false` on expiry or early revocation      |
 | `revoked_at`               | datetime  | Nullable                                          |
 | `notified_parish_admin_at` | datetime  | When notification was sent to Parish Admin        |
+
+### 9.4 ResourceShareGrant
+
+Represents a contextual share created from any supported page/resource in the application.
+
+| Field                   | Type      | Description                                                                 |
+| ----------------------- | --------- | --------------------------------------------------------------------------- |
+| `id`                    | UUID      | Primary key                                                                 |
+| `diocese_id`            | UUID (FK) | Tenant context                                                              |
+| `parish_id`             | UUID (FK) | Nullable for diocese-only resources                                         |
+| `resource_type`         | enum      | `report`, `list_view`, `record_view`, `export`                              |
+| `resource_id`           | string    | Logical identifier of shared resource or query snapshot                     |
+| `share_mode`            | enum      | `user_share`, `role_share`, `secure_link`                                   |
+| `permission`            | enum      | `view` (default), `comment` (future), `edit` (future)                       |
+| `anonymized`            | boolean   | `true` enforces de-identified projection only                               |
+| `anonymization_profile` | string    | Named profile applied when anonymized (e.g., `member_summary_deidentified`) |
+| `expires_at`            | datetime  | Optional for user/role share; required for anonymous secure links           |
+| `max_views`             | integer   | Optional cap for secure link usage                                          |
+| `view_count`            | integer   | Current successful access count                                             |
+| `is_active`             | boolean   | `false` if revoked/expired                                                  |
+| `created_by_user_id`    | UUID (FK) | Actor who created share                                                     |
+| `created_at`            | datetime  |                                                                             |
+| `revoked_at`            | datetime  | Nullable                                                                    |
+| `revoked_by_user_id`    | UUID (FK) | Nullable                                                                    |
+| `notes`                 | text      | Optional sharing reason/context                                             |
+
+### 9.5 ResourceShareRecipient
+
+Recipient mapping for user-scoped and role-scoped shares.
+
+| Field               | Type      | Description                           |
+| ------------------- | --------- | ------------------------------------- |
+| `id`                | UUID      | Primary key                           |
+| `resource_share_id` | UUID (FK) | Parent `ResourceShareGrant`           |
+| `recipient_type`    | enum      | `user`, `role`                        |
+| `recipient_user_id` | UUID (FK) | Required when `recipient_type = user` |
+| `recipient_role`    | string    | Required when `recipient_type = role` |
+| `created_at`        | datetime  |                                       |
+
+### 9.6 SecureShareLink
+
+Token-backed link metadata for `share_mode = secure_link`.
+
+| Field               | Type      | Description                               |
+| ------------------- | --------- | ----------------------------------------- |
+| `id`                | UUID      | Primary key                               |
+| `resource_share_id` | UUID (FK) | Parent `ResourceShareGrant`               |
+| `token_hash`        | string    | Hashed token (raw token never persisted)  |
+| `passcode_hash`     | string    | Optional hashed passcode                  |
+| `allow_anonymous`   | boolean   | Whether unauthenticated access is allowed |
+| `first_accessed_at` | datetime  | Nullable                                  |
+| `last_accessed_at`  | datetime  | Nullable                                  |
+| `last_access_ip`    | string    | Nullable                                  |
+| `created_at`        | datetime  |                                           |
+
+### 9.7 ResourceShareAccessEvent
+
+High-volume access telemetry for shared resources (supplements global audit log).
+
+| Field                 | Type      | Description                                                               |
+| --------------------- | --------- | ------------------------------------------------------------------------- |
+| `id`                  | UUID      | Primary key                                                               |
+| `resource_share_id`   | UUID (FK) | Parent share                                                              |
+| `event_type`          | enum      | `view_success`, `view_denied`, `expired`, `revoked`, `max_views_exceeded` |
+| `accessed_by_user_id` | UUID (FK) | Nullable for anonymous link access                                        |
+| `request_id`          | string    | Correlation ID                                                            |
+| `ip_address`          | string    |                                                                           |
+| `created_at`          | datetime  |                                                                           |
 
 ---
 

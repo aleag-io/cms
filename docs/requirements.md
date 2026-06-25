@@ -24,20 +24,25 @@ This document captures the functional and non-functional requirements for the Ma
 | MT-10 | Sharing grants shall support an optional **expiry date**; expired grants shall be automatically deactivated and access revoked without requiring manual action.                                                                                                                                                                                  |
 | MT-11 | Parish Admins shall be able to **revoke any active sharing grant** at any time with immediate effect; revocation shall invalidate any cached results for that grant within the same request cycle.                                                                                                                                               |
 | MT-12 | In exceptional circumstances, Diocese Admins may invoke a time-limited **Emergency Access** override (≤ 7 days) for a specific parish; this event shall generate an automated notification to the Parish Admin, require a documented justification, and be prominently visible in both the parish and diocese audit logs.                        |
+| MT-13 | The system shall provide a **unified sharing workflow** for supported resources (reports, filtered lists, record views, and exports) with three delivery modes: direct share to specific internal users, role-scoped share, and secure link share.                                                                                               |
+| MT-14 | Secure link shares shall support configurable expiration (date/time), optional maximum view count, and immediate revocation. Expired, exhausted, or revoked links shall return an access-denied response.                                                                                                                                        |
+| MT-15 | Link shares designated as **anonymized** shall expose only de-identified fields according to resource-level anonymization rules and shall never include direct personal identifiers or private notes.                                                                                                                                            |
 
 ---
 
 ### 1.2 Diocese Administration
 
-| ID   | Requirement                                                                                                                                         |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DA-1 | The system shall provide a diocese-level dashboard showing aggregate statistics (total members, upcoming events, etc.).                             |
-| DA-2 | Diocese administrators shall be able to create and manage diocese-wide **programs** (e.g., religious education programs, social ministry).          |
-| DA-3 | Diocese administrators shall be able to create and manage diocese-level **organizations** (e.g., Knights of Columbus, Catholic Youth Organization). |
-| DA-4 | The system shall support diocese-wide **communications** sent to all parishes or selected subsets.                                                  |
-| DA-5 | Diocese administrators shall be able to create and publish a **liturgical calendar** visible across all parishes.                                   |
-| DA-6 | The system shall generate diocese-level **reports** (membership trends, sacramental statistics, financial summaries).                               |
-| DA-7 | Diocese administrators shall be able to configure system-wide settings (branding, fiscal year, sacramental record templates).                       |
+| ID   | Requirement                                                                                                                                                                                                 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DA-1 | The system shall provide a diocese-level dashboard showing aggregate statistics (total members, upcoming events, etc.).                                                                                     |
+| DA-2 | Diocese administrators shall be able to create and manage diocese-wide **programs** (e.g., religious education programs, social ministry).                                                                  |
+| DA-3 | Diocese administrators shall be able to create and manage diocese-level **organizations** (e.g., Knights of Columbus, Catholic Youth Organization).                                                         |
+| DA-4 | The system shall support diocese-wide **communications** sent to all parishes or selected subsets.                                                                                                          |
+| DA-5 | Diocese administrators shall be able to create and publish a **liturgical calendar** visible across all parishes.                                                                                           |
+| DA-6 | The system shall generate diocese-level **reports** (membership trends, sacramental statistics, financial summaries).                                                                                       |
+| DA-7 | Diocese administrators shall be able to configure system-wide settings (branding, fiscal year, sacramental record templates).                                                                               |
+| DA-8 | The system shall support **special diocese-level programs** with configurable governance controls (restricted coordinator assignment, enrollment policy, and visibility scope).                             |
+| DA-9 | Special diocese-level programs shall support parish nomination and approval workflows where required by policy, including status tracking (`nominated`, `approved`, `waitlisted`, `declined`, `completed`). |
 
 ---
 
@@ -101,14 +106,21 @@ This document captures the functional and non-functional requirements for the Ma
 
 ### 1.6 Authentication & Access
 
-| ID   | Requirement                                                                                           |
-| ---- | ----------------------------------------------------------------------------------------------------- |
-| AU-1 | The system shall require authenticated login for all users.                                           |
-| AU-2 | The system shall support **role-based access control** (see [user-roles.md](user-roles.md)).          |
-| AU-3 | The system shall support **Single Sign-On (SSO)** via OAuth 2.0 / OIDC providers (Google, Microsoft). |
-| AU-4 | The system shall support **multi-factor authentication (MFA)**.                                       |
-| AU-5 | User sessions shall expire after a configurable period of inactivity.                                 |
-| AU-6 | All user actions shall be **audited** with timestamp, user identity, and action taken.                |
+| ID    | Requirement                                                                                                                                                                                                                                                                                                |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AU-1  | The system shall require authenticated login for all users.                                                                                                                                                                                                                                                |
+| AU-2  | The system shall support **role-based access control** (see [user-roles.md](user-roles.md)).                                                                                                                                                                                                               |
+| AU-3  | The system shall support **Single Sign-On (SSO)** via OAuth 2.0 / OIDC providers (Google, Microsoft).                                                                                                                                                                                                      |
+| AU-4  | The system shall support **multi-factor authentication (MFA)**.                                                                                                                                                                                                                                            |
+| AU-5  | User sessions shall expire after a configurable period of inactivity.                                                                                                                                                                                                                                      |
+| AU-6  | All user actions shall be **audited** with timestamp, actor identity, action, target entity, and outcome (`success`/`denied`/`failed`).                                                                                                                                                                    |
+| AU-7  | Audit logging coverage shall include **all operations**: authentication events (login/logout/MFA/challenge failures), read operations, create/update/delete operations, imports/exports, role and permission changes, sharing grant/request lifecycle, emergency access, and system configuration changes. |
+| AU-8  | Actions performed by non-human actors (scheduled jobs, webhook handlers, background workers, service accounts) shall also generate audit entries with actor type `system`.                                                                                                                                 |
+| AU-9  | Audit logging shall be **enabled by default** in all environments; disabling or bypassing audit logging in production is prohibited.                                                                                                                                                                       |
+| AU-10 | Audit entries shall be write-once append-only records; update/delete of historical audit entries shall not be permitted through application APIs.                                                                                                                                                          |
+| AU-11 | Audit events shall include a request correlation identifier so that all events in a single request/workflow can be traced end-to-end.                                                                                                                                                                      |
+| AU-12 | Share tokens used for secure links shall be cryptographically random, stored only as hashes at rest, and validated with constant-time comparison.                                                                                                                                                          |
+| AU-13 | When a share is restricted to specific users, access shall require authenticated identity match against the recipient list before content is displayed.                                                                                                                                                    |
 
 ---
 
@@ -136,6 +148,8 @@ This document captures the functional and non-functional requirements for the Ma
 | SE-4 | Sensitive fields (sacramental records, giving detail, financial ledger) shall have additional access controls and audit logging. Access to these categories shall generate a per-record audit entry.                                                                                                                                                         |
 | SE-5 | The system shall pass annual security audits and support GDPR/CCPA-compatible data handling.                                                                                                                                                                                                                                                                 |
 | SE-6 | Parishes shall be **opaque to each other**: no parish-level role shall have any access to data belonging to another parish. The only defined cross-parish data flows are the member transfer workflow and diocese program enrollment, both of which expose only the minimum required fields.                                                                 |
+| SE-7 | Any attempt to tamper with, suppress, or bypass audit logging shall be treated as a security event and shall generate an alert and an immutable audit entry.                                                                                                                                                                                                 |
+| SE-8 | Sensitive audit payloads shall avoid storing plaintext secrets (passwords, tokens, keys); such values shall be redacted or masked before persistence.                                                                                                                                                                                                        |
 
 ### 2.2 Performance
 
@@ -156,11 +170,12 @@ This document captures the functional and non-functional requirements for the Ma
 
 ### 2.3 Availability & Reliability
 
-| ID   | Requirement                                                                                   |
-| ---- | --------------------------------------------------------------------------------------------- |
-| AV-1 | The system shall target 99.9% uptime (excluding planned maintenance).                         |
-| AV-2 | Automated database backups shall occur daily with a 30-day retention period.                  |
-| AV-3 | The system shall support disaster recovery with a Recovery Point Objective (RPO) of 24 hours. |
+| ID   | Requirement                                                                                                                                                                              |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AV-1 | The system shall target 99.9% uptime (excluding planned maintenance).                                                                                                                    |
+| AV-2 | Automated database backups shall occur daily with a 30-day retention period.                                                                                                             |
+| AV-3 | The system shall support disaster recovery with a Recovery Point Objective (RPO) of 24 hours.                                                                                            |
+| AV-4 | The audit pipeline shall be resilient: if downstream delivery is degraded, events shall be queued and replayed without loss, and ingestion lag shall be monitored with alert thresholds. |
 
 ### 2.4 Usability
 
@@ -179,6 +194,8 @@ This document captures the functional and non-functional requirements for the Ma
 | UX-11 | Error pages (404, 500, unauthorized) shall provide a meaningful message and a clear path to navigate back to a safe page, not a generic browser error.                                               |
 | UX-12 | The sidebar and top-level navigation shall be role-aware: users shall only see menu items relevant to their role and tenant scope.                                                                   |
 | UX-13 | Data tables shall support inline sorting by clicking column headers and shall preserve sort/filter/page state when the user navigates away and returns within the same session.                      |
+| UX-14 | A **Share** action shall be accessible from the top menu bar on every page where the current user has sharing permission for the current resource context.                                           |
+| UX-15 | The Share panel shall use a consistent flow on all pages: choose share mode, set recipients/scope, set expiration, choose anonymization, review permissions, and confirm.                            |
 
 ### 2.5 Scalability
 
