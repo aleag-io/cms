@@ -6,6 +6,7 @@ services:
     volumes:
       - ..:/workspaces/cms:cached
       - node_modules:/workspaces/cms/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock
     command: sleep infinity
     environment:
       NODE_ENV: development
@@ -15,6 +16,8 @@ services:
       PGDATABASE: cms
       PGUSER: cms
       PGPASSWORD: cms-dev-password
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

@@ -228,7 +228,7 @@ Docker Desktop
 VS Code with Dev Containers extension
 
 # Local workflow (default)
-node >= 20
+node >= 24
 npm >= 10
 
 # Install dependencies

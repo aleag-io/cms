@@ -6,7 +6,7 @@ PORT ?= 3000
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev build start lint db-seed db-reset db-migrate
+.PHONY: help install dev build start lint prisma-generate prisma-migrate prisma-studio db-seed db-reset db-migrate supabase-init supabase-start supabase-stop supabase-status supabase-reset
 
 help:
 	@echo "Available targets:"
@@ -15,9 +15,17 @@ help:
 	@echo "  make build                  Build production bundle"
 	@echo "  make start                  Start production server"
 	@echo "  make lint                   Run ESLint"
+	@echo "  make prisma-generate        Generate Prisma client"
+	@echo "  make prisma-migrate         Run Prisma dev migration"
+	@echo "  make prisma-studio          Open Prisma Studio"
 	@echo "  make db-seed                Run npm script db:seed (when added)"
 	@echo "  make db-reset               Run npm script db:reset (when added)"
 	@echo "  make db-migrate             Run npm script db:migrate (when added)"
+	@echo "  make supabase-init          Initialize Supabase local config"
+	@echo "  make supabase-start         Start Supabase local stack"
+	@echo "  make supabase-stop          Stop Supabase local stack"
+	@echo "  make supabase-status        Show Supabase local status"
+	@echo "  make supabase-reset         Reset Supabase local database"
 	@echo ""
 	@echo "Optional variables: HOST=$(HOST) PORT=$(PORT)"
 
@@ -35,6 +43,15 @@ start:
 
 lint:
 	$(NPM) run lint
+
+prisma-generate:
+	$(NPM) run prisma:generate
+
+prisma-migrate:
+	$(NPM) run prisma:migrate:dev
+
+prisma-studio:
+	$(NPM) run prisma:studio
 
 db-seed:
 	@if $(NPM) run | grep -q "  db:seed"; then \
@@ -59,3 +76,18 @@ db-migrate:
 		echo "No db:migrate script found in package.json yet."; \
 		echo "Add one and this target will work without changing the Makefile."; \
 	fi
+
+supabase-init:
+	$(NPM) run supabase:init
+
+supabase-start:
+	$(NPM) run supabase:start
+
+supabase-stop:
+	$(NPM) run supabase:stop
+
+supabase-status:
+	$(NPM) run supabase:status
+
+supabase-reset:
+	$(NPM) run supabase:reset

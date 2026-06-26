@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=20",
+    "node": ">=24",
     "npm": ">=10"
   },
   "packageManager": "npm@11.17.0",
@@ -11,9 +11,22 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "db:migrate": "npm run prisma:migrate:dev",
+    "db:reset": "prisma migrate reset --skip-generate",
+    "db:seed": "echo 'Add prisma/seed.ts and wire prisma.seed when ready'",
+    "supabase:init": "supabase init",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "supabase:reset": "supabase db reset"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "@base-ui/react": "^1.6.0",
     "@phosphor-icons/react": "^2.1.10",
     "class-variance-authority": "^0.7.1",
@@ -38,17 +51,22 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "prisma": "^6.19.3",
+    "supabase": "^2.108.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
   "allowScripts": {
     "sharp@0.34.5": true,
-    "unrs-resolver@1.12.2": true
+    "unrs-resolver@1.12.2": true,
+    "prisma@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "@prisma/client@6.19.3": true
   },
   "overrides": {
     "postcss": "^8.5.10"

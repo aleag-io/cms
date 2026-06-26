@@ -32,7 +32,7 @@ The CMS provides a unified system for managing:
 
 The recommended workflow is to run locally on macOS with npm for the fastest feedback loop.
 
-1. Install Node.js 20.x and npm 10.x.
+1. Install Node.js 24.x LTS and npm 10.x or newer.
 2. Install dependencies: `npm install`
 3. Copy `.env.example` to `.env.local` if you need local overrides.
 4. Start the app: `npm run dev`
@@ -44,6 +44,27 @@ Use the VS Code Dev Container when you want environment parity across machines o
 3. The container runs `npm install` on create and starts `npm run dev` on port 3000.
 
 The container exposes the Next.js dev server on port 3000 and PostgreSQL on port 5432.
+
+## Prisma + Supabase Local In Dev Container
+
+This repository is configured so you can run Prisma and Supabase Local from inside the devcontainer.
+
+1. Rebuild the devcontainer after pulling these changes.
+2. Install dependencies if needed: `make install`
+3. Generate Prisma client: `make prisma-generate`
+4. Initialize Supabase once: `make supabase-init`
+5. Start Supabase local stack: `make supabase-start`
+6. Check status/keys/URLs: `make supabase-status`
+
+When Supabase Local is running, use this database URL for Prisma:
+
+`DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:54322/postgres?schema=public`
+
+Notes:
+
+1. The devcontainer mounts `/var/run/docker.sock` and includes Docker CLI so Supabase CLI can manage its local services.
+2. Supabase ports forwarded by the devcontainer include API `54321`, DB `54322`, Studio `54323`, and Inbucket `54324`.
+3. Existing local PostgreSQL service on `5432` is still available if you are not using Supabase Local.
 
 ## Key Design Principles
 

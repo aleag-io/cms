@@ -11,7 +11,7 @@
     "SSH_AUTH_SOCK": "/ssh-agent"
   },
   "overrideCommand": false,
-  "forwardPorts": [3000, 5432],
+  "forwardPorts": [3000, 5432, 54321, 54322, 54323, 54324],
   "portsAttributes": {
     "3000": {
       "label": "Next.js dev server",
@@ -19,6 +19,18 @@
     },
     "5432": {
       "label": "PostgreSQL"
+    },
+    "54321": {
+      "label": "Supabase API"
+    },
+    "54322": {
+      "label": "Supabase Postgres"
+    },
+    "54323": {
+      "label": "Supabase Studio"
+    },
+    "54324": {
+      "label": "Supabase Inbucket"
     }
   },
   "postCreateCommand": "bash -lc 'if [ -f package.json ]; then npm install; fi && if [ -f .env.example ] && [ ! -f .env.local ]; then cp .env.example .env.local; fi'",

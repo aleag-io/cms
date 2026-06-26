@@ -1,4 +1,4 @@
-FROM node:20-bookworm
+FROM node:24-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -9,6 +9,7 @@ RUN apt-get update \
     bash \
     ca-certificates \
     curl \
+    docker.io \
     git \
     jq \
     openssh-client \
