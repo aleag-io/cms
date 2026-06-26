@@ -2,6 +2,8 @@ FROM node:20-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+RUN npm install -g npm@latest
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \
