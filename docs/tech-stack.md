@@ -220,39 +220,36 @@ This document is the definitive reference for the confirmed technology choices f
 
 ### Recommended workflow
 
-Use the VS Code Dev Container as the default local environment. It standardizes Node.js, pnpm, and PostgreSQL across macOS and Windows, and it keeps the local setup aligned with the hosted Next.js + Supabase + PostgreSQL architecture.
+Use local macOS development with npm as the default workflow for faster iteration. Use the VS Code Dev Container when you need reproducible tooling and a bundled PostgreSQL service.
 
 ```bash
 # Prerequisites
 Docker Desktop
 VS Code with Dev Containers extension
 
-# Open the repository in a dev container
-# VS Code command palette -> Dev Containers: Reopen in Container
-
-# Optional tooling for later Supabase integration work
-Supabase CLI
-Vercel CLI
-
-# Inside the dev container
+# Local workflow (default)
 node >= 20
-pnpm (via Corepack)
-
-# The dev container starts a local PostgreSQL 16 service automatically.
-# Use the container's DATABASE_URL for app development.
+npm >= 10
 
 # Install dependencies
-pnpm install
+npm install
 
 # Copy environment variables
 cp .env.example .env.local
 # Fill in any external integration keys or Supabase values when needed.
 
-# Run the app once it exists
-pnpm dev
-
 # Start Next.js dev server
-pnpm dev
+npm run dev
+
+# Optional tooling for later Supabase integration work
+Supabase CLI
+Vercel CLI
+
+# Optional container workflow
+# VS Code command palette -> Dev Containers: Reopen in Container
+
+# The dev container starts a local PostgreSQL 16 service automatically.
+# Use the container's DATABASE_URL for app development.
 ```
 
 ---

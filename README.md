@@ -30,12 +30,18 @@ The CMS provides a unified system for managing:
 
 ## Development Environment
 
-The recommended local setup is a VS Code Dev Container backed by Docker. It gives the same Node.js and PostgreSQL environment on macOS and Windows, and it avoids host-specific tooling drift.
+The recommended workflow is to run locally on macOS with npm for the fastest feedback loop.
+
+1. Install Node.js 20.x and npm 10.x.
+2. Install dependencies: `npm install`
+3. Copy `.env.example` to `.env.local` if you need local overrides.
+4. Start the app: `npm run dev`
+
+Use the VS Code Dev Container when you want environment parity across machines or a pre-wired PostgreSQL 16 service.
 
 1. Install Docker Desktop and VS Code.
 2. Open the repository in VS Code and choose **Dev Containers: Reopen in Container**.
-3. The container starts a Node 20 workspace and a local PostgreSQL 16 database.
-4. Copy `.env.example` to `.env.local` if you need to override any values.
+3. The container runs `npm install` on create and starts `npm run dev` on port 3000.
 
 The container exposes the Next.js dev server on port 3000 and PostgreSQL on port 5432.
 

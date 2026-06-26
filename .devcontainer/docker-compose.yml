@@ -6,7 +6,6 @@ services:
     volumes:
       - ..:/workspaces/cms:cached
       - node_modules:/workspaces/cms/node_modules
-      - pnpm_store:/pnpm/store
     command: sleep infinity
     environment:
       NODE_ENV: development
@@ -41,5 +40,4 @@ services:
 
 volumes:
   node_modules:
-  pnpm_store:
   postgres_data:

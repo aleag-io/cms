@@ -14,18 +14,53 @@
       "label": "PostgreSQL"
     }
   },
-  "postCreateCommand": "bash -lc 'corepack enable && if [ -f package.json ]; then pnpm install; fi && if [ -f .env.example ] && [ ! -f .env.local ]; then cp .env.example .env.local; fi'",
+  "postCreateCommand": "bash -lc 'if [ -f package.json ]; then npm install; fi && if [ -f .env.example ] && [ ! -f .env.local ]; then cp .env.example .env.local; fi'",
+  "postStartCommand": "bash -lc 'if [ -f package.json ]; then pgrep -f \"next dev\" >/dev/null || nohup npm run dev -- --hostname 0.0.0.0 --port 3000 > /tmp/cms-dev.log 2>&1 & fi'",
   "customizations": {
     "vscode": {
       "extensions": [
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "bradlc.vscode-tailwindcss",
-        "ms-azuretools.vscode-docker"
+        "ms-azuretools.vscode-docker",
+        "ms-vscode.vscode-typescript-next",
+        "eamodio.gitlens",
+        "usernamehw.errorlens",
+        "streetsidesoftware.code-spell-checker",
+        "ms-vscode.vscode-json",
+        "yzhang.markdown-all-in-one"
       ],
       "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
         "editor.formatOnSave": true,
-        "files.eol": "\n"
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "editor.quickSuggestions": {
+          "strings": true
+        },
+        "files.eol": "\n",
+        "files.insertFinalNewline": true,
+        "files.trimTrailingWhitespace": true,
+        "eslint.validate": [
+          "javascript",
+          "javascriptreact",
+          "typescript",
+          "typescriptreact"
+        ],
+        "eslint.workingDirectories": [
+          {
+            "mode": "auto"
+          }
+        ],
+        "tailwindCSS.includeLanguages": {
+          "typescript": "javascript",
+          "typescriptreact": "javascript"
+        },
+        "js/ts.tsserver.maxMemory": 4096,
+        "js/ts.updateImportsOnFileMove.enabled": "always",
+        "npm.packageManager": "npm",
+        "terminal.integrated.defaultProfile.linux": "bash"
       }
     }
   }

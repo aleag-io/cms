@@ -2,6 +2,11 @@
   "name": "CMS",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "packageManager": "npm@10",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
