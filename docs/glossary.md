@@ -41,6 +41,9 @@ A music ministry that leads congregational singing at liturgical celebrations. O
 **Confirmation**
 Also called **Miron Anointing**. A sacrament in which a baptized person is strengthened by the Holy Spirit for Christian life and witness.
 
+**Contextual Sharing** (also **In-App Sharing**)
+A workflow allowing users with access to a resource (member list, report, record) to immediately share that resource via three modes: (1) direct share to specific internal users, (2) role-scoped share to all users holding a specific role, or (3) secure anonymous link. Distinct from _DataSharingGrant_, which is a system-level data category access grant.
+
 **CMS**
 Church Management System — the software product described in this documentation.
 
@@ -54,12 +57,21 @@ A geographic administrative division of the Church, led by a Bishop. A diocese c
 **Donation**
 A monetary gift made by a family or member to the parish, optionally associated with a _campaign_ or _fund_.
 
+**DataSharingGrant**
+A time-scoped authorization issued by a Parish Admin that permits Diocese Admin or Diocese Staff access to a specific category of parish data (e.g., `member_directory`, `sacramental_records`). Grants are explicitly created and can be revoked at any time.
+
 ---
 
 ## E
 
+**Emergency Access**
+A time-limited (≤ 7 days) override that allows a Diocese Admin to read a specific parish's data without requiring the Parish Admin's prior approval. All emergency access events are logged prominently in both parish and diocese audit trails and trigger an automated notification to the Parish Admin with the justification for the override.
+
 **Envelope Number**
 A unique identifier assigned to a family for tracking their giving contributions. Named after the physical giving envelopes used in many parishes.
+
+**Exclusive (Membership Mode)**
+A membership mode for organizations in which a member is permitted to hold at most one active membership across all organizations of the same type within the same parish. For example, if `prayer_group` organizations are marked `exclusive`, a member cannot join two prayer groups simultaneously (though they may transition from one to another by ending the first membership). This constraint is enforced at the database layer.
 
 ---
 
@@ -143,6 +155,9 @@ The central act of Catholic worship, also called the Eucharistic celebration or 
 **Mass Intention**
 A Mass celebrated for a specific spiritual intention (e.g., the repose of the soul of a deceased person, or the healing of a sick family member). See also: _Feature Backlog_.
 
+**Maker-Checker (Approval Workflow)**
+A dual-control approval pattern in which one user creates or submits a financial transaction (journal entry, vendor bill, or payment) and a second user independently verifies and approves it before posting. The system supports three workflow modes: `strict` (all transactions require approval), `threshold_based` (only transactions exceeding configured amount thresholds require approval), and `hybrid` (both modes combined based on transaction type).
+
 **Member**
 An individual person associated with a parish, either through a family record or as a standalone registration.
 
@@ -203,6 +218,12 @@ In the Mar Thoma Church, one of the seven sacramental rites: Holy Baptism, Holy 
 
 **Sacramental Record**
 An official record of a sacrament administered to a person, including date, minister, parish, and register reference (book, page, entry number).
+
+**Sharing Grant** (see also **DataSharingGrant**)
+An explicit authorization issued by a Parish Admin to grant diocese-level users access to a defined category of parish data for a set period. Grants are recorded in the system, expire automatically if a deadline is set, and can be revoked immediately at any time.
+
+**Sharing Request** (or **DataSharingRequest**)
+A formal request from a Diocese Admin to a Parish Admin for access to a specific parish data category. The Parish Admin receives notification and can approve or reject the request; no access is granted until approved.
 
 **SSO (Single Sign-On)**
 An authentication method allowing users to log in using a third-party identity provider (e.g., Google Workspace, Microsoft Entra) rather than a separate username/password.

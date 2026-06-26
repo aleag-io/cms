@@ -169,7 +169,46 @@ This document provides a detailed description of each feature area of the Mar Th
 - Filter by ministry, age group, status
 - View complete member profile
 
-#### 2.2.4 Extended Family Relationships
+#### 2.2.4 Member Self-Registration (Member Portal)
+
+**Summary:** Allow parishioners to self-register via the member portal without requiring parish staff to manually create their profiles.
+
+**Access:** Unauthenticated users via public portal link or email/SMS invitation
+
+**Key Workflows:**
+
+1. Parishioner receives invitation link (email or SMS) or visits parish public portal
+2. Completes registration form with:
+   - Personal information (name, DOB, gender, email, phone)
+   - Optional: family affiliation (select existing family or register as new family)
+   - Optional: sacramental information (dates of key sacraments)
+   - Emergency contact
+3. System creates Member record and optional User account
+4. (Configurable) Submission requires Parish Admin approval before member appears in parish directory and receives full portal access
+5. Upon approval, member gains access to:
+   - Own profile view/edit
+   - Family record view
+   - Parish member directory (basic details only)
+   - Own giving history and statements
+   - Parish calendar and event RSVP
+   - Communications opt-in/opt-out
+
+**Configuration Options:**
+
+- Auto-approve self-registrations or require Parish Admin review (default: require review)
+- Which family affiliation options to offer (existing families only, or allow new family creation)
+- Which sacramental fields are required vs. optional
+- Enable/disable registration invitations vs. open registration
+
+**Privacy & Access:**
+
+- Self-registered members initially cannot see pastoral-sensitive date fields (DOB, sacramental dates) of other members until after approval
+- Private notes are never visible to members
+- Member profile updates are logged in audit trail
+
+---
+
+#### 2.2.5 Extended Family Relationships
 
 **Summary:** Link members across separate family records to capture extended family ties within the parish.
 
@@ -182,7 +221,7 @@ This document provides a detailed description of each feature area of the Mar Th
 
 **Example:** John Smith (family #100) is the son of Robert Smith (family #101). The `MemberRelationship` record links John → Robert as `parent` / Robert → John as `child`, even though they belong to separate family records.
 
-#### 2.2.4 Member Transfers
+#### 2.2.6 Member Transfers
 
 **Summary:** Handle parishioners moving to or from another parish.
 
