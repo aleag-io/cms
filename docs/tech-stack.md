@@ -220,12 +220,11 @@ This document is the definitive reference for the confirmed technology choices f
 
 ### Recommended workflow
 
-Use local macOS development with npm as the default workflow for faster iteration. Use the VS Code Dev Container when you need reproducible tooling and a bundled PostgreSQL service.
+Use local macOS development with npm as the default workflow for faster iteration.
 
 ```bash
 # Prerequisites
 Docker Desktop
-VS Code with Dev Containers extension
 
 # Local workflow (default)
 node >= 24
@@ -244,12 +243,6 @@ npm run dev
 # Optional tooling for later Supabase integration work
 Supabase CLI
 Vercel CLI
-
-# Optional container workflow
-# VS Code command palette -> Dev Containers: Reopen in Container
-
-# The dev container starts a local PostgreSQL 16 service automatically.
-# Use the container's DATABASE_URL for app development.
 ```
 
 ---

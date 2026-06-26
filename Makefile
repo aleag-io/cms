@@ -6,7 +6,7 @@ PORT ?= 3000
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev build start lint prisma-generate prisma-migrate prisma-studio db-seed db-reset db-migrate supabase-init supabase-start supabase-stop supabase-status supabase-reset
+.PHONY: help install dev build start lint prisma-generate prisma-migrate prisma-studio db-seed db-reset db-migrate supabase supabase-init supabase-start supabase-stop supabase-status supabase-reset init
 
 help:
 	@echo "Available targets:"
@@ -76,6 +76,16 @@ db-migrate:
 		echo "No db:migrate script found in package.json yet."; \
 		echo "Add one and this target will work without changing the Makefile."; \
 	fi
+
+supabase:
+	@echo "Supabase commands:" \
+	&& echo "  make supabase-init" \
+	&& echo "  make supabase-start" \
+	&& echo "  make supabase-stop" \
+	&& echo "  make supabase-status" \
+	&& echo "  make supabase-reset"
+
+init: supabase-init
 
 supabase-init:
 	$(NPM) run supabase:init
