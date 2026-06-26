@@ -433,6 +433,7 @@ The admin may override the default membership mode when creating or editing an o
 - The corresponding entity admin configures policy for their scope: Diocese Admin, Parish Admin, or Organization Admin
 - Workflow mode is selectable per entity: `strict`, `threshold_based`, or `hybrid`
 - Approval thresholds and approver roles are configurable per entity policy
+- Each entity instance can choose its own model; suggested parent defaults do not prevent local selection
 - Approval and override actions are fully audited
 
 ---
@@ -606,6 +607,14 @@ _(See 2.8)_
 
 - Track created shares, active shares, expired/revoked shares, and access attempts
 - Show access history by recipient/link with timestamp and outcome
+
+### 5.7 Global Finance Approval Policy Dashboard
+
+- Read-only dashboard for Global Admin/Developer users
+- Shows each entity (diocese, parish, organization) and its active workflow mode
+- Displays configured thresholds, approver role set, and last updated actor/timestamp
+- Supports filtering by entity scope, workflow mode, and out-of-policy configurations
+- Allows drill-through to the owning entity settings page for authorized admins
 
 ---
 

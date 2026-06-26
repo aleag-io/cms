@@ -45,6 +45,7 @@ This document captures the functional and non-functional requirements for the Ma
 | DA-9  | Special diocese-level programs shall support parish nomination and approval workflows where required by policy, including status tracking (`nominated`, `approved`, `waitlisted`, `declined`, `completed`). |
 | DA-10 | The system shall support **annual budgeting at all three levels**: diocese, parish, and parish organization, with roll-up visibility for authorized leadership.                                             |
 | DA-11 | Diocese Admins shall be able to configure finance approval workflow policies for diocese-scoped financial operations, including workflow mode and amount thresholds.                                        |
+| DA-12 | The platform shall provide a **Global Finance Approval Policy Dashboard** for Global Admin/Developer users to view, compare, and filter selected workflow policies across all diocese, parish, and organization entities. |
 
 ---
 
@@ -75,6 +76,7 @@ This document captures the functional and non-functional requirements for the Ma
 | PA-21 | Accounting periods shall support open/close controls and be **reopenable only by super-admin with a mandatory audit reason**; all reopen actions shall generate immutable audit entries.                                                                                                                                                                                                                             |
 | PA-22 | Member-level giving statements shall include **only donations explicitly attributed to that member**; family-level donations shall not be auto-allocated into member statements.                                                                                                                                                                                                                                     |
 | PA-23 | The system shall support a configurable **maker-checker approval workflow** for journal posting, vendor bills, and payments. Workflow policies shall be configurable per entity scope (diocese, parish, organization) by the corresponding admin role (Diocese Admin, Parish Admin, Organization Admin), including selectable workflow mode (`strict`, `threshold_based`, `hybrid`), thresholds, and approver roles. |
+| PA-24 | Each individual entity instance (diocese, parish, organization) shall be able to select and maintain its own active workflow model independently; parent-scope defaults may be suggested but shall not block local selection. |
 
 ---
 
@@ -148,6 +150,7 @@ This document captures the functional and non-functional requirements for the Ma
 | RP-6 | The system shall provide an **annual financial report pack** including budget report, income and expense statement, and over-budget variance report.            |
 | RP-7 | Financial reports shall support period-over-period comparison and budget-vs-actual analysis at diocese, parish, and organization scopes based on access rights. |
 | RP-8 | Annual giving statements shall be available in two formats: family statements and member-only statements (strictly member-attributed donations).                |
+| RP-9 | The system shall provide an operational view listing each entity's active approval workflow mode, thresholds, approver roles, and latest configuration metadata. |
 
 ---
 

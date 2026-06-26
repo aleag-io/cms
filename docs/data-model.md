@@ -700,9 +700,34 @@ Defines the approval workflow policy for financial operations at a specific scop
 | `vendor_bill_threshold` | decimal   | Minimum amount requiring approval for vendor bills (nullable by mode)    |
 | `payment_threshold`     | decimal   | Minimum amount requiring approval for vendor payments (nullable by mode) |
 | `approver_role_set`     | jsonb     | Allowed approver roles for this scope and policy                         |
+| `default_source_scope`  | enum      | Optional inherited suggestion source: `global`, `diocese`, `parish`      |
+| `default_source_id`     | UUID      | Nullable source entity ID for suggested defaults                          |
+| `is_default_suggested`  | boolean   | True when initially seeded from a parent/global default                   |
 | `is_active`             | boolean   | Only one active policy per scope instance                                |
 | `configured_by_user_id` | UUID (FK) | Admin who last configured the policy                                     |
 | `configured_at`         | datetime  | Last configuration timestamp                                             |
+
+> **Policy independence note:** Each entity keeps its own active policy selection. Parent/global defaults are advisory only and do not block entity-level overrides.
+
+### 6.16.2 FinanceApprovalPolicyDashboardView
+
+Read model powering the global dashboard for policy observability.
+
+| Field                   | Type      | Description                                                         |
+| ----------------------- | --------- | ------------------------------------------------------------------- |
+| `entity_scope`          | enum      | `diocese`, `parish`, `organization`                                 |
+| `entity_id`             | UUID      | Scope entity ID                                                     |
+| `entity_label`          | string    | Human-readable entity name                                          |
+| `policy_id`             | UUID      | Active policy ID                                                    |
+| `workflow_mode`         | enum      | Active mode: `strict`, `threshold_based`, `hybrid`                 |
+| `journal_threshold`     | decimal   | Effective threshold                                                 |
+| `vendor_bill_threshold` | decimal   | Effective threshold                                                 |
+| `payment_threshold`     | decimal   | Effective threshold                                                 |
+| `approver_role_set`     | jsonb     | Effective approver roles                                            |
+| `configured_by_user_id` | UUID (FK) | Last configuring actor                                              |
+| `configured_at`         | datetime  | Last configuration timestamp                                        |
+| `policy_origin`         | enum      | `entity_selected`, `default_seeded`                                |
+| `is_outlier`            | boolean   | Optional flag for policy drift/outlier detection in dashboard views |
 
 ---
 

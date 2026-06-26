@@ -233,6 +233,21 @@ flowchart TD
 
 ---
 
+### 2.12 Global Admin / Developer (Platform Role)
+
+**Scope:** Platform-wide configuration observability (read-only unless explicitly elevated)
+
+**Description:** Platform operator role used by central administrators or developers to monitor cross-tenant configuration state and support governance.
+
+**Capabilities:**
+
+- View the Global Finance Approval Policy Dashboard across all entities
+- Compare selected workflow modes, thresholds, and approver role sets across diocese/parish/organization scopes
+- Filter and detect policy outliers or drift for operational review
+- Cannot change entity policy settings unless separately granted an entity admin role
+
+---
+
 ## 3. Permission Matrix
 
 The table below summarizes access by resource and role. **D** = Diocese only, **P** = Parish only.
