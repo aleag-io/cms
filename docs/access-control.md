@@ -102,7 +102,15 @@ The following data categories can be shared independently. A sharing grant alway
 
 > **Private notes are never a shareable data category.** The `private_notes` field on member records is accessible only to clergy within the parish and is excluded from all sharing grants, exports, reports, and data transfers.
 >
-> **Pastoral-sensitive dates are also not shareable by default.** Date of birth, anniversary date, and sacramental dates (including baptism date) require privileged-role access and are excluded from member directory output.
+> **RLS Policy for Private Notes (Clergy Only):** Private notes are protected by a row-level security (RLS) policy that grants read/write access to:
+> - Users with the `Vicar`, `Associate Pastor`, or `Deacon` role in the **same parish** as the member
+> - Multi-parish clergy users: RLS is scoped per-parish assignment from the `parish_officer` table; a clergy member can see private notes only for parishes where they hold a clergy position
+> - No diocesan user can ever access private notes, even with Emergency Access
+> - All access to private notes is audit-logged per record
+>
+> **Pastoral-sensitive dates are also not shareable by default.** Date of birth, anniversary date, and sacramental dates (including baptism date) require privileged-role access and are excluded from member directory output. These fields can only be shared in reports/exports if the recipient holds the `Pastoral Data Accessor` role.
+>
+> **Work notes visibility:** Work notes on member records are visible only to Parish Admin, Parish Staff, and organization leaders responsible for managing that member. Work notes are **excluded** from all data category exports, data sharing grants, contextual shares, and external reports — even if the underlying data sharing grant includes member detail information.
 
 ### 3.2 Grant Mechanics
 

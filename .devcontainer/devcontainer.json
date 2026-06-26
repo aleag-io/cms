@@ -1,0 +1,32 @@
+{
+  "name": "cms-dev",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "overrideCommand": false,
+  "forwardPorts": [3000, 5432],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js dev server",
+      "onAutoForward": "openBrowser"
+    },
+    "5432": {
+      "label": "PostgreSQL"
+    }
+  },
+  "postCreateCommand": "bash -lc 'corepack enable && if [ -f package.json ]; then pnpm install; fi && if [ -f .env.example ] && [ ! -f .env.local ]; then cp .env.example .env.local; fi'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "files.eol": "\n"
+      }
+    }
+  }
+}

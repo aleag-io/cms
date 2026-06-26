@@ -184,6 +184,9 @@ A local community of Catholic faithful, typically centered around a church build
 **Pastor**
 The ordained priest assigned by the bishop to lead a parish.
 
+**Pastoral Data Accessor**
+A role-based delegation mechanism that grants staff members permission to view and manage pastoral-sensitive date fields (birthdates, sacramental dates, anniversary dates) and to access private pastoral notes, without granting full Parish Admin privileges.
+
 **Parishioner**
 A member of a parish community.
 

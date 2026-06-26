@@ -28,6 +28,17 @@ The CMS provides a unified system for managing:
 
 > 📋 **Documentation & Design Phase** — requirements, architecture, and design are being refined before implementation begins.
 
+## Development Environment
+
+The recommended local setup is a VS Code Dev Container backed by Docker. It gives the same Node.js and PostgreSQL environment on macOS and Windows, and it avoids host-specific tooling drift.
+
+1. Install Docker Desktop and VS Code.
+2. Open the repository in VS Code and choose **Dev Containers: Reopen in Container**.
+3. The container starts a Node 20 workspace and a local PostgreSQL 16 database.
+4. Copy `.env.example` to `.env.local` if you need to override any values.
+
+The container exposes the Next.js dev server on port 3000 and PostgreSQL on port 5432.
+
 ## Key Design Principles
 
 1. **Multi-tenancy** — Diocese is the root tenant; parishes are sub-tenants with data isolation

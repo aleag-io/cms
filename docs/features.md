@@ -358,7 +358,45 @@ The admin may override the default membership mode when creating or editing an o
 
 ---
 
-### 2.8 Communications
+### 2.9 Parish Data Sharing
+
+**Summary:** Allow Parish Admins (or delegated Parish Data Sharing Managers) to control access to parish data by diocese-level users through time-scoped sharing grants.
+
+**Access Control Model:**
+
+- By default, Diocese Staff and Diocese Report Viewers see only aggregate/anonymized parish metrics (member counts, totals)
+- Raw parish data (member records, sacramental records, financial ledger) requires an explicit **DataSharingGrant**
+- Grants are scoped to a **data category** and optional timeframe
+- Grants can be revoked immediately by Parish Admin at any time
+- Expired grants are automatically deactivated
+
+**Data Categories:**
+
+- `member_directory` — names, contact info, family relationships
+- `sacramental_records` — baptism dates, confirmations, marriages, ordinations
+- `giving_detail` — donation records, pledges, giving statements
+- `financial_ledger` — full chart of accounts and journal entries
+- Custom categories may be added
+
+**Key Workflows:**
+
+1. **(By Diocese Admin)** Submit a `DataSharingRequest` specifying which data category is needed and justification
+2. **(By Parish Admin / Data Sharing Manager)** Review incoming requests and approve/reject
+3. **(Upon approval)** Create a `DataSharingGrant` for the diocese user, select data category and optional time window
+4. **(By Parish Admin)** View all active grants, grant history, and related audit entries
+5. **(By Parish Admin)** Revoke grants immediately if needed
+6. **(Both workflows logged)** All sharing events (grants created, requests approved/rejected, grants revoked) appear in parish and diocese audit logs
+
+**Delegation:**
+
+- Parish Admin can delegate data sharing authority to a **Parish Data Sharing Manager** role — a trusted staff member can approve requests and manage grants without full Parish Admin privileges
+- Parish Data Sharing Manager can view all grants, approve/reject requests, and manage contextual shares — but cannot access the underlying data or manage other parish functions
+
+**User:** Parish Admin or Parish Data Sharing Manager
+
+---
+
+### 2.10 Communications
 
 **Summary:** Send targeted communications to parish members.
 
@@ -377,15 +415,15 @@ The admin may override the default membership mode when creating or editing an o
 
 ---
 
-### 2.9 Giving & Stewardship
+### 2.11 Giving & Stewardship
 
-#### 2.9.1 Chart of Accounts
+#### 2.11.1 Chart of Accounts
 
 - Each parish maintains a chart of accounts defining funds and expense/income categories
 - Standard account types: General Fund, Building Fund, Missions, Salaries, Utilities, etc.
 - Accounts can be added or customized per parish
 
-#### 2.9.2 General Ledger
+#### 2.11.2 General Ledger
 
 - Double-entry journal entries record all financial transactions
 - Each entry includes: date, accounts debited/credited, amounts, description, and reference
@@ -394,25 +432,25 @@ The admin may override the default membership mode when creating or editing an o
 - Full transaction history with audit trail
 - CSV-based export/import for controlled external data exchange
 
-#### 2.9.3 Budgeting
+#### 2.11.3 Budgeting
 
 - Maintain annual budgets by account and fund (yearly granularity)
 - Budget scopes supported: diocese, parish, and parish organization
 - Track original budget, revised budget, actuals, and variance
 - Highlight over-budget items with threshold-based alerts
 
-#### 2.9.4 Reporting Basis
+#### 2.11.4 Reporting Basis
 
 - Run finance reports in either cash basis or accrual basis
 - Preserve selected basis in exported report metadata
 
-#### 2.9.5 Giving Campaigns
+#### 2.11.5 Giving Campaigns
 
 - Create campaigns with goals, dates, and fund designations
 - Track progress against goal (total received vs. pledged vs. goal)
 - Assign campaign to specific account in the chart of accounts
 
-#### 2.9.6 Donation Recording
+#### 2.11.6 Donation Recording
 
 - Record individual donations linked to a family or member
 - Support multiple payment methods (cash, check, online, ACH)
@@ -421,19 +459,19 @@ The admin may override the default membership mode when creating or editing an o
 - Donations automatically generate ledger journal entries
 - Member-level statements include only donations explicitly attributed to that member
 
-#### 2.9.7 Pledge Management
+#### 2.11.7 Pledge Management
 
 - Create pledge commitments for campaigns
 - Track fulfillment status and reminders
 - Generate pledge reminders for lapsed pledges
 
-#### 2.9.8 Online Giving Integration (Stripe)
+#### 2.11.8 Online Giving Integration (Stripe)
 
 - Accept payments via Stripe (one-time and recurring)
 - Donations automatically create records and ledger entries
 - Webhook-driven: Stripe events trigger database updates
 
-#### 2.9.9 Financial Reports
+#### 2.11.9 Financial Reports
 
 - Income statement (revenue vs. expenses by period)
 - Balance sheet
@@ -444,28 +482,28 @@ The admin may override the default membership mode when creating or editing an o
 - Pledge fulfillment report
 - Comparative views across diocese, parish, and organization scopes (role-permitted)
 
-#### 2.9.10 Annual Giving Statements
+#### 2.11.10 Annual Giving Statements
 
 - Generate IRS-compliant giving statements per family and per member
 - Member statements include only member-attributed donations
 - Batch generation and bulk email delivery
 - Export as PDF
 
-#### 2.9.11 Vendor Bills & Payments
+#### 2.11.11 Vendor Bills & Payments
 
 - Create and track vendor profiles and bills
 - Support bill lifecycle: draft, submitted, approved, posted, paid, voided
 - Record bill payments (check, ACH, online, cash)
 - Maintain payable aging and outstanding balances
 
-#### 2.9.12 Bank Reconciliation (CSV)
+#### 2.11.12 Bank Reconciliation (CSV)
 
 - Import bank statement lines from CSV
 - Match statement lines to ledger transactions
 - Track unmatched items and reconciliation status
 - No direct bank API integration in v1
 
-#### 2.9.13 Finance Approvals
+#### 2.11.13 Finance Approvals
 
 - Configurable maker-checker workflow for journals, vendor bills, and payments
 - Policy scope supports diocese, parish, and organization entities

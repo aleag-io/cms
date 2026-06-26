@@ -1,0 +1,45 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspaces/cms:cached
+      - node_modules:/workspaces/cms/node_modules
+      - pnpm_store:/pnpm/store
+    command: sleep infinity
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://cms:cms-dev-password@db:5432/cms?sslmode=disable
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: cms
+      PGUSER: cms
+      PGPASSWORD: cms-dev-password
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cms
+      POSTGRES_USER: cms
+      POSTGRES_PASSWORD: cms-dev-password
+      TZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cms -d cms"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  node_modules:
+  pnpm_store:
+  postgres_data:

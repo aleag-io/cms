@@ -155,7 +155,77 @@ The sharing workflow is a cross-cutting capability available from a top-bar Shar
 - Secure link tokens are stored hashed in the database and compared server-side.
 - Access to user-scoped shares requires authenticated identity and recipient match.
 
-### 3.3 Auth Service — Supabase Auth
+### 3.2.2 Sharing Architecture: Two Distinct Workflows
+
+The CMS supports two distinct data-sharing workflows that operate independently but may use shared infrastructure:
+
+#### A. Parish Data Sharing Grants (System-Level, Async Approval)
+
+**Parties involved:** Diocese Admin / Diocese Staff → Parish Admin
+
+**Trigger:** Diocese needs access to a category of parish data (e.g., all member records, all giving data)
+
+**Workflow:**
+
+1. Diocese Admin submits a **DataSharingRequest** specifying:
+   - Data category (e.g., `member_directory`, `sacramental_records`, `giving_detail`, `financial_ledger`)
+   - Optional: scopes (time period, programs, organizations)
+   - Justification for access
+2. Parish Admin receives notification and reviews request
+3. Parish Admin approves (creates `DataSharingGrant`) or rejects
+4. If approved: Diocese Admin can now query parish data in that category
+5. Grant can be time-limited (auto-expires) or indefinite
+6. Parish Admin can revoke grant at any time with immediate effect
+
+**Key properties:**
+
+- Category-scoped: granting access to `member_directory` does NOT grant access to `sacramental_records`
+- Async and approval-based: no data is accessible until Parish Admin explicitly approves
+- Logged: all grant lifecycle events appear in both parish and diocese audit trails
+- Revocable: Parish Admin has unilateral power to revoke anytime
+
+#### B. Contextual Resource Sharing (UI-Driven, Immediate)
+
+**Parties involved:** Any user with resource access → internal users OR external link consumers
+
+**Trigger:** User has a member list, report, or record view open and wants to share it in its current context
+
+**Workflow:**
+
+1. User clicks **Share** action from top menu bar (available on shareable resources)
+2. Share panel opens with options:
+   - Mode: `user_share` (specific users), `role_share` (role-based), or `secure_link` (anonymous)
+   - Recipients: select users/roles or configure link
+   - Expiration: set date/time for link or role/user shares
+   - Anonymization: toggle de-identification rules (if applicable)
+3. User confirms share
+4. System validates:
+   - Does the sharing user have permission to access this resource?
+   - Are recipients valid members of the same tenant or below?
+5. Share is created immediately (no approval needed)
+6. Recipients gain access immediately (for user/role share) or link becomes active immediately
+
+**Key properties:**
+
+- Resource-scoped: the share covers the specific list, report, or record in view, not a data category
+- Immediate and context-aware: no approval, active right away
+- Link-friendly: can generate anonymous/public links with time/view limits
+- Distinct from grants: sharing a report does NOT grant access to underlying member records outside that report
+
+#### Relationship Between Workflows
+
+- **Independent:** A user can create contextual shares regardless of whether a ParishDataSharingGrant exists
+- **Both logged:** each workflow generates its own audit trail entries
+- **Both respect RLS:** underlying database policies enforce both grant-based and context-based access
+- **Complementary:** grants are for broad category access; contextual shares are for specific resources
+- **Revocation:** revoking a grant does NOT automatically revoke contextual shares; each is revoked separately
+
+#### Cache Invalidation on Revocation
+
+- When a **DataSharingGrant** is revoked, all Next.js fetch caches and ISR cache for that parish + data category are cleared within the revocation request
+- When a **contextual share link** is revoked, the link token is invalidated immediately; existing viewers lose access on next request
+
+---
 
 - **Provider:** Supabase Auth
 - **Responsibilities:**
