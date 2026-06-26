@@ -98,23 +98,25 @@ erDiagram
 
 ### 2.3 Family
 
-| Field               | Type      | Description                                                                                      |
-| ------------------- | --------- | ------------------------------------------------------------------------------------------------ |
-| `id`                | UUID      | Primary key                                                                                      |
-| `parish_id`         | UUID (FK) | Owning parish                                                                                    |
-| `family_name`       | string    | Family/household name (e.g., "The Smith Family")                                                 |
-| `member_number`     | string    | Parish-assigned member ID (format configured per parish; e.g., "100", "101"). Unique per parish. |
-| `envelope_number`   | string    | Giving envelope number (unique per parish)                                                       |
-| `mailing_address`   | Address   | Household mailing address                                                                        |
-| `email`             | string    | Primary family email                                                                             |
-| `phone`             | string    | Primary family phone                                                                             |
-| `preferred_contact` | enum      | `email`, `phone`, `mail`                                                                         |
-| `registration_date` | date      | Date joined this parish                                                                          |
-| `anniversary_date`  | date      | Wedding anniversary (if applicable)                                                              |
-| `status`            | enum      | `active`, `inactive`, `transferred`                                                              |
-| `notes`             | text      | Free-text notes                                                                                  |
-| `created_at`        | datetime  |                                                                                                  |
-| `updated_at`        | datetime  |                                                                                                  |
+| Field               | Type      | Description                                                                     |
+| ------------------- | --------- | ------------------------------------------------------------------------------- |
+| `id`                | UUID      | Primary key                                                                     |
+| `parish_id`         | UUID (FK) | Owning parish                                                                   |
+| `family_name`       | string    | Family/household name (e.g., "The Smith Family")                                |
+| `member_number`     | string    | Parish-assigned family number (base ID; e.g., "100", "101"). Unique per parish. |
+| `envelope_number`   | string    | Giving envelope number (unique per parish)                                      |
+| `mailing_address`   | Address   | Household mailing address                                                       |
+| `email`             | string    | Primary family email                                                            |
+| `phone`             | string    | Primary family phone                                                            |
+| `preferred_contact` | enum      | `email`, `phone`, `mail`                                                        |
+| `registration_date` | date      | Date joined this parish                                                         |
+| `anniversary_date`  | date      | Wedding anniversary (if applicable)                                             |
+| `status`            | enum      | `active`, `inactive`, `transferred`                                             |
+| `notes`             | text      | Free-text notes                                                                 |
+| `created_at`        | datetime  |                                                                                 |
+| `updated_at`        | datetime  |                                                                                 |
+
+> **Privacy note:** `anniversary_date` is a pastoral-sensitive field. It is visible/editable only to privileged parish roles (Clergy/Vicar, Parish Admin, explicitly delegated staff) and is excluded from member directory projections.
 
 ---
 
@@ -128,6 +130,7 @@ erDiagram
 | `middle_name`             | string    | Optional                                                                                                                                         |
 | `last_name`               | string    |                                                                                                                                                  |
 | `preferred_name`          | string    | Name they go by                                                                                                                                  |
+| `member_identifier`       | string    | Family-based member ID in format `<family_number>.<member_index>` (e.g., `100.1`). Unique per parish.                                            |
 | `date_of_birth`           | date      |                                                                                                                                                  |
 | `gender`                  | enum      | `male`, `female`, `other`, `prefer_not_to_say`                                                                                                   |
 | `email`                   | string    | Personal email                                                                                                                                   |
@@ -149,6 +152,8 @@ erDiagram
 
 > **Privacy note:** `private_notes` is enforced as a separate RLS-protected column. It is excluded from all reports, exports, directory views, and data sharing grants. Only users whose `member_id` appears in the `ParishOfficer` table with an `officer_type` of `clergy` may read or write this field.
 
+> **Directory note:** Member-facing parish directory output includes only basic contact/profile fields (name, phone, email, address, family photo). It excludes `date_of_birth`, `private_notes`, and other pastoral-sensitive fields.
+
 ---
 
 ### 2.5 FamilyMember (Join Table)
@@ -162,6 +167,7 @@ Represents the relationship between a Member and a Family.
 | `member_id`          | UUID (FK) |                                                              |
 | `relationship`       | enum      | `head_of_household`, `spouse`, `child`, `dependent`, `other` |
 | `is_primary_contact` | boolean   | Receives primary family communications                       |
+| `member_index`       | integer   | Sequence of this member within the family (e.g., 1, 2, 3)    |
 | `joined_at`          | date      | When member joined this family                               |
 
 ---
@@ -170,19 +176,21 @@ Represents the relationship between a Member and a Family.
 
 Stores the configurable member ID (family number) format for a parish. Each parish can define its own numbering scheme independently.
 
-| Field                   | Type      | Description                                                                                                           |
-| ----------------------- | --------- | --------------------------------------------------------------------------------------------------------------------- |
-| `id`                    | UUID      | Primary key                                                                                                           |
-| `parish_id`             | UUID (FK) | One-to-one with Parish                                                                                                |
-| `prefix`                | string    | Optional prefix (e.g., "SMB-", "ST-"). Null = numeric only.                                                           |
-| `min_digits`            | integer   | Zero-pad to this many digits (e.g., 3 → "100", "101"). Default: 3                                                     |
-| `start_value`           | integer   | First number assigned (e.g., 100). Default: 1                                                                         |
-| `next_value`            | integer   | Next number to be auto-assigned (incremented on each new family)                                                      |
-| `auto_increment`        | boolean   | If true, the system auto-assigns the next number on family creation. If false, admin must supply the number manually. |
-| `allow_manual_override` | boolean   | Allow admins to assign a specific number outside the sequence                                                         |
-| `updated_at`            | datetime  |                                                                                                                       |
+| Field                     | Type      | Description                                                                                                           |
+| ------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------- |
+| `id`                      | UUID      | Primary key                                                                                                           |
+| `parish_id`               | UUID (FK) | One-to-one with Parish                                                                                                |
+| `prefix`                  | string    | Optional prefix (e.g., "SMB-", "ST-"). Null = numeric only.                                                           |
+| `min_digits`              | integer   | Zero-pad to this many digits (e.g., 3 → "100", "101"). Default: 3                                                     |
+| `start_value`             | integer   | First number assigned (e.g., 100). Default: 1                                                                         |
+| `next_value`              | integer   | Next number to be auto-assigned (incremented on each new family)                                                      |
+| `auto_increment`          | boolean   | If true, the system auto-assigns the next number on family creation. If false, admin must supply the number manually. |
+| `allow_manual_override`   | boolean   | Allow admins to assign a specific number outside the sequence                                                         |
+| `member_suffix_delimiter` | string    | Delimiter between family number and member index. Default: `.`                                                        |
+| `member_index_start`      | integer   | Starting index for first member in family. Default: 1                                                                 |
+| `updated_at`              | datetime  |                                                                                                                       |
 
-> **Example:** A church using 3-digit IDs starting at 100 sets `min_digits=3`, `start_value=100`, `auto_increment=true`. The formatted member number is `prefix + zero_pad(next_value, min_digits)` → "100", "101", "102".
+> **Example:** A church using 3-digit family numbers starting at 100 sets `min_digits=3`, `start_value=100`, `auto_increment=true`, and `member_suffix_delimiter='.'`. A created family receives `member_number = "100"`. Members in that family receive `member_identifier` values `100.1`, `100.2`, `100.3` as `member_index` increments.
 
 ---
 
@@ -227,22 +235,24 @@ Tracks the official officers of the parish itself — clergy (vicar, associate p
 
 ### 3.1 SacramentalRecord
 
-| Field            | Type      | Description                                                                          |
-| ---------------- | --------- | ------------------------------------------------------------------------------------ |
-| `id`             | UUID      | Primary key                                                                          |
-| `member_id`      | UUID (FK) | Member who received the sacrament                                                    |
-| `parish_id`      | UUID (FK) | Parish where sacrament was administered                                              |
-| `sacrament_type` | enum      | `baptism`, `first_communion`, `confirmation`, `marriage`, `anointing`, `holy_orders` |
-| `sacrament_date` | date      | Date sacrament was received                                                          |
-| `minister_name`  | string    | Presiding minister/priest                                                            |
-| `sponsor_name`   | string    | Godparent/sponsor (for Baptism, Confirmation)                                        |
-| `spouse_name`    | string    | Spouse name (for Marriage)                                                           |
-| `book_number`    | string    | Parish register book number                                                          |
-| `page_number`    | string    | Page in register                                                                     |
-| `entry_number`   | string    | Entry number in register                                                             |
-| `notes`          | text      | Additional notes                                                                     |
-| `created_at`     | datetime  |                                                                                      |
-| `updated_at`     | datetime  |                                                                                      |
+| Field            | Type      | Description                                                                                                                   |
+| ---------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `id`             | UUID      | Primary key                                                                                                                   |
+| `member_id`      | UUID (FK) | Member who received the sacrament                                                                                             |
+| `parish_id`      | UUID (FK) | Parish where sacrament was administered                                                                                       |
+| `sacrament_type` | enum      | `holy_baptism`, `holy_communion`, `confirmation`, `confession`, `marriage`, `ordination_holy_orders`, `anointing_of_the_sick` |
+| `sacrament_date` | date      | Date sacrament was received                                                                                                   |
+| `minister_name`  | string    | Presiding minister/priest                                                                                                     |
+| `sponsor_name`   | string    | Godparent/sponsor (for Holy Baptism, Confirmation/Miron Anointing)                                                            |
+| `spouse_name`    | string    | Spouse name (for Marriage)                                                                                                    |
+| `book_number`    | string    | Parish register book number                                                                                                   |
+| `page_number`    | string    | Page in register                                                                                                              |
+| `entry_number`   | string    | Entry number in register                                                                                                      |
+| `notes`          | text      | Additional notes                                                                                                              |
+| `created_at`     | datetime  |                                                                                                                               |
+| `updated_at`     | datetime  |                                                                                                                               |
+
+> **Privacy note:** `sacrament_date` (including baptism date) is pastoral-sensitive and restricted to privileged parish roles for read/write access.
 
 ---
 
@@ -488,7 +498,215 @@ Each `JournalEntry` has two or more lines (debits and credits must balance).
 
 ---
 
-## 6.7 ParishPermissionOverride
+### 6.7 FiscalYearBudget
+
+Annual budget header for a specific scope.
+
+| Field                 | Type      | Description                                              |
+| --------------------- | --------- | -------------------------------------------------------- |
+| `id`                  | UUID      | Primary key                                              |
+| `scope`               | enum      | `diocese`, `parish`, `organization`                      |
+| `diocese_id`          | UUID (FK) | Required when `scope = diocese`                          |
+| `parish_id`           | UUID (FK) | Required when `scope = parish` or `scope = organization` |
+| `organization_id`     | UUID (FK) | Required when `scope = organization`                     |
+| `fiscal_year_label`   | string    | e.g., `FY2027`                                           |
+| `budget_basis`        | enum      | `cash`, `accrual`                                        |
+| `status`              | enum      | `draft`, `approved`, `locked`, `archived`                |
+| `version`             | integer   | Budget revision version, starting at 1                   |
+| `approved_by_user_id` | UUID (FK) | Nullable until approved                                  |
+| `approved_at`         | datetime  | Nullable until approved                                  |
+| `created_at`          | datetime  |                                                          |
+| `updated_at`          | datetime  |                                                          |
+
+### 6.8 FiscalYearBudgetLine
+
+Annual budget amount for one account/fund combination.
+
+| Field              | Type      | Description                                 |
+| ------------------ | --------- | ------------------------------------------- |
+| `id`               | UUID      | Primary key                                 |
+| `budget_id`        | UUID (FK) | Parent budget                               |
+| `account_id`       | UUID (FK) | Budgeted account                            |
+| `fund_account_id`  | UUID (FK) | Fund-designation account                    |
+| `annual_budget`    | decimal   | Budgeted annual amount in USD               |
+| `revised_budget`   | decimal   | Revised annual amount in USD                |
+| `actual_amount`    | decimal   | Computed from posted transactions           |
+| `variance_amount`  | decimal   | Computed (`revised_budget - actual_amount`) |
+| `variance_percent` | decimal   | Computed percentage variance                |
+| `is_over_budget`   | boolean   | True when actual exceeds revised budget     |
+| `created_at`       | datetime  |                                             |
+| `updated_at`       | datetime  |                                             |
+
+### 6.9 FiscalPeriod
+
+Defines accounting periods for open/close and reporting basis controls.
+
+| Field                 | Type      | Description                                              |
+| --------------------- | --------- | -------------------------------------------------------- |
+| `id`                  | UUID      | Primary key                                              |
+| `scope`               | enum      | `diocese`, `parish`, `organization`                      |
+| `diocese_id`          | UUID (FK) | Required when `scope = diocese`                          |
+| `parish_id`           | UUID (FK) | Required when `scope = parish` or `scope = organization` |
+| `organization_id`     | UUID (FK) | Required when `scope = organization`                     |
+| `period_start`        | date      | Inclusive start date                                     |
+| `period_end`          | date      | Inclusive end date                                       |
+| `status`              | enum      | `open`, `soft_closed`, `hard_closed`                     |
+| `closed_at`           | datetime  | Nullable                                                 |
+| `closed_by_user_id`   | UUID (FK) | Nullable                                                 |
+| `reopened_at`         | datetime  | Nullable                                                 |
+| `reopened_by_user_id` | UUID (FK) | Nullable; super-admin only                               |
+| `reopen_reason`       | text      | Mandatory when reopened                                  |
+| `created_at`          | datetime  |                                                          |
+| `updated_at`          | datetime  |                                                          |
+
+### 6.10 PeriodCloseEvent
+
+Immutable audit-style record for period close/reopen operations.
+
+| Field                  | Type      | Description                              |
+| ---------------------- | --------- | ---------------------------------------- |
+| `id`                   | UUID      | Primary key                              |
+| `fiscal_period_id`     | UUID (FK) | Related fiscal period                    |
+| `event_type`           | enum      | `close_soft`, `close_hard`, `reopen`     |
+| `performed_by_user_id` | UUID (FK) | Actor                                    |
+| `reason`               | text      | Mandatory for reopen, optional for close |
+| `created_at`           | datetime  | Event timestamp                          |
+
+### 6.11 Vendor
+
+Master record for payable vendors.
+
+| Field            | Type      | Description               |
+| ---------------- | --------- | ------------------------- |
+| `id`             | UUID      | Primary key               |
+| `parish_id`      | UUID (FK) | Owning parish             |
+| `name`           | string    | Vendor legal/display name |
+| `contact_name`   | string    |                           |
+| `email`          | string    |                           |
+| `phone`          | string    |                           |
+| `address`        | Address   |                           |
+| `tax_identifier` | string    | Optional tax ID           |
+| `status`         | enum      | `active`, `inactive`      |
+| `created_at`     | datetime  |                           |
+| `updated_at`     | datetime  |                           |
+
+### 6.12 VendorBill
+
+Payable bill header for vendor expenses.
+
+| Field                 | Type      | Description                                                  |
+| --------------------- | --------- | ------------------------------------------------------------ |
+| `id`                  | UUID      | Primary key                                                  |
+| `parish_id`           | UUID (FK) |                                                              |
+| `vendor_id`           | UUID (FK) |                                                              |
+| `bill_number`         | string    | Vendor-provided invoice number                               |
+| `bill_date`           | date      |                                                              |
+| `due_date`            | date      |                                                              |
+| `currency`            | string    | Default `USD`                                                |
+| `total_amount`        | decimal   | Bill total                                                   |
+| `status`              | enum      | `draft`, `submitted`, `approved`, `posted`, `paid`, `voided` |
+| `approval_required`   | boolean   | Derived from maker-checker policy/threshold                  |
+| `approved_by_user_id` | UUID (FK) | Nullable                                                     |
+| `approved_at`         | datetime  | Nullable                                                     |
+| `journal_entry_id`    | UUID (FK) | Linked posted entry (nullable until posting)                 |
+| `created_by_user_id`  | UUID (FK) |                                                              |
+| `created_at`          | datetime  |                                                              |
+| `updated_at`          | datetime  |                                                              |
+
+### 6.13 VendorBillLine
+
+Line-level account distribution for vendor bills.
+
+| Field             | Type      | Description               |
+| ----------------- | --------- | ------------------------- |
+| `id`              | UUID      | Primary key               |
+| `vendor_bill_id`  | UUID (FK) | Parent vendor bill        |
+| `account_id`      | UUID (FK) | Expense/liability account |
+| `fund_account_id` | UUID (FK) | Fund designation account  |
+| `description`     | string    |                           |
+| `amount`          | decimal   |                           |
+
+### 6.14 VendorPayment
+
+Payment against one or more vendor bills.
+
+| Field                 | Type      | Description                                          |
+| --------------------- | --------- | ---------------------------------------------------- |
+| `id`                  | UUID      | Primary key                                          |
+| `parish_id`           | UUID (FK) |                                                      |
+| `vendor_id`           | UUID (FK) |                                                      |
+| `payment_date`        | date      |                                                      |
+| `method`              | enum      | `check`, `ach`, `cash`, `online`, `other`            |
+| `reference`           | string    | Check number/transaction reference                   |
+| `amount`              | decimal   |                                                      |
+| `status`              | enum      | `draft`, `submitted`, `approved`, `posted`, `voided` |
+| `approved_by_user_id` | UUID (FK) | Nullable                                             |
+| `approved_at`         | datetime  | Nullable                                             |
+| `journal_entry_id`    | UUID (FK) | Linked posted entry (nullable until posting)         |
+| `created_by_user_id`  | UUID (FK) |                                                      |
+| `created_at`          | datetime  |                                                      |
+| `updated_at`          | datetime  |                                                      |
+
+### 6.15 BankReconciliationSession
+
+Tracks a CSV-based reconciliation run for a statement period.
+
+| Field                | Type      | Description                               |
+| -------------------- | --------- | ----------------------------------------- |
+| `id`                 | UUID      | Primary key                               |
+| `parish_id`          | UUID (FK) |                                           |
+| `account_id`         | UUID (FK) | Bank/cash ledger account being reconciled |
+| `statement_start`    | date      |                                           |
+| `statement_end`      | date      |                                           |
+| `opening_balance`    | decimal   |                                           |
+| `closing_balance`    | decimal   |                                           |
+| `status`             | enum      | `draft`, `in_progress`, `completed`       |
+| `unmatched_count`    | integer   | Computed unmatched CSV lines              |
+| `created_by_user_id` | UUID (FK) |                                           |
+| `created_at`         | datetime  |                                           |
+| `updated_at`         | datetime  |                                           |
+
+### 6.16 BankStatementCsvLine
+
+Imported statement line item from CSV for matching.
+
+| Field                       | Type      | Description                       |
+| --------------------------- | --------- | --------------------------------- |
+| `id`                        | UUID      | Primary key                       |
+| `reconciliation_session_id` | UUID (FK) | Parent reconciliation session     |
+| `line_date`                 | date      |                                   |
+| `description`               | string    |                                   |
+| `debit_amount`              | decimal   | Nullable                          |
+| `credit_amount`             | decimal   | Nullable                          |
+| `running_balance`           | decimal   | Nullable                          |
+| `external_reference`        | string    |                                   |
+| `matched_journal_line_id`   | UUID (FK) | Nullable; set when matched        |
+| `match_status`              | enum      | `unmatched`, `matched`, `ignored` |
+| `created_at`                | datetime  |                                   |
+
+### 6.16.1 FinanceApprovalPolicy
+
+Defines the approval workflow policy for financial operations at a specific scope.
+
+| Field                   | Type      | Description                                                              |
+| ----------------------- | --------- | ------------------------------------------------------------------------ |
+| `id`                    | UUID      | Primary key                                                              |
+| `scope`                 | enum      | `diocese`, `parish`, `organization`                                      |
+| `diocese_id`            | UUID (FK) | Required when `scope = diocese`                                          |
+| `parish_id`             | UUID (FK) | Required when `scope = parish` or `scope = organization`                 |
+| `organization_id`       | UUID (FK) | Required when `scope = organization`                                     |
+| `workflow_mode`         | enum      | `strict`, `threshold_based`, `hybrid`                                    |
+| `journal_threshold`     | decimal   | Minimum amount requiring approval for journal posting (nullable by mode) |
+| `vendor_bill_threshold` | decimal   | Minimum amount requiring approval for vendor bills (nullable by mode)    |
+| `payment_threshold`     | decimal   | Minimum amount requiring approval for vendor payments (nullable by mode) |
+| `approver_role_set`     | jsonb     | Allowed approver roles for this scope and policy                         |
+| `is_active`             | boolean   | Only one active policy per scope instance                                |
+| `configured_by_user_id` | UUID (FK) | Admin who last configured the policy                                     |
+| `configured_at`         | datetime  | Last configuration timestamp                                             |
+
+---
+
+## 6.17 ParishPermissionOverride
 
 Enables a Parish Admin to grant or deny specific capabilities to specific roles at a granular level, beyond the system defaults. This supports the parish settings page where admins configure exactly what each role can do within their parish.
 

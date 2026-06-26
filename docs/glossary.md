@@ -7,7 +7,7 @@ This glossary defines domain-specific terminology used throughout the CMS docume
 ## A
 
 **Anointing of the Sick**
-A sacrament of the Catholic Church administered to those who are seriously ill or dying. Also called "Last Rites" or "Extreme Unction."
+A sacrament administered to those who are seriously ill, offering spiritual strength, comfort, and healing grace.
 
 **Apostolate**
 A group dedicated to a specific ministry or mission within the Church (e.g., a Marian apostolate, pro-life apostolate).
@@ -20,7 +20,7 @@ A chronological record of all user actions in the system, used for security, com
 ## B
 
 **Baptism**
-The first of the seven sacraments, marking formal entrance into the Christian faith. A sacramental record is created for each baptism.
+Also called **Holy Baptism**. The sacrament of initiation into the Church and the new covenant. A sacramental record is created for each baptism.
 
 **Bishop**
 The ordained leader of a diocese. In some jurisdictions, the title is Archbishop (for an archdiocese).
@@ -33,13 +33,13 @@ The ordained leader of a diocese. In some jurisdictions, the title is Archbishop
 A time-limited fundraising effort for a specific purpose (e.g., "Annual Parish Fund 2025," "Building Campaign").
 
 **Catechism / Catechesis**
-Religious instruction provided to Catholics, typically through formal classes. See also: *Faith Formation*, *RCIA*.
+Religious instruction provided to Catholics, typically through formal classes. See also: _Faith Formation_, _RCIA_.
 
 **Choir**
-A music ministry that leads congregational singing at liturgical celebrations. Often a parish *Organization* in the CMS.
+A music ministry that leads congregational singing at liturgical celebrations. Often a parish _Organization_ in the CMS.
 
 **Confirmation**
-A sacrament in which a baptized person is strengthened by the Holy Spirit and more fully incorporated into the Church. Requires a sponsor (sponsor name is recorded).
+Also called **Miron Anointing**. A sacrament in which a baptized person is strengthened by the Holy Spirit for Christian life and witness.
 
 **CMS**
 Church Management System — the software product described in this documentation.
@@ -49,10 +49,10 @@ Church Management System — the software product described in this documentatio
 ## D
 
 **Diocese**
-A geographic administrative division of the Church, led by a Bishop. A diocese contains multiple *parishes*. In the CMS, the diocese is the **root tenant**.
+A geographic administrative division of the Church, led by a Bishop. A diocese contains multiple _parishes_. In the CMS, the diocese is the **root tenant**.
 
 **Donation**
-A monetary gift made by a family or member to the parish, optionally associated with a *campaign* or *fund*.
+A monetary gift made by a family or member to the parish, optionally associated with a _campaign_ or _fund_.
 
 ---
 
@@ -69,13 +69,16 @@ A unique identifier assigned to a family for tracking their giving contributions
 Religious education programs for children, youth, and adults within a parish or diocese.
 
 **Family**
-A household unit registered with a parish. A family contains one or more *members* with defined relationship roles.
+A household unit registered with a parish. A family contains one or more _members_ with defined relationship roles.
 
 **Feast Day**
 A day in the liturgical calendar commemorating a saint, mystery of faith, or event in the life of Christ or Mary.
 
-**First Communion**
-Also called "First Holy Eucharist." A sacrament marking a Catholic's first reception of the Eucharist, typically in childhood.
+**Holy Communion (Holy Qurbana)**
+The central sacramental act of worship in which believers partake of consecrated bread and wine in remembrance of Christ's sacrifice.
+
+**Confession (Reconciliation)**
+The sacrament of confessing sins to God and receiving absolution, often incorporated into liturgical worship.
 
 **Fund**
 A designated category for donated money (e.g., General Fund, Building Fund, Mission Fund, Special Collection).
@@ -98,7 +101,7 @@ An annual document provided to families summarizing total contributions made dur
 The primary adult member of a family record. Used to designate the family's primary contact for parish purposes.
 
 **Holy Orders**
-A sacrament by which men are ordained as deacons, priests, or bishops.
+Also called **Ordination**. The sacrament by which persons are ordained to diaconal, priestly, or episcopal ministry.
 
 **Holy Day of Obligation**
 A feast day on which Catholics are obligated to attend Mass (e.g., Christmas, Assumption of Mary).
@@ -115,7 +118,7 @@ A member or family that is no longer actively participating in the parish, but w
 ## K
 
 **Knights of Columbus**
-A prominent Catholic fraternal organization commonly found at the parish level. May be modeled as a parish *Organization* in the CMS.
+A prominent Catholic fraternal organization commonly found at the parish level. May be modeled as a parish _Organization_ in the CMS.
 
 ---
 
@@ -138,13 +141,13 @@ A sacrament by which a man and woman enter into a covenant of lifelong union. Th
 The central act of Catholic worship, also called the Eucharistic celebration or the Divine Liturgy.
 
 **Mass Intention**
-A Mass celebrated for a specific spiritual intention (e.g., the repose of the soul of a deceased person, or the healing of a sick family member). See also: *Feature Backlog*.
+A Mass celebrated for a specific spiritual intention (e.g., the repose of the soul of a deceased person, or the healing of a sick family member). See also: _Feature Backlog_.
 
 **Member**
 An individual person associated with a parish, either through a family record or as a standalone registration.
 
 **Ministry**
-A structured service or apostolate within a parish (e.g., Eucharistic Ministers, Lectors, Altar Servers, Hospitality). In the CMS, ministries are modeled as *Programs* or *Organizations*.
+A structured service or apostolate within a parish (e.g., Eucharistic Ministers, Lectors, Altar Servers, Hospitality). In the CMS, ministries are modeled as _Programs_ or _Organizations_.
 
 **Multi-tenancy**
 An architecture in which a single software instance serves multiple isolated customer groups (tenants). In the CMS, the diocese is the root tenant and parishes are sub-tenants.
@@ -154,7 +157,7 @@ An architecture in which a single software instance serves multiple isolated cus
 ## O
 
 **Organization**
-In the CMS context, an ongoing group or association within the diocese or parish (e.g., parish council, youth group, Knights of Columbus). Distinct from a *Program*, which is time-limited.
+In the CMS context, an ongoing group or association within the diocese or parish (e.g., parish council, youth group, Knights of Columbus). Distinct from a _Program_, which is time-limited.
 
 ---
 
@@ -170,17 +173,17 @@ The ordained priest assigned by the bishop to lead a parish.
 A member of a parish community.
 
 **Pledge**
-A commitment by a family or member to give a specified amount over a defined period. May be associated with a giving *campaign*.
+A commitment by a family or member to give a specified amount over a defined period. May be associated with a giving _campaign_.
 
 **Program**
-In the CMS context, a structured, often time-limited educational or ministerial activity (e.g., RCIA, Faith Formation classes, confirmation preparation). Distinct from an *Organization*, which is ongoing.
+In the CMS context, a structured, often time-limited educational or ministerial activity (e.g., RCIA, Faith Formation classes, confirmation preparation). Distinct from an _Organization_, which is ongoing.
 
 ---
 
 ## R
 
 **RCIA (Rite of Christian Initiation for Adults)**
-The formal process by which adults are received into the Catholic Church through the sacraments of Baptism, Confirmation, and Eucharist. Commonly managed as a *program* in the CMS.
+The formal process by which adults are received into the Catholic Church through the sacraments of Baptism, Confirmation, and Eucharist. Commonly managed as a _program_ in the CMS.
 
 **Registration Date**
 The date a family formally joined and registered at a parish.
@@ -196,7 +199,7 @@ A database feature that restricts which rows a user can query or modify, used as
 ## S
 
 **Sacrament**
-One of the seven sacred rites of the Catholic Church: Baptism, Eucharist (First Communion), Confirmation, Reconciliation, Anointing of the Sick, Holy Orders, and Matrimony (Marriage).
+In the Mar Thoma Church, one of the seven sacramental rites: Holy Baptism, Holy Communion (Holy Qurbana), Confirmation (Miron Anointing), Confession (Reconciliation), Marriage (Matrimony), Ordination (Holy Orders), and Anointing of the Sick.
 
 **Sacramental Record**
 An official record of a sacrament administered to a person, including date, minister, parish, and register reference (book, page, entry number).

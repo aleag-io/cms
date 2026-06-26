@@ -20,6 +20,21 @@ This document defines the full access control model for the Mar Thoma Church Man
 
 5. **All operations are audited.** Audit logging is mandatory for authentication events, reads, writes, deletes, exports, imports, permission and role changes, sharing lifecycle actions, emergency access, and system-initiated background actions. Sensitive data categories (sacramental, giving, ledger, private notes) require per-record access audit entries.
 
+### 1.2 Intra-Parish Visibility Model
+
+Within a parish, data visibility is split into two tiers:
+
+| Tier                        | Data                                                                                                | Default Access                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `parish_directory_basic`    | Name, phone, email, mailing address, family photo, household display fields                         | All authenticated members of the same parish                                   |
+| `parish_pastoral_sensitive` | Date of birth, anniversary date, sacramental dates (including baptism date), private pastoral notes | Privileged roles only (Vicar/Clergy, Parish Admin, explicitly delegated staff) |
+
+Rules:
+
+- The member directory must not expose pastoral-sensitive date fields.
+- Privileged access to pastoral-sensitive data is scoped to the same parish only.
+- Reads and writes on pastoral-sensitive fields are audited per record.
+
 ---
 
 ## 2. Diocese Visibility Tiers
@@ -72,7 +87,7 @@ The following data categories can be shared independently. A sharing grant alway
 
 | Category ID                  | Name                         | What It Includes                                                                                                                                                |
 | ---------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `member_directory`           | Member Directory             | Full name, contact info, address, status, photo for all active members                                                                                          |
+| `member_directory`           | Member Directory             | Full name, contact info, address, status, photo for all active members; excludes pastoral-sensitive date fields                                                 |
 | `member_demographics_detail` | Member Demographics (Detail) | Full demographic data per member (DOB, gender, education level, work notes, skills, interests). Does **not** include private notes — those are never shareable. |
 | `family_records`             | Family Records               | Household data, addresses, preferred contact, member numbers, envelope numbers                                                                                  |
 | `sacramental_records`        | Sacramental Records          | Individual sacramental history (most sensitive category)                                                                                                        |
@@ -86,6 +101,8 @@ The following data categories can be shared independently. A sharing grant alway
 | `communications_history`     | Communications History       | Message content and delivery records                                                                                                                            |
 
 > **Private notes are never a shareable data category.** The `private_notes` field on member records is accessible only to clergy within the parish and is excluded from all sharing grants, exports, reports, and data transfers.
+>
+> **Pastoral-sensitive dates are also not shareable by default.** Date of birth, anniversary date, and sacramental dates (including baptism date) require privileged-role access and are excluded from member directory output.
 
 ### 3.2 Grant Mechanics
 

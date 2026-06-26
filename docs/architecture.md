@@ -355,20 +355,20 @@ flowchart TD
 
 ## 6. Integration Points
 
-| Integration           | Purpose                   | Provider                          | Protocol             |
-| --------------------- | ------------------------- | --------------------------------- | -------------------- |
-| Authentication        | User login, SSO, MFA      | Supabase Auth                     | Built-in             |
-| Database              | Primary data store        | Supabase PostgreSQL               | Supabase client SDK  |
-| File storage          | Blobs, photos, exports    | Vercel Blob                       | HTTPS API            |
-| Email (transactional) | Invites, notifications    | Resend or SendGrid                | HTTPS API            |
-| Email (bulk)          | Parish communications     | Resend or SendGrid                | HTTPS API            |
-| SMS                   | Notification messages     | Twilio                            | HTTPS API            |
-| Push notifications    | In-app / browser push     | Web Push API (future)             | HTTPS                |
-| Payment processing    | Online giving             | Stripe                            | HTTPS API + Webhooks |
-| Accounting export     | Export giving/ledger data | External (QuickBooks, etc.)       | CSV export           |
-| SSO providers         | Staff login               | Google Workspace, Microsoft Entra | OAuth 2.0 / OIDC     |
-| Calendar export       | Event sync                | Standard iCal format              | iCal (.ics)          |
-| Expo mobile app       | Offline mobile experience | Separate project (future)         | REST API             |
+| Integration           | Purpose                   | Provider                                         | Protocol             |
+| --------------------- | ------------------------- | ------------------------------------------------ | -------------------- |
+| Authentication        | User login, SSO, MFA      | Supabase Auth                                    | Built-in             |
+| Database              | Primary data store        | Supabase PostgreSQL                              | Supabase client SDK  |
+| File storage          | Blobs, photos, exports    | Vercel Blob                                      | HTTPS API            |
+| Email (transactional) | Invites, notifications    | Resend or SendGrid                               | HTTPS API            |
+| Email (bulk)          | Parish communications     | Resend or SendGrid                               | HTTPS API            |
+| SMS                   | Notification messages     | Twilio                                           | HTTPS API            |
+| Push notifications    | In-app / browser push     | Web Push API (future)                            | HTTPS                |
+| Payment processing    | Online giving             | Stripe                                           | HTTPS API + Webhooks |
+| Accounting export     | Export giving/ledger data | External accounting workflows (optional, future) | CSV export           |
+| SSO providers         | Staff login               | Google Workspace, Microsoft Entra                | OAuth 2.0 / OIDC     |
+| Calendar export       | Event sync                | Standard iCal format                             | iCal (.ics)          |
+| Expo mobile app       | Offline mobile experience | Separate project (future)                        | REST API             |
 
 ---
 
@@ -383,7 +383,7 @@ flowchart TD
 | Database          | Supabase PostgreSQL                                           | Managed Postgres with RLS for tenant isolation; real-time subscriptions available   |
 | Tenancy model     | Shared DB, shared schema with RLS discriminator               | RLS enforces isolation at DB level; simplest to operate; can migrate later          |
 | File storage      | Vercel Blob                                                   | Native Vercel integration; signed URLs; no separate S3 bucket management            |
-| Financial model   | Full ledger (chart of accounts, journal entries)              | Supports accurate financial reporting and integration with accounting tools         |
+| Financial model   | Full ledger (chart of accounts, journal entries)              | Supports accurate internal financial reporting with controlled CSV data exchange    |
 | Mobile            | Responsive web (primary); Expo app (future, separate project) | Avoids app store overhead for v1; full mobile browser support via responsive design |
 | Offline support   | Not in v1 web app                                             | Deferred to future Expo mobile app                                                  |
 | Multiple dioceses | Future phase                                                  | Architecture uses `diocese_id` discriminator everywhere; migration path exists      |

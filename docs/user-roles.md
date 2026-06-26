@@ -155,6 +155,7 @@ flowchart TD
 
 - All capabilities of Parish Staff
 - **Read and write `private_notes`** on any member record within the parish — this is the only role with this access
+- Read and edit pastoral-sensitive date fields (DOB, family anniversary, sacramental dates including baptism date)
 - View complete member profiles including sensitive pastoral information
 - Cannot manage parish financial settings or user accounts (unless also assigned Parish Admin role)
 
@@ -164,7 +165,7 @@ flowchart TD
 
 ### 2.8 Member (Self-Service Portal)
 
-**Scope:** Own profile and family record only
+**Scope:** Own profile/family record + parish member directory (basic details only)
 
 **Description:** Any registered parishioner with a user account.
 
@@ -172,7 +173,8 @@ flowchart TD
 
 - View and update own profile
 - View own family record (cannot change family membership structure)
-- View own sacramental records (read-only)
+- Browse parish member directory with basic details only (name, phone, email, address, family photo)
+- Cannot view pastoral-sensitive date fields for other members (DOB, anniversary, baptism/sacramental dates)
 - View own giving history and annual giving statements
 - RSVP to parish events
 - View parish calendar and public announcements
@@ -237,42 +239,44 @@ The table below summarizes access by resource and role. **D** = Diocese only, **
 
 > **Key:** ✅ Full access | 👁️ Read-only | 📊 Aggregate/anonymized counts only (no raw records) | ⚙️ Configurable | 🔑 Requires active sharing grant | ❌ No access
 
-| Resource                                    | Diocese Admin | Diocese Staff |  Diocese Report Viewer  | Parish Admin |    Parish Staff     | Ministry Leader  | Organization Leader |      Clergy      |   Member    |   Guest   |
-| ------------------------------------------- | :-----------: | :-----------: | :---------------------: | :----------: | :-----------------: | :--------------: | :-----------------: | :--------------: | :---------: | :-------: |
-| Diocese settings                            |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Parish management — create/deactivate (D)   |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Parish profile / structural data (D)        |      ✅       |      👁️       |           👁️            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Parish aggregate metrics (D)                |      📊       |      📊       |           📊            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Parish settings (P)                         |      ✅       |      ❌       |           ❌            |      ✅      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Church Admin Settings / Permissions (P)     |      ✅       |      ❌       |           ❌            |      ✅      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Member ID config (P)                        |      ✅       |      ❌       |           ❌            |      ✅      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Parish data sharing grants (P)              |      👁️       |      ❌       |           ❌            |      ✅      | ⚙️ Data Sharing Mgr |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Contextual sharing from page menu (P/D)     |      ✅       |   ⚙️ policy   |           ❌            |      ✅      |      ⚙️ config      |    ⚙️ limited    |     ⚙️ limited      |    ⚙️ limited    |     ❌      |    ❌     |
-| Member records — raw (P)                    |   🔑 grant    |   🔑 grant    |           ❌            |      ✅      |         ✅          | 👁️ (own program) |    👁️ (own org)     |        ✅        |  👁️ (own)   |    ❌     |
-| Member private notes (P)                    |      ❌       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          | ✅ (clergy only) |     ❌      |    ❌     |
-| Family records — raw (P)                    |   🔑 grant    |   🔑 grant    |           ❌            |      ✅      |         ✅          |        ❌        |         ❌          |        ✅        |  👁️ (own)   |    ❌     |
-| Member relationships (P)                    |   🔑 grant    |      ❌       |           ❌            |      ✅      |         ✅          |        ❌        |         ❌          |        ✅        |  👁️ (own)   |    ❌     |
-| Sacramental records (P)                     |   🔑 grant    |   🔑 grant    |           ❌            |      ✅      |      ⚙️ config      |        ❌        |         ❌          |        ✅        |  👁️ (own)   |    ❌     |
-| Giving records — raw (P)                    |   🔑 grant    |   🔑 grant    |           ❌            |      ✅      |         ✅          |        ❌        |         ❌          |        ❌        |  👁️ (own)   |    ❌     |
-| Financial ledger — parish (P)               |   🔑 grant    |   🔑 grant    |           ❌            |      ✅      |      ⚙️ config      |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Financial ledger — organization (P)         |      ❌       |      ❌       |           ❌            | 👁️ all orgs  |      ⚙️ config      |        ❌        |    ✅ (own org)     |        ❌        |     ❌      |    ❌     |
-| Parish officers / board (P)                 |      ❌       |      ❌       |           ❌            |      ✅      |         👁️          |        ❌        |         ❌          |        👁️        |     ❌      |    ❌     |
-| Events (P)                                  |    📊 agg     |      ❌       |           ❌            |      ✅      |         ✅          |     ✅ (own)     |    ✅ (own org)     |        ✅        |     👁️      | 👁️ public |
-| Facilities (P)                              |      ❌       |      ❌       |           ❌            |      ✅      |         ✅          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Programs / Ministries (P)                   |    📊 agg     |      ❌       |           ❌            |      ✅      |         ✅          |     ✅ (own)     |         ❌          |        ✅        | 👁️ enrolled |    ❌     |
-| Organizations (P)                           |    📊 agg     |      ❌       |           ❌            |      ✅      |         ✅          |        ❌        |      ✅ (own)       |        ✅        | 👁️ enrolled |    ❌     |
-| Organization officers (P)                   |      ❌       |      ❌       |           ❌            |      ✅      |         ✅          |        ❌        |    ✅ (own org)     |        ❌        |     ❌      |    ❌     |
-| Communications (P)                          |      ❌       |      ❌       |           ❌            |      ✅      |      ⚙️ config      |     ✅ (own)     |    ✅ (own org)     |        ✅        |     ❌      |    ❌     |
-| Diocese-wide aggregate reports              |      ✅       |      ✅       |           ✅            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Shared parish reports (published by parish) |   🔑 grant    |   🔑 grant    | 🔑 grant (summary only) |   ✅ (own)   |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Parish standard reports (P)                 |   🔑 grant    |      ❌       |           ❌            |      ✅      |         ✅          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| User management — diocese level             |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| User management — parish level (P)          |      ✅       |      ❌       |           ❌            |      ✅      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Data sharing requests — create (D→P)        |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Data sharing requests — approve/reject (P)  |      ❌       |      ❌       |           ❌            |      ✅      | ⚙️ Data Sharing Mgr |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Emergency access — invoke (D)               |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Audit logs — diocese level                  |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
-| Audit logs — parish level (P)               |   🔑 grant    |      ❌       |           ❌            |      ✅      |         ❌          |        ❌        |         ❌          |        ❌        |     ❌      |    ❌     |
+| Resource                                               | Diocese Admin | Diocese Staff |  Diocese Report Viewer  | Parish Admin |    Parish Staff     | Ministry Leader  | Organization Leader |      Clergy      |      Member      |   Guest   |
+| ------------------------------------------------------ | :-----------: | :-----------: | :---------------------: | :----------: | :-----------------: | :--------------: | :-----------------: | :--------------: | :--------------: | :-------: |
+| Diocese settings                                       |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Parish management — create/deactivate (D)              |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Parish profile / structural data (D)                   |      ✅       |      👁️       |           👁️            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Parish aggregate metrics (D)                           |      📊       |      📊       |           📊            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Parish settings (P)                                    |      ✅       |      ❌       |           ❌            |      ✅      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Church Admin Settings / Permissions (P)                |      ✅       |      ❌       |           ❌            |      ✅      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Member ID config (P)                                   |      ✅       |      ❌       |           ❌            |      ✅      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Parish data sharing grants (P)                         |      👁️       |      ❌       |           ❌            |      ✅      | ⚙️ Data Sharing Mgr |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Contextual sharing from page menu (P/D)                |      ✅       |   ⚙️ policy   |           ❌            |      ✅      |      ⚙️ config      |    ⚙️ limited    |     ⚙️ limited      |    ⚙️ limited    |        ❌        |    ❌     |
+| Parish member directory — basic (P)                    |      ❌       |      ❌       |           ❌            |      ✅      |         ✅          |        ✅        |         ✅          |        ✅        | ✅ (same parish) |    ❌     |
+| Pastoral-sensitive dates (DOB/anniversary/baptism) (P) |      ❌       |      ❌       |           ❌            |      ✅      |  ⚙️ delegated only  |        ❌        |         ❌          |   ✅ (clergy)    |        ❌        |    ❌     |
+| Member records — raw (P)                               |   🔑 grant    |   🔑 grant    |           ❌            |      ✅      |         ✅          | 👁️ (own program) |    👁️ (own org)     |        ✅        |     👁️ (own)     |    ❌     |
+| Member private notes (P)                               |      ❌       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          | ✅ (clergy only) |        ❌        |    ❌     |
+| Family records — raw (P)                               |   🔑 grant    |   🔑 grant    |           ❌            |      ✅      |         ✅          |        ❌        |         ❌          |        ✅        |     👁️ (own)     |    ❌     |
+| Member relationships (P)                               |   🔑 grant    |      ❌       |           ❌            |      ✅      |         ✅          |        ❌        |         ❌          |        ✅        |     👁️ (own)     |    ❌     |
+| Sacramental records (P)                                |   🔑 grant    |   🔑 grant    |           ❌            |      ✅      |      ⚙️ config      |        ❌        |         ❌          |        ✅        |     👁️ (own)     |    ❌     |
+| Giving records — raw (P)                               |   🔑 grant    |   🔑 grant    |           ❌            |      ✅      |         ✅          |        ❌        |         ❌          |        ❌        |     👁️ (own)     |    ❌     |
+| Financial ledger — parish (P)                          |   🔑 grant    |   🔑 grant    |           ❌            |      ✅      |      ⚙️ config      |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Financial ledger — organization (P)                    |      ❌       |      ❌       |           ❌            | 👁️ all orgs  |      ⚙️ config      |        ❌        |    ✅ (own org)     |        ❌        |        ❌        |    ❌     |
+| Parish officers / board (P)                            |      ❌       |      ❌       |           ❌            |      ✅      |         👁️          |        ❌        |         ❌          |        👁️        |        ❌        |    ❌     |
+| Events (P)                                             |    📊 agg     |      ❌       |           ❌            |      ✅      |         ✅          |     ✅ (own)     |    ✅ (own org)     |        ✅        |        👁️        | 👁️ public |
+| Facilities (P)                                         |      ❌       |      ❌       |           ❌            |      ✅      |         ✅          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Programs / Ministries (P)                              |    📊 agg     |      ❌       |           ❌            |      ✅      |         ✅          |     ✅ (own)     |         ❌          |        ✅        |   👁️ enrolled    |    ❌     |
+| Organizations (P)                                      |    📊 agg     |      ❌       |           ❌            |      ✅      |         ✅          |        ❌        |      ✅ (own)       |        ✅        |   👁️ enrolled    |    ❌     |
+| Organization officers (P)                              |      ❌       |      ❌       |           ❌            |      ✅      |         ✅          |        ❌        |    ✅ (own org)     |        ❌        |        ❌        |    ❌     |
+| Communications (P)                                     |      ❌       |      ❌       |           ❌            |      ✅      |      ⚙️ config      |     ✅ (own)     |    ✅ (own org)     |        ✅        |        ❌        |    ❌     |
+| Diocese-wide aggregate reports                         |      ✅       |      ✅       |           ✅            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Shared parish reports (published by parish)            |   🔑 grant    |   🔑 grant    | 🔑 grant (summary only) |   ✅ (own)   |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Parish standard reports (P)                            |   🔑 grant    |      ❌       |           ❌            |      ✅      |         ✅          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| User management — diocese level                        |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| User management — parish level (P)                     |      ✅       |      ❌       |           ❌            |      ✅      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Data sharing requests — create (D→P)                   |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Data sharing requests — approve/reject (P)             |      ❌       |      ❌       |           ❌            |      ✅      | ⚙️ Data Sharing Mgr |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Emergency access — invoke (D)                          |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Audit logs — diocese level                             |      ✅       |      ❌       |           ❌            |      ❌      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
+| Audit logs — parish level (P)                          |   🔑 grant    |      ❌       |           ❌            |      ✅      |         ❌          |        ❌        |         ❌          |        ❌        |        ❌        |    ❌     |
 
 **Legend:** ✅ Full access | 👁️ Read-only | 📊 Aggregate/anonymized counts only | ⚙️ Configurable | 🔑 Requires active sharing grant | ❌ No access
 

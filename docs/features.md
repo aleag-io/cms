@@ -202,12 +202,13 @@ This document provides a detailed description of each feature area of the Mar Th
 **Supported Sacraments:**
 | Sacrament | Key Data Captured |
 |-----------|------------------|
-| Baptism | Date, presiding priest, godparents, parish |
-| First Communion | Date, presiding priest, parish |
-| Confirmation | Date, presiding bishop/priest, sponsor, parish |
-| Marriage | Date, spouse, witnesses, presiding minister, parish |
+| Holy Baptism | Date, presiding priest, godparents/sponsors, parish |
+| Holy Communion (Holy Qurbana) | Date, celebrant, parish |
+| Confirmation (Miron Anointing) | Date, presiding bishop/priest, sponsor, parish |
+| Confession (Reconciliation) | Date, confessor/priest, parish, pastoral note reference |
+| Marriage (Matrimony) | Date, spouse, witnesses, presiding minister, parish |
+| Ordination (Holy Orders) | Date, ordaining bishop, ordained office, parish |
 | Anointing of the Sick | Date, presiding priest, parish |
-| Holy Orders | Date, ordaining bishop, parish |
 
 **Key Workflows:**
 
@@ -350,48 +351,89 @@ The admin may override the default membership mode when creating or editing an o
 - Double-entry journal entries record all financial transactions
 - Each entry includes: date, accounts debited/credited, amounts, description, and reference
 - Ledger supports month-end and year-end close processes
+- Closed periods may be reopened only by super-admin with a required audit reason
 - Full transaction history with audit trail
-- Export to CSV for import into external accounting tools (QuickBooks, etc.)
+- CSV-based export/import for controlled external data exchange
 
-#### 2.9.3 Giving Campaigns
+#### 2.9.3 Budgeting
+
+- Maintain annual budgets by account and fund (yearly granularity)
+- Budget scopes supported: diocese, parish, and parish organization
+- Track original budget, revised budget, actuals, and variance
+- Highlight over-budget items with threshold-based alerts
+
+#### 2.9.4 Reporting Basis
+
+- Run finance reports in either cash basis or accrual basis
+- Preserve selected basis in exported report metadata
+
+#### 2.9.5 Giving Campaigns
 
 - Create campaigns with goals, dates, and fund designations
 - Track progress against goal (total received vs. pledged vs. goal)
 - Assign campaign to specific account in the chart of accounts
 
-#### 2.9.4 Donation Recording
+#### 2.9.6 Donation Recording
 
 - Record individual donations linked to a family or member
 - Support multiple payment methods (cash, check, online, ACH)
 - Track check numbers and payment processor transaction IDs
 - Import donation batches from CSV
 - Donations automatically generate ledger journal entries
+- Member-level statements include only donations explicitly attributed to that member
 
-#### 2.9.5 Pledge Management
+#### 2.9.7 Pledge Management
 
 - Create pledge commitments for campaigns
 - Track fulfillment status and reminders
 - Generate pledge reminders for lapsed pledges
 
-#### 2.9.6 Online Giving Integration (Stripe)
+#### 2.9.8 Online Giving Integration (Stripe)
 
 - Accept payments via Stripe (one-time and recurring)
 - Donations automatically create records and ledger entries
 - Webhook-driven: Stripe events trigger database updates
 
-#### 2.9.7 Financial Reports
+#### 2.9.9 Financial Reports
 
 - Income statement (revenue vs. expenses by period)
 - Balance sheet
 - Fund balance summary
+- Annual budget report (budget vs. actual)
+- Over-budget variance report
 - Giving summary by fund, campaign, and period
 - Pledge fulfillment report
+- Comparative views across diocese, parish, and organization scopes (role-permitted)
 
-#### 2.9.8 Annual Giving Statements
+#### 2.9.10 Annual Giving Statements
 
-- Generate IRS-compliant giving statements per family
+- Generate IRS-compliant giving statements per family and per member
+- Member statements include only member-attributed donations
 - Batch generation and bulk email delivery
 - Export as PDF
+
+#### 2.9.11 Vendor Bills & Payments
+
+- Create and track vendor profiles and bills
+- Support bill lifecycle: draft, submitted, approved, posted, paid, voided
+- Record bill payments (check, ACH, online, cash)
+- Maintain payable aging and outstanding balances
+
+#### 2.9.12 Bank Reconciliation (CSV)
+
+- Import bank statement lines from CSV
+- Match statement lines to ledger transactions
+- Track unmatched items and reconciliation status
+- No direct bank API integration in v1
+
+#### 2.9.13 Finance Approvals
+
+- Configurable maker-checker workflow for journals, vendor bills, and payments
+- Policy scope supports diocese, parish, and organization entities
+- The corresponding entity admin configures policy for their scope: Diocese Admin, Parish Admin, or Organization Admin
+- Workflow mode is selectable per entity: `strict`, `threshold_based`, or `hybrid`
+- Approval thresholds and approver roles are configurable per entity policy
+- Approval and override actions are fully audited
 
 ---
 
