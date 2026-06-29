@@ -47,6 +47,8 @@ export function makeClaims(opts: {
   dioceseId: string;
   parishId: string | null;
   role: string;
+  memberId?: string | null;
+  clergyParishIds?: string[];
 }): SessionClaims {
   return {
     sub: opts.userId,
@@ -54,6 +56,8 @@ export function makeClaims(opts: {
       diocese_id: opts.dioceseId,
       parish_id: opts.parishId,
       roles: [opts.role],
+      member_id: opts.memberId ?? null,
+      clergy_parish_ids: opts.clergyParishIds ?? [],
     },
   };
 }

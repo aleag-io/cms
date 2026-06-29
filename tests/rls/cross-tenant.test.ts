@@ -44,6 +44,30 @@ const parishAStaffClaims = makeClaims({
   role: 'parish_staff',
 });
 
+const parishAMemberClaims = makeClaims({
+  userId: FX.users.parishAMember.id,
+  dioceseId: FX.dioceseId,
+  parishId: FX.parishAId,
+  role: 'member',
+  memberId: FX.members.aliceSmithId,
+});
+
+const clergyAClaims = makeClaims({
+  userId: FX.users.clergyA.id,
+  dioceseId: FX.dioceseId,
+  parishId: FX.parishAId,
+  role: 'parish_staff',
+  memberId: FX.members.clergyAId,
+  clergyParishIds: [FX.parishAId],
+});
+
+const pastoralAccessorClaims = makeClaims({
+  userId: FX.users.pastoralAccessorA.id,
+  dioceseId: FX.dioceseId,
+  parishId: FX.parishAId,
+  role: 'pastoral_data_accessor',
+});
+
 const parishBAdminClaims = makeClaims({
   userId: FX.users.parishBAdmin.id,
   dioceseId: FX.dioceseId,
@@ -96,6 +120,70 @@ describe('Member — cross-tenant isolation', () => {
       client.query(`SELECT id FROM "Member" WHERE "parishId" = $1`, [FX.parishAId]),
     );
     expect(rows).toHaveLength(0);
+  });
+
+  it('Member role cannot read all Member rows directly', async () => {
+    const { rows } = await withTenantSession(parishAMemberClaims, (client) =>
+      client.query(`SELECT id FROM "Member"`),
+    );
+    // Self-read policy may return one row when userId is linked, but never all parish rows.
+    expect(rows.length).toBeLessThan(2);
+  });
+});
+
+describe('Phase 2 sensitive field RLS', () => {
+  it('Parish staff cannot read private notes', async () => {
+    const { rows } = await withTenantSession(parishAStaffClaims, (client) =>
+      client.query(`SELECT id FROM "MemberPrivateNote"`),
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  it('Clergy can read private notes only for assigned clergy parish', async () => {
+    const { rows } = await withTenantSession(clergyAClaims, (client) =>
+      client.query(`SELECT "parishId" FROM "MemberPrivateNote" ORDER BY "parishId"`),
+    );
+
+    expect(rows.length).toBeGreaterThan(0);
+    const parishIds = new Set(rows.map((r) => r.parishId));
+    expect(parishIds.has(FX.parishAId)).toBe(true);
+    expect(parishIds.has(FX.parishBId)).toBe(false);
+  });
+
+  it('Parish admin cannot read private notes without clergy assignment', async () => {
+    const { rows } = await withTenantSession(parishAAdminClaims, (client) =>
+      client.query(`SELECT id FROM "MemberPrivateNote"`),
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  it('Pastoral accessor can read pastoral data in own parish', async () => {
+    const { rows } = await withTenantSession(pastoralAccessorClaims, (client) =>
+      client.query(`SELECT id FROM "MemberPastoralData"`),
+    );
+    expect(rows.length).toBeGreaterThan(0);
+  });
+
+  it('Member role cannot read pastoral data', async () => {
+    const { rows } = await withTenantSession(parishAMemberClaims, (client) =>
+      client.query(`SELECT id FROM "MemberPastoralData"`),
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  it('Directory view excludes private notes and DOB columns', async () => {
+    await withTenantSession(parishAMemberClaims, (client) =>
+      client.query(
+        `SELECT "dateOfBirth", note FROM parish_member_directory LIMIT 1`,
+      ),
+    ).then(
+      () => {
+        throw new Error('Expected selecting sensitive columns from directory view to fail');
+      },
+      () => {
+        expect(true).toBe(true);
+      },
+    );
   });
 });
 
@@ -224,7 +312,21 @@ describe('AuditEntry — append-only (AU-10)', () => {
 // ─── 6. Policy schema assertions ──────────────────────────────────────────────
 
 describe('Policy schema — RLS enabled+forced on all tenant tables', () => {
-  const tenantTables = ['Diocese', 'Parish', 'AppUser', 'Family', 'Member', 'AuditEntry'];
+  const tenantTables = [
+    'Diocese',
+    'Parish',
+    'AppUser',
+    'Family',
+    'Member',
+    'AuditEntry',
+    'ParishOfficer',
+    'MemberPrivateNote',
+    'MemberPastoralData',
+    'FamilyPastoralData',
+    'MemberRelationship',
+    'MemberParish',
+    'ParishPermissionOverride',
+  ];
 
   for (const table of tenantTables) {
     it(`"${table}" has RLS enabled and forced`, async () => {

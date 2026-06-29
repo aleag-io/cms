@@ -9,9 +9,65 @@ datasource db {
 enum Role {
   GLOBAL_ADMIN
   DIOCESE_ADMIN
+  DIOCESE_STAFF
   PARISH_ADMIN
   PARISH_STAFF
+  CLERGY
+  MINISTRY_LEADER
+  ORGANIZATION_LEADER
+  PASTORAL_DATA_ACCESSOR
   MEMBER
+}
+
+enum OfficerType {
+  CLERGY
+  BOARD
+  EXECUTIVE_COMMITTEE
+  FINANCE_COMMITTEE
+  TRUSTEE
+  OTHER
+}
+
+enum EducationLevel {
+  PRIMARY
+  SECONDARY
+  UNDERGRADUATE
+  POSTGRADUATE
+  OTHER
+}
+
+enum RelationshipType {
+  SPOUSE
+  PARENT
+  CHILD
+  SIBLING
+  GRANDPARENT
+  GRANDCHILD
+  IN_LAW
+  OTHER
+}
+
+enum MembershipType {
+  PRIMARY
+  SECONDARY
+}
+
+enum PermissionResource {
+  MEMBER_PROFILE
+  MEMBER_PRIVATE_NOTE
+  MEMBER_PASTORAL_DATA
+  PARISH_DIRECTORY
+  MEMBER_EXPORT
+  PARISH_OFFICER
+  PARISH_PERMISSION_OVERRIDE
+}
+
+enum PermissionAction {
+  READ
+  WRITE
+  DELETE
+  EXPORT
+  SEND
 }
 
 enum MemberStatus {
@@ -63,6 +119,13 @@ model Parish {
   users   AppUser[]
   families Family[]
   members  Member[]
+  officers ParishOfficer[]
+  memberParishes MemberParish[]
+  privateNotes MemberPrivateNote[]
+  memberPastoralData MemberPastoralData[]
+  familyPastoralData FamilyPastoralData[]
+  permissionOverrides ParishPermissionOverride[]
+  memberRelationships MemberRelationship[]
   audits   AuditEntry[]
 
   @@index([dioceseId])
@@ -80,6 +143,8 @@ model AppUser {
   updatedAt   DateTime     @updatedAt
   diocese     Diocese      @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
   parish      Parish?      @relation(fields: [parishId], references: [id], onDelete: SetNull)
+  memberProfile Member?    @relation("AppUserMember")
+  grantedPermissionOverrides ParishPermissionOverride[] @relation("ParishPermissionOverrideGrantedBy")
   audits      AuditEntry[] @relation("AuditActor")
 
   @@index([dioceseId, role])
@@ -101,6 +166,7 @@ model Family {
   updatedAt           DateTime @updatedAt
   parish              Parish   @relation(fields: [parishId], references: [id], onDelete: Cascade)
   members             Member[]
+  pastoralData        FamilyPastoralData?
 
   @@unique([parishId, familyNumber])
   @@index([dioceseId, parishId])
@@ -112,13 +178,15 @@ model Member {
   parishId         String       @db.Uuid
   familyId         String?      @db.Uuid
   // Linked Supabase/AppUser for self-service access (staged for Phase 3)
-  userId           String?      @db.Uuid
+  userId           String?      @unique @db.Uuid
   memberIdentifier String
   firstName        String
   lastName         String
   email            String?
   phone            String?
-  dateOfBirth      DateTime?
+  workNotes        String?
+  educationLevel   EducationLevel?
+  skillsInterests  String[]      @default([])
   status           MemberStatus @default(ACTIVE)
   // Transfer stub — full workflow in Phase 4
   transferredFromParishId String? @db.Uuid
@@ -127,10 +195,126 @@ model Member {
   updatedAt        DateTime     @updatedAt
   parish           Parish       @relation(fields: [parishId], references: [id], onDelete: Cascade)
   family           Family?      @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  user             AppUser?     @relation("AppUserMember", fields: [userId], references: [id], onDelete: SetNull)
+  officerAssignments ParishOfficer[]
+  privateNote      MemberPrivateNote?
+  pastoralData     MemberPastoralData?
+  memberParishes   MemberParish[]
+  relatedTo        MemberRelationship[] @relation("MemberRelationshipFrom")
+  relatedFrom      MemberRelationship[] @relation("MemberRelationshipTo")
 
   @@unique([parishId, memberIdentifier])
   @@index([dioceseId, parishId, status])
-  @@index([userId])
+}
+
+model ParishOfficer {
+  id         String      @id @default(uuid()) @db.Uuid
+  parishId   String      @db.Uuid
+  memberId   String      @db.Uuid
+  title      String
+  officerType OfficerType
+  termStart  DateTime    @default(now())
+  termEnd    DateTime?
+  isActive   Boolean     @default(true)
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  parish     Parish      @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  member     Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([parishId, officerType, isActive])
+  @@index([memberId, officerType])
+}
+
+model MemberPrivateNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  memberId  String   @unique @db.Uuid
+  parishId  String   @db.Uuid
+  note      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  parish    Parish   @relation(fields: [parishId], references: [id], onDelete: Cascade)
+
+  @@index([parishId])
+}
+
+model MemberPastoralData {
+  id            String   @id @default(uuid()) @db.Uuid
+  memberId       String   @unique @db.Uuid
+  parishId       String   @db.Uuid
+  dateOfBirth    DateTime?
+  baptismDate    DateTime?
+  chrismationDate DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  parish         Parish   @relation(fields: [parishId], references: [id], onDelete: Cascade)
+
+  @@index([parishId])
+}
+
+model FamilyPastoralData {
+  id              String   @id @default(uuid()) @db.Uuid
+  familyId        String   @unique @db.Uuid
+  parishId        String   @db.Uuid
+  anniversaryDate DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  family          Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  parish          Parish   @relation(fields: [parishId], references: [id], onDelete: Cascade)
+
+  @@index([parishId])
+}
+
+model MemberRelationship {
+  id               String           @id @default(uuid()) @db.Uuid
+  parishId         String           @db.Uuid
+  memberId         String           @db.Uuid
+  relatedMemberId  String           @db.Uuid
+  relationshipType RelationshipType
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  parish           Parish           @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  member           Member           @relation("MemberRelationshipFrom", fields: [memberId], references: [id], onDelete: Cascade)
+  relatedMember    Member           @relation("MemberRelationshipTo", fields: [relatedMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, relatedMemberId, relationshipType])
+  @@index([parishId])
+}
+
+model MemberParish {
+  id             String         @id @default(uuid()) @db.Uuid
+  memberId       String         @db.Uuid
+  parishId       String         @db.Uuid
+  isPrimary      Boolean        @default(false)
+  membershipType MembershipType @default(PRIMARY)
+  joinedAt       DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  member         Member         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  parish         Parish         @relation(fields: [parishId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, parishId])
+  @@index([parishId, isPrimary])
+}
+
+model ParishPermissionOverride {
+  id              String             @id @default(uuid()) @db.Uuid
+  parishId        String             @db.Uuid
+  role            Role
+  resource        PermissionResource
+  action          PermissionAction
+  isAllowed       Boolean
+  grantedByUserId String             @db.Uuid
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  parish          Parish             @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  grantedBy       AppUser            @relation("ParishPermissionOverrideGrantedBy", fields: [grantedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([parishId, role, resource, action])
+  @@index([parishId])
 }
 
 model AuditEntry {

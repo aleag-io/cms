@@ -1,22 +1,20 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
-
-<!-- BEGIN:project-status (shared assistant memory — keep in sync with .github/copilot-instructions.md) -->
 # Project Status & Context
 
 > Shared context for all AI assistants (Codex, Copilot, Grok, Cursor, Claude). Migrated
 > from Claude Code session memory on 2026-06-29 so every tool works from the same picture.
-> Keep this section and `.github/copilot-instructions.md` in sync. Update as phases land.
+> This file mirrors the `project-status` section of [AGENTS.md](../AGENTS.md) — keep the two
+> in sync. Update as phases land.
 
 ## What this is
 
 A multi-tenant **Church Management System (CMS)** for the Mar Thoma Church, Diocese of
 North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Supabase**
 (Auth + Postgres + Row-Level Security). Delivery is phased — see
-[docs/delivery-plan.md](docs/delivery-plan.md) and the per-phase plans in `docs/`.
+[docs/delivery-plan.md](../docs/delivery-plan.md) and the per-phase plans in `docs/`.
+
+> **Next.js note:** this is Next.js 16 with breaking changes from older versions. Read the
+> relevant guide in `node_modules/next/dist/docs/` before writing Next.js code; don't rely on
+> training-data conventions.
 
 ## Architecture spine (load-bearing — don't bypass)
 
@@ -54,7 +52,7 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   `ParishPermissionOverride`; expanded `Role` enum; `dateOfBirth`/`anniversaryDate` moving to
   satellite tables). Still needed: field-protection RLS migration, directory view, permission
   resolver, endpoints, and the `@phase:2 @rls` suite. Full plan:
-  [docs/phase-2-plan.md](docs/phase-2-plan.md). Central decision: satellite tables turn
+  [docs/phase-2-plan.md](../docs/phase-2-plan.md). Central decision: satellite tables turn
   field-level rules into row-level RLS.
 
 ## How to run
@@ -73,5 +71,3 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   permission tests **first**.
 - Tenant-scoped reads/writes go through `withTenant` — never the bare privileged Prisma
   client (that is reserved for provisioning, the claims hook, and audit writes).
-<!-- END:project-status -->
-

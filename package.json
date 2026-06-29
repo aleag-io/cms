@@ -22,7 +22,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:coverage": "vitest run --coverage",
     "ci": "npm run typecheck && npm run lint && npm run test:unit && npm run test:integration && npm run test:rls && npm run test:e2e",
-    "db:apply-rls": "node scripts/apply-sql.js supabase/migrations/20260629100000_auth_shims_and_role.sql supabase/migrations/20260629100001_rls_policies.sql supabase/migrations/20260629100002_audit_immutability.sql supabase/migrations/20260629100003_claims_hook.sql",
+    "db:apply-rls": "node scripts/apply-sql.js supabase/migrations/20260629100000_auth_shims_and_role.sql supabase/migrations/20260629100001_rls_policies.sql supabase/migrations/20260629100002_audit_immutability.sql supabase/migrations/20260629100003_claims_hook.sql supabase/migrations/20260629171000_phase2_field_access_rls.sql",
     "db:apply-ci-shims": "node scripts/apply-sql.js scripts/ci-auth-shims.sql",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",

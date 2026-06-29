@@ -56,7 +56,11 @@ o/bKiIz+Fq8=
 function createPrismaClient() {
   // LOCAL: DATABASE_URL (plain TCP, no SSL)
   // VERCEL: POSTGRES_URL (Supabase pooler, SSL with private CA)
-  const connectionString = process.env.DATABASE_URL ?? process.env.POSTGRES_URL!;
+  const connectionString =
+    process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
+  if (!connectionString) {
+    throw new Error('DATABASE_URL, TEST_DATABASE_URL, or POSTGRES_URL must be set');
+  }
 
   // pg v9 maps sslmode=require → verify-full, which conflicts with our ssl config.
   // Strip it from the URL so we own SSL handling entirely.

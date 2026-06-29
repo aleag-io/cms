@@ -20,7 +20,7 @@ export const GET = () =>
       Role.MEMBER,
     ]);
     const parishId = requireParishId(actor.parishId);
-    const claims = claimsFromUser(actor);
+    const claims = await claimsFromUser(actor);
 
     const families = await withTenant(claims, (tx) =>
       tx.family.findMany({
@@ -41,7 +41,7 @@ export const POST = (request: Request) =>
       Role.PARISH_STAFF,
     ]);
     const parishId = requireParishId(actor.parishId);
-    const claims = claimsFromUser(actor);
+    const claims = await claimsFromUser(actor);
 
     const body = (await request.json()) as {
       familyName?: string;

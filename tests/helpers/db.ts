@@ -6,7 +6,7 @@
  * dependency order then re-seeds with the deterministic fixture data.
  */
 
-import { PrismaClient, Role } from '@prisma/client';
+import { OfficerType, PrismaClient, Role } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
@@ -25,7 +25,7 @@ export async function resetTestDb() {
   // immutability trigger) and is faster than DELETE for bulk cleanup.
   // CASCADE handles FK dependencies in one shot.
   await testDb.$executeRawUnsafe(
-    `TRUNCATE "AuditEntry", "Member", "Family", "AppUser", "Parish", "Diocese" CASCADE`,
+    `TRUNCATE "AuditEntry", "ParishPermissionOverride", "MemberRelationship", "FamilyPastoralData", "MemberPastoralData", "MemberPrivateNote", "ParishOfficer", "MemberParish", "Member", "Family", "AppUser", "Parish", "Diocese" CASCADE`,
   );
 
   await seedFixtures();
@@ -57,6 +57,14 @@ export const FX = {
       id: '00000000-0000-0000-0000-000000000104',
       email: 'parish-a-member@test.local',
     },
+    clergyA: {
+      id: '00000000-0000-0000-0000-000000000105',
+      email: 'clergy-a@test.local',
+    },
+    pastoralAccessorA: {
+      id: '00000000-0000-0000-0000-000000000106',
+      email: 'pastoral-accessor-a@test.local',
+    },
   },
   families: {
     smithId: '00000000-0000-0000-0000-000000000200',
@@ -64,6 +72,8 @@ export const FX = {
   },
   members: {
     aliceSmithId: '00000000-0000-0000-0000-000000000300',
+    clergyAId: '00000000-0000-0000-0000-000000000301',
+    bobJonesBId: '00000000-0000-0000-0000-000000000302',
   },
 } as const;
 
@@ -142,6 +152,22 @@ async function seedFixtures() {
         dioceseId,
         parishId: parishAId,
       },
+      {
+        id: users.clergyA.id,
+        email: users.clergyA.email,
+        displayName: 'Clergy A',
+        role: Role.PARISH_STAFF,
+        dioceseId,
+        parishId: parishAId,
+      },
+      {
+        id: users.pastoralAccessorA.id,
+        email: users.pastoralAccessorA.email,
+        displayName: 'Pastoral Accessor A',
+        role: Role.PASTORAL_DATA_ACCESSOR,
+        dioceseId,
+        parishId: parishAId,
+      },
     ],
   });
 
@@ -172,10 +198,110 @@ async function seedFixtures() {
       dioceseId,
       parishId: parishAId,
       familyId: families.smithId,
+      userId: users.parishAMember.id,
       memberIdentifier: '100.1',
       firstName: 'Alice',
       lastName: 'Smith',
       email: 'alice@test.local',
+      workNotes: 'Staff-only note',
+      educationLevel: 'UNDERGRADUATE',
+      skillsInterests: ['Choir'],
     },
+  });
+
+  await testDb.member.create({
+    data: {
+      id: members.clergyAId,
+      dioceseId,
+      parishId: parishAId,
+      familyId: families.smithId,
+      userId: users.clergyA.id,
+      memberIdentifier: '100.2',
+      firstName: 'Fr',
+      lastName: 'Clergy',
+      email: 'clergy@test.local',
+    },
+  });
+
+  await testDb.member.create({
+    data: {
+      id: members.bobJonesBId,
+      dioceseId,
+      parishId: parishBId,
+      familyId: families.jonesBId,
+      memberIdentifier: '0100.1',
+      firstName: 'Bob',
+      lastName: 'Jones',
+      email: 'bob@test.local',
+    },
+  });
+
+  await testDb.memberParish.createMany({
+    data: [
+      {
+        memberId: members.aliceSmithId,
+        parishId: parishAId,
+        isPrimary: true,
+        membershipType: 'PRIMARY',
+      },
+      {
+        memberId: members.clergyAId,
+        parishId: parishAId,
+        isPrimary: true,
+        membershipType: 'PRIMARY',
+      },
+      {
+        memberId: members.clergyAId,
+        parishId: parishBId,
+        isPrimary: false,
+        membershipType: 'SECONDARY',
+      },
+      {
+        memberId: members.bobJonesBId,
+        parishId: parishBId,
+        isPrimary: true,
+        membershipType: 'PRIMARY',
+      },
+    ],
+  });
+
+  await testDb.parishOfficer.create({
+    data: {
+      parishId: parishAId,
+      memberId: members.clergyAId,
+      title: 'Vicar',
+      officerType: OfficerType.CLERGY,
+      isActive: true,
+    },
+  });
+
+  await testDb.memberPrivateNote.createMany({
+    data: [
+      {
+        memberId: members.aliceSmithId,
+        parishId: parishAId,
+        note: 'Private clergy note for Alice',
+      },
+      {
+        memberId: members.bobJonesBId,
+        parishId: parishBId,
+        note: 'Private clergy note for Bob in Parish B',
+      },
+    ],
+  });
+
+  await testDb.memberPastoralData.createMany({
+    data: [
+      {
+        memberId: members.aliceSmithId,
+        parishId: parishAId,
+        dateOfBirth: new Date('1990-01-01'),
+      },
+      {
+        memberId: members.bobJonesBId,
+        parishId: parishBId,
+        dateOfBirth: new Date('1991-02-02'),
+      },
+    ],
   });
 }

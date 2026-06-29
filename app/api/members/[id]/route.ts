@@ -4,6 +4,7 @@ import { requireRole, claimsFromUser } from '@/lib/auth';
 import { withTenant } from '@/lib/db/withTenant';
 import { writeAuditEntry } from '@/lib/audit';
 import { ApiError, handle } from '@/lib/api';
+import { projectMember } from '@/lib/projection';
 
 function requireParishId(parishId: string | null): string {
   if (!parishId) throw new ApiError(400, 'Parish scope required');
@@ -22,7 +23,8 @@ export const PATCH = (
       Role.PARISH_STAFF,
     ]);
     const parishId = requireParishId(actor.parishId);
-    const claims = claimsFromUser(actor);
+    const claims = await claimsFromUser(actor);
+    const roles = claims.app_metadata.roles;
     const { id } = await context.params;
 
     const body = (await request.json()) as {
@@ -30,7 +32,15 @@ export const PATCH = (
       lastName?: string;
       email?: string | null;
       phone?: string | null;
-      dateOfBirth?: string | null;
+      workNotes?: string | null;
+      educationLevel?:
+        | 'PRIMARY'
+        | 'SECONDARY'
+        | 'UNDERGRADUATE'
+        | 'POSTGRADUATE'
+        | 'OTHER'
+        | null;
+      skillsInterests?: string[] | null;
       status?: MemberStatus;
     };
 
@@ -45,12 +55,16 @@ export const PATCH = (
           ...(body.lastName && { lastName: body.lastName.trim() }),
           ...(body.email !== undefined && { email: body.email?.trim() || null }),
           ...(body.phone !== undefined && { phone: body.phone?.trim() || null }),
-          ...(body.dateOfBirth !== undefined && {
-            dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null,
+          ...(body.workNotes !== undefined && { workNotes: body.workNotes?.trim() || null }),
+          ...(body.educationLevel !== undefined && {
+            educationLevel: body.educationLevel,
+          }),
+          ...(body.skillsInterests !== undefined && {
+            skillsInterests: (body.skillsInterests ?? []).map((value) => value.trim()).filter(Boolean),
           }),
           ...(body.status && { status: body.status }),
         },
-        include: { family: true },
+        include: { family: true, privateNote: true, pastoralData: true },
       });
     });
 
@@ -67,7 +81,7 @@ export const PATCH = (
       metadata: { changes: Object.keys(body) },
     });
 
-    return Response.json({ ok: true, member });
+    return Response.json({ ok: true, member: projectMember(member, roles) });
   });
 
 // Deactivate a member (soft-delete: sets status to INACTIVE, preserves record).
@@ -80,7 +94,7 @@ export const DELETE = (
     const requestId = randomUUID();
     const actor = await requireRole([Role.DIOCESE_ADMIN, Role.PARISH_ADMIN]);
     const parishId = requireParishId(actor.parishId);
-    const claims = claimsFromUser(actor);
+    const claims = await claimsFromUser(actor);
     const { id } = await context.params;
 
     const member = await withTenant(claims, async (tx) => {

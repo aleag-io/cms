@@ -16,7 +16,7 @@ export const GET = (
       Role.PARISH_ADMIN,
       Role.PARISH_STAFF,
     ]);
-    const claims = claimsFromUser(actor);
+    const claims = await claimsFromUser(actor);
     const { id } = await context.params;
 
     // Parish-scoped users can only read their own parish.
@@ -46,7 +46,7 @@ export const PATCH = (
       Role.DIOCESE_ADMIN,
       Role.PARISH_ADMIN,
     ]);
-    const claims = claimsFromUser(actor);
+    const claims = await claimsFromUser(actor);
     const { id } = await context.params;
 
     // Parish Admins can only update their own parish.

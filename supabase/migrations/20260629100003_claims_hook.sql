@@ -26,6 +26,9 @@ BEGIN
         claims   jsonb;
         app_meta jsonb;
         user_rec record;
+        member_id uuid;
+        clergy_parish_ids uuid[];
+        user_found boolean := false;
       BEGIN
         claims := event->'claims';
         SELECT
@@ -36,11 +39,32 @@ BEGIN
         FROM "AppUser"
         WHERE id = (event->>'user_id')::uuid
           AND "isActive" = true;
-        IF FOUND THEN
+        user_found := FOUND;
+
+        SELECT m.id
+        INTO member_id
+        FROM "Member" m
+        WHERE m."userId" = (event->>'user_id')::uuid
+        LIMIT 1;
+
+        SELECT coalesce(array_agg(po."parishId"), ARRAY[]::uuid[])
+        INTO clergy_parish_ids
+        FROM "ParishOfficer" po
+        WHERE po."memberId" = member_id
+          AND po."officerType" = 'CLERGY'
+          AND po."isActive" = true;
+
+        IF user_found THEN
           app_meta := jsonb_build_object(
             'diocese_id', user_rec.diocese_id,
             'parish_id',  user_rec.parish_id,
-            'roles',      jsonb_build_array(user_rec.role_name)
+            'roles',      CASE
+              WHEN array_length(clergy_parish_ids, 1) > 0
+                THEN jsonb_build_array(user_rec.role_name, 'clergy')
+              ELSE jsonb_build_array(user_rec.role_name)
+            END,
+            'member_id', member_id,
+            'clergy_parish_ids', to_jsonb(clergy_parish_ids)
           );
           claims := jsonb_set(
             claims,

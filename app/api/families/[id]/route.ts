@@ -22,7 +22,7 @@ export const GET = (
       Role.MEMBER,
     ]);
     const parishId = requireParishId(actor.parishId);
-    const claims = claimsFromUser(actor);
+    const claims = await claimsFromUser(actor);
     const { id } = await context.params;
 
     const family = await withTenant(claims, async (tx) => {
@@ -49,7 +49,7 @@ export const PATCH = (
       Role.PARISH_STAFF,
     ]);
     const parishId = requireParishId(actor.parishId);
-    const claims = claimsFromUser(actor);
+    const claims = await claimsFromUser(actor);
     const { id } = await context.params;
 
     const body = (await request.json()) as {
@@ -105,7 +105,7 @@ export const DELETE = (
     const requestId = randomUUID();
     const actor = await requireRole([Role.DIOCESE_ADMIN, Role.PARISH_ADMIN]);
     const parishId = requireParishId(actor.parishId);
-    const claims = claimsFromUser(actor);
+    const claims = await claimsFromUser(actor);
     const { id } = await context.params;
 
     const family = await withTenant(claims, async (tx) => {

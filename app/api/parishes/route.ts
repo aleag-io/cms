@@ -9,7 +9,7 @@ import { ApiError, handle } from '@/lib/api';
 export const GET = () =>
   handle(async () => {
     const actor = await requireRole([Role.DIOCESE_ADMIN, Role.GLOBAL_ADMIN]);
-    const claims = claimsFromUser(actor);
+    const claims = await claimsFromUser(actor);
 
     const parishes = await withTenant(claims, (tx) =>
       tx.parish.findMany({
