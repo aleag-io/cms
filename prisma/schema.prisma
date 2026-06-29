@@ -6,3 +6,137 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum Role {
+  GLOBAL_ADMIN
+  DIOCESE_ADMIN
+  PARISH_ADMIN
+  PARISH_STAFF
+  MEMBER
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+  DECEASED
+  MOVED
+}
+
+enum ActorType {
+  HUMAN
+  SYSTEM
+}
+
+enum AuditOutcome {
+  SUCCESS
+  DENIED
+  FAILED
+}
+
+model Diocese {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  parishes  Parish[]
+  users     AppUser[]
+  audits    AuditEntry[]
+}
+
+model Parish {
+  id        String       @id @default(uuid()) @db.Uuid
+  dioceseId String       @db.Uuid
+  name      String
+  address   String?
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  diocese   Diocese      @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  users     AppUser[]
+  families  Family[]
+  members   Member[]
+  audits    AuditEntry[]
+
+  @@index([dioceseId])
+}
+
+model AppUser {
+  id          String       @id @default(uuid()) @db.Uuid
+  email       String       @unique
+  displayName String
+  role        Role
+  dioceseId   String       @db.Uuid
+  parishId    String?      @db.Uuid
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  diocese     Diocese      @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish      Parish?      @relation(fields: [parishId], references: [id], onDelete: SetNull)
+  audits      AuditEntry[] @relation("AuditActor")
+
+  @@index([dioceseId, role])
+  @@index([parishId, role])
+}
+
+model Family {
+  id                  String   @id @default(uuid()) @db.Uuid
+  dioceseId           String   @db.Uuid
+  parishId            String   @db.Uuid
+  familyNumber        String
+  familyName          String
+  primaryContactEmail String?
+  primaryContactPhone String?
+  address             String?
+  registrationDate    DateTime @default(now())
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  parish              Parish   @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  members             Member[]
+
+  @@unique([parishId, familyNumber])
+  @@index([dioceseId, parishId])
+}
+
+model Member {
+  id               String       @id @default(uuid()) @db.Uuid
+  dioceseId        String       @db.Uuid
+  parishId         String       @db.Uuid
+  familyId         String?      @db.Uuid
+  memberIdentifier String
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  dateOfBirth      DateTime?
+  status           MemberStatus @default(ACTIVE)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  parish           Parish       @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  family           Family?      @relation(fields: [familyId], references: [id], onDelete: SetNull)
+
+  @@unique([parishId, memberIdentifier])
+  @@index([dioceseId, parishId, status])
+}
+
+model AuditEntry {
+  id          String       @id @default(uuid()) @db.Uuid
+  requestId   String
+  timestamp   DateTime     @default(now())
+  actorType   ActorType
+  actorUserId String?      @db.Uuid
+  actorLabel  String
+  action      String
+  entityType  String
+  entityId    String?
+  outcome     AuditOutcome
+  dioceseId   String?      @db.Uuid
+  parishId    String?      @db.Uuid
+  metadata    Json?
+  actorUser   AppUser?     @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  diocese     Diocese?     @relation(fields: [dioceseId], references: [id], onDelete: SetNull)
+  parish      Parish?      @relation(fields: [parishId], references: [id], onDelete: SetNull)
+
+  @@index([timestamp])
+  @@index([dioceseId, parishId, action])
+}
