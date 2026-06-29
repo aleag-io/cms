@@ -184,6 +184,12 @@ minimum_password_length = 6
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
 password_requirements = ""
 
+# Custom access-token hook — injects diocese_id, parish_id, roles into JWT app_metadata.
+# Applied to auth schema via supabase/migrations/20260629100003_claims_hook.sql.
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/auth/custom_access_token_hook"
+
 # Configure passkey sign-ins.
 # [auth.passkey]
 # enabled = false

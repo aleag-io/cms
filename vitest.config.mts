@@ -27,6 +27,20 @@ export default defineConfig({
           maxWorkers: 1,
         },
       },
+      {
+        // RLS tests: raw SQL sessions as app_authenticated against a real DB.
+        // These prove tenant isolation at the database layer, independent of
+        // the application. Tagged @phase:1 @rls — they are the Phase 1 exit gate.
+        plugins: [tsconfigPaths()],
+        test: {
+          name: 'rls',
+          environment: 'node',
+          include: ['tests/rls/**/*.test.ts'],
+          setupFiles: ['tests/setup/integration.ts'],
+          // Serialise RLS tests — they share a single test DB.
+          maxWorkers: 1,
+        },
+      },
     ],
     coverage: {
       provider: 'v8',

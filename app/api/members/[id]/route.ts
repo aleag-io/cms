@@ -1,115 +1,111 @@
 import { randomUUID } from 'node:crypto';
 import { AuditOutcome, MemberStatus, Role } from '@prisma/client';
-import { requireRole } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireRole, claimsFromUser } from '@/lib/auth';
+import { withTenant } from '@/lib/db/withTenant';
 import { writeAuditEntry } from '@/lib/audit';
+import { ApiError, handle } from '@/lib/api';
 
-function requireParishScope(
-  parishId: string | null,
-): asserts parishId is string {
-  if (!parishId) {
-    throw new Error('Parish scope required');
-  }
+function requireParishId(parishId: string | null): string {
+  if (!parishId) throw new ApiError(400, 'Parish scope required');
+  return parishId;
 }
 
-export async function PATCH(
+export const PATCH = (
   request: Request,
-  context: RouteContext<'/api/members/[id]'>,
-) {
-  const requestId = randomUUID();
-  const actor = await requireRole([
-    Role.DIOCESE_ADMIN,
-    Role.PARISH_ADMIN,
-    Role.PARISH_STAFF,
-  ]);
+  context: { params: Promise<{ id: string }> },
+) =>
+  handle(async () => {
+    const requestId = randomUUID();
+    const actor = await requireRole([
+      Role.DIOCESE_ADMIN,
+      Role.PARISH_ADMIN,
+      Role.PARISH_STAFF,
+    ]);
+    const parishId = requireParishId(actor.parishId);
+    const claims = claimsFromUser(actor);
+    const { id } = await context.params;
 
-  requireParishScope(actor.parishId);
+    const body = (await request.json()) as {
+      firstName?: string;
+      lastName?: string;
+      email?: string | null;
+      phone?: string | null;
+      dateOfBirth?: string | null;
+      status?: MemberStatus;
+    };
 
-  const { id } = await context.params;
-  const body = (await request.json()) as {
-    status?: MemberStatus;
-    phone?: string;
-    email?: string;
-  };
+    const member = await withTenant(claims, async (tx) => {
+      const existing = await tx.member.findFirst({ where: { id, parishId } });
+      if (!existing) throw new ApiError(404, 'Member not found');
 
-  const existing = await prisma.member.findFirst({
-    where: {
-      id,
-      parishId: actor.parishId,
+      return tx.member.update({
+        where: { id },
+        data: {
+          ...(body.firstName && { firstName: body.firstName.trim() }),
+          ...(body.lastName && { lastName: body.lastName.trim() }),
+          ...(body.email !== undefined && { email: body.email?.trim() || null }),
+          ...(body.phone !== undefined && { phone: body.phone?.trim() || null }),
+          ...(body.dateOfBirth !== undefined && {
+            dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null,
+          }),
+          ...(body.status && { status: body.status }),
+        },
+        include: { family: true },
+      });
+    });
+
+    await writeAuditEntry({
+      requestId,
+      actorUserId: actor.id,
+      actorLabel: actor.email,
+      action: 'membership.member.update',
+      entityType: 'member',
+      entityId: member.id,
+      outcome: AuditOutcome.SUCCESS,
       dioceseId: actor.dioceseId,
-    },
+      parishId,
+      metadata: { changes: Object.keys(body) },
+    });
+
+    return Response.json({ ok: true, member });
   });
 
-  if (!existing) {
-    return Response.json(
-      { ok: false, error: 'Member not found' },
-      { status: 404 },
-    );
-  }
-
-  const member = await prisma.member.update({
-    where: { id },
-    data: {
-      status: body.status,
-      phone: body.phone?.trim(),
-      email: body.email?.trim(),
-    },
-  });
-
-  await writeAuditEntry({
-    requestId,
-    actorUserId: actor.id,
-    actorLabel: actor.email,
-    action: 'membership.member.update',
-    entityType: 'member',
-    entityId: member.id,
-    outcome: AuditOutcome.SUCCESS,
-    dioceseId: actor.dioceseId,
-    parishId: actor.parishId,
-  });
-
-  return Response.json({ ok: true, member });
-}
-
-export async function DELETE(
+// Deactivate a member (soft-delete: sets status to INACTIVE, preserves record).
+// Hard deletion is not permitted — data integrity requires the record to remain.
+export const DELETE = (
   _request: Request,
-  context: RouteContext<'/api/members/[id]'>,
-) {
-  const requestId = randomUUID();
-  const actor = await requireRole([Role.DIOCESE_ADMIN, Role.PARISH_ADMIN]);
+  context: { params: Promise<{ id: string }> },
+) =>
+  handle(async () => {
+    const requestId = randomUUID();
+    const actor = await requireRole([Role.DIOCESE_ADMIN, Role.PARISH_ADMIN]);
+    const parishId = requireParishId(actor.parishId);
+    const claims = claimsFromUser(actor);
+    const { id } = await context.params;
 
-  requireParishScope(actor.parishId);
+    const member = await withTenant(claims, async (tx) => {
+      const existing = await tx.member.findFirst({ where: { id, parishId } });
+      if (!existing) throw new ApiError(404, 'Member not found');
+      if (existing.status === MemberStatus.INACTIVE) {
+        throw new ApiError(409, 'Member is already inactive');
+      }
+      return tx.member.update({
+        where: { id },
+        data: { status: MemberStatus.INACTIVE },
+      });
+    });
 
-  const { id } = await context.params;
-
-  const existing = await prisma.member.findFirst({
-    where: {
-      id,
-      parishId: actor.parishId,
+    await writeAuditEntry({
+      requestId,
+      actorUserId: actor.id,
+      actorLabel: actor.email,
+      action: 'membership.member.deactivate',
+      entityType: 'member',
+      entityId: member.id,
+      outcome: AuditOutcome.SUCCESS,
       dioceseId: actor.dioceseId,
-    },
+      parishId,
+    });
+
+    return Response.json({ ok: true, member });
   });
-
-  if (!existing) {
-    return Response.json(
-      { ok: false, error: 'Member not found' },
-      { status: 404 },
-    );
-  }
-
-  await prisma.member.delete({ where: { id } });
-
-  await writeAuditEntry({
-    requestId,
-    actorUserId: actor.id,
-    actorLabel: actor.email,
-    action: 'membership.member.delete',
-    entityType: 'member',
-    entityId: id,
-    outcome: AuditOutcome.SUCCESS,
-    dioceseId: actor.dioceseId,
-    parishId: actor.parishId,
-  });
-
-  return Response.json({ ok: true });
-}

@@ -93,7 +93,7 @@ describe('POST /api/members', () => {
     expect(data.error).toMatch(/firstName/i);
   });
 
-  it('returns 500 (Unauthorized) when called without a session', async () => {
+  it('returns 401 when called without a session', async () => {
     resetAuth = asGuest();
 
     const req = new Request('http://localhost/api/members', {
@@ -102,8 +102,11 @@ describe('POST /api/members', () => {
       body: JSON.stringify({ firstName: 'Bob', lastName: 'Jones' }),
     });
 
-    // requireSessionUser() throws 'Unauthorized' — the route doesn't catch it,
-    // so we expect an unhandled rejection that the test should catch.
-    await expect(POST(req)).rejects.toThrow('Unauthorized');
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(data.ok).toBe(false);
+    expect(data.error).toMatch(/unauthorized/i);
   });
 });

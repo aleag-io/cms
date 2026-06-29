@@ -101,3 +101,19 @@ supabase-status:
 
 supabase-reset:
 	$(NPM) run supabase:reset
+
+# ─── RLS / SQL policy targets ─────────────────────────────────────────────────
+
+.PHONY: db-apply-rls db-apply-ci-shims test-rls
+
+db-apply-ci-shims:
+	@echo "Applying CI auth shims (plain Postgres only — skip on Supabase)"
+	$(NPM) run db:apply-ci-shims
+
+db-apply-rls:
+	@echo "Applying Supabase SQL migrations (role, RLS, audit trigger, claims hook)"
+	$(NPM) run db:apply-rls
+
+test-rls:
+	@echo "Running RLS cross-tenant exit-gate suite"
+	$(NPM) run test:rls

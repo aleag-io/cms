@@ -38,9 +38,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
-  # ─── 2. Unit + Integration tests (needs Postgres) ─────────────────────────
+  # ─── 2. Unit + Integration + RLS tests (needs Postgres) ───────────────────
   test:
-    name: Unit & Integration Tests
+    name: Unit, Integration & RLS Tests
     runs-on: ubuntu-latest
     needs: static
 
@@ -77,14 +77,28 @@ jobs:
       - name: Generate Prisma client
         run: npm run prisma:generate
 
-      - name: Apply DB migrations
+      - name: Apply Prisma schema migrations
         run: npx prisma migrate deploy
+
+      - name: Apply CI auth shims (auth.jwt / auth.uid for plain Postgres)
+        run: node scripts/apply-sql.js scripts/ci-auth-shims.sql
+
+      - name: Apply Supabase SQL migrations (role, RLS, audit immutability, claims hook)
+        run: |
+          node scripts/apply-sql.js \
+            supabase/migrations/20260629100000_auth_shims_and_role.sql \
+            supabase/migrations/20260629100001_rls_policies.sql \
+            supabase/migrations/20260629100002_audit_immutability.sql \
+            supabase/migrations/20260629100003_claims_hook.sql
 
       - name: Run unit tests
         run: npm run test:unit
 
       - name: Run integration tests
         run: npm run test:integration
+
+      - name: Run RLS cross-tenant tests (@phase:1 exit gate)
+        run: npm run test:rls
 
       - name: Upload coverage
         if: always()
@@ -132,8 +146,19 @@ jobs:
       - name: Generate Prisma client
         run: npm run prisma:generate
 
-      - name: Apply DB migrations
+      - name: Apply Prisma schema migrations
         run: npx prisma migrate deploy
+
+      - name: Apply CI auth shims
+        run: node scripts/apply-sql.js scripts/ci-auth-shims.sql
+
+      - name: Apply Supabase SQL migrations
+        run: |
+          node scripts/apply-sql.js \
+            supabase/migrations/20260629100000_auth_shims_and_role.sql \
+            supabase/migrations/20260629100001_rls_policies.sql \
+            supabase/migrations/20260629100002_audit_immutability.sql \
+            supabase/migrations/20260629100003_claims_hook.sql
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

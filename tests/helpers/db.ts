@@ -21,15 +21,12 @@ export { testDb };
 
 /** Delete all rows in reverse dependency order, then re-seed. */
 export async function resetTestDb() {
-  // Truncate in reverse FK order.
-  await testDb.$transaction([
-    testDb.auditEntry.deleteMany(),
-    testDb.member.deleteMany(),
-    testDb.family.deleteMany(),
-    testDb.appUser.deleteMany(),
-    testDb.parish.deleteMany(),
-    testDb.diocese.deleteMany(),
-  ]);
+  // TRUNCATE bypasses row-level triggers (including the AuditEntry
+  // immutability trigger) and is faster than DELETE for bulk cleanup.
+  // CASCADE handles FK dependencies in one shot.
+  await testDb.$executeRawUnsafe(
+    `TRUNCATE "AuditEntry", "Member", "Family", "AppUser", "Parish", "Diocese" CASCADE`,
+  );
 
   await seedFixtures();
 }
@@ -63,11 +60,15 @@ export const FX = {
   },
   families: {
     smithId: '00000000-0000-0000-0000-000000000200',
+    jonesBId: '00000000-0000-0000-0000-000000000201',
+  },
+  members: {
+    aliceSmithId: '00000000-0000-0000-0000-000000000300',
   },
 } as const;
 
 async function seedFixtures() {
-  const { dioceseId, parishAId, parishBId, users, families } = FX;
+  const { dioceseId, parishAId, parishBId, users, families, members } = FX;
 
   await testDb.diocese.create({
     data: {
@@ -83,12 +84,18 @@ async function seedFixtures() {
         dioceseId,
         name: 'St. Thomas Parish (Parish A)',
         address: 'Dallas, TX',
+        familyNumberPrefix: '',
+        familyNumberWidth: 4,
+        familyNumberStart: 1,
       },
       {
         id: parishBId,
         dioceseId,
         name: 'St. Mary Parish (Parish B)',
         address: 'Houston, TX',
+        familyNumberPrefix: '',
+        familyNumberWidth: 4,
+        familyNumberStart: 1,
       },
     ],
   });
@@ -101,7 +108,7 @@ async function seedFixtures() {
         displayName: 'Diocese Admin',
         role: Role.DIOCESE_ADMIN,
         dioceseId,
-        parishId: parishAId,
+        parishId: null,  // Diocese-level — no parish scope
       },
       {
         id: users.parishAAdmin.id,
@@ -138,14 +145,37 @@ async function seedFixtures() {
     ],
   });
 
-  await testDb.family.create({
+  await testDb.family.createMany({
+    data: [
+      {
+        id: families.smithId,
+        dioceseId,
+        parishId: parishAId,
+        familyNumber: '100',
+        familyName: 'Smith',
+        primaryContactEmail: 'smith@test.local',
+      },
+      {
+        id: families.jonesBId,
+        dioceseId,
+        parishId: parishBId,
+        familyNumber: '0100',
+        familyName: 'Jones',
+        primaryContactEmail: 'jones@test.local',
+      },
+    ],
+  });
+
+  await testDb.member.create({
     data: {
-      id: families.smithId,
+      id: members.aliceSmithId,
       dioceseId,
       parishId: parishAId,
-      familyNumber: '100',
-      familyName: 'Smith',
-      primaryContactEmail: 'smith@test.local',
+      familyId: families.smithId,
+      memberIdentifier: '100.1',
+      firstName: 'Alice',
+      lastName: 'Smith',
+      email: 'alice@test.local',
     },
   });
 }
