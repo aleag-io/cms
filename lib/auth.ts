@@ -1,73 +1,49 @@
-import { cookies } from 'next/headers';
 import { Role, type AppUser } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-
-const SESSION_COOKIE = 'cms_user_id';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { ApiError } from '@/lib/api';
 
 // ---------------------------------------------------------------------------
-// Resolver seam — production default reads the cookie; tests override this.
-// Call _setSessionResolver() in your test setup before importing any route
-// handler that calls getSessionUser(). Reset it to the default in afterEach.
+// Resolver seam — production default reads the Supabase session cookie.
+// Tests override this via _setSessionResolver to inject a fixed user without
+// going through Supabase Auth.
 // ---------------------------------------------------------------------------
 
 type SessionResolver = () => Promise<AppUser | null>;
 
 let _resolver: SessionResolver = async () => {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!userId) return null;
-  return prisma.appUser.findUnique({ where: { id: userId } });
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  return prisma.appUser.findUnique({ where: { id: user.id } });
 };
 
-/** Override the session resolver in tests. Returns a reset function. */
 export function _setSessionResolver(fn: SessionResolver): () => void {
+  const previous = _resolver;
   _resolver = fn;
   return () => {
-    _resolver = async () => {
-      const cookieStore = await cookies();
-      const userId = cookieStore.get(SESSION_COOKIE)?.value;
-      if (!userId) return null;
-      return prisma.appUser.findUnique({ where: { id: userId } });
-    };
+    _resolver = previous;
   };
 }
 
 // ---------------------------------------------------------------------------
-// Public API (used by route handlers)
+// Public API (used by route handlers and server components)
 // ---------------------------------------------------------------------------
 
-export async function getSessionUser() {
+export async function getSessionUser(): Promise<AppUser | null> {
   return _resolver();
 }
 
-export async function requireSessionUser() {
+export async function requireSessionUser(): Promise<AppUser> {
   const user = await getSessionUser();
-  if (!user) {
-    throw new Error('Unauthorized');
-  }
+  if (!user) throw new ApiError(401, 'Unauthorized');
   return user;
 }
 
-export async function requireRole(roles: Role[]) {
+export async function requireRole(roles: Role[]): Promise<AppUser> {
   const user = await requireSessionUser();
-  if (!roles.includes(user.role)) {
-    throw new Error('Forbidden');
-  }
+  if (!roles.includes(user.role)) throw new ApiError(403, 'Forbidden');
   return user;
-}
-
-export async function setSessionUser(userId: string) {
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, userId, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7,
-  });
-}
-
-export async function clearSessionUser() {
-  const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
 }
