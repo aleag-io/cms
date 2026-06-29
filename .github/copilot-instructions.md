@@ -41,19 +41,22 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   E2E, coverage thresholds, deterministic DB seed (`tests/helpers/db.ts`), CI workflow
   (`.github/workflows/ci.yml`). Auth resolver seam (`_setSessionResolver`) lets integration
   tests inject users without `next/headers`.
-- **Phase 1 — implemented; closing exit gate.** Identity, tenancy & core membership:
-  `app_authenticated` role + grants, deny-by-default RLS on all tenant tables, audit
-  immutability, access-token hook, `withTenant`, family/member/parish CRUD via `withTenant`,
-  soft-deactivate (no hard delete). RLS cross-tenant suite in `tests/rls/`
-  (`@phase:1 @rls`). Exit gate = `npm run test:rls` green + auth E2E.
-- **Phase 2 — in progress.** Intra-parish access control & sensitive fields. Schema is
-  landing in `prisma/schema.prisma` (`ParishOfficer`, `MemberPrivateNote`,
-  `MemberPastoralData`, `FamilyPastoralData`, `MemberRelationship`, `MemberParish`,
-  `ParishPermissionOverride`; expanded `Role` enum; `dateOfBirth`/`anniversaryDate` moving to
-  satellite tables). Still needed: field-protection RLS migration, directory view, permission
-  resolver, endpoints, and the `@phase:2 @rls` suite. Full plan:
-  [docs/phase-2-plan.md](../docs/phase-2-plan.md). Central decision: satellite tables turn
-  field-level rules into row-level RLS.
+- **Phase 1 — complete.** Identity, tenancy & core membership: `app_authenticated` role +
+  grants, deny-by-default RLS on all tenant tables, audit immutability, access-token hook,
+  `withTenant`, family/member/parish CRUD, soft-deactivate. RLS cross-tenant suite in
+  `tests/rls/`.
+- **Phase 2 — complete.** Intra-parish access control & sensitive fields. Satellite tables
+  (`MemberPrivateNote`, `MemberPastoralData`, `FamilyPastoralData`) turn field-level rules
+  into row-level RLS; clergy-only private notes (per-parish via `ParishOfficer` subquery,
+  MM-19); security-definer `parish_member_directory` view (MM-14, members see peers, no DOB);
+  `MemberRelationship` (MM-13); `MemberParish` + atomic `set_member_primary_parish()` (MM-17);
+  permission resolver + `ParishPermissionOverride` + `/settings/permissions` (PA-12). Full
+  suite green. Plan: [docs/phase-2-plan.md](../docs/phase-2-plan.md).
+- **Phase 3 — planned.** Parish operations: programs/ministries, organizations with the
+  DB-enforced exclusive-membership constraint (PA-16), events/facilities, async communications,
+  staff/volunteer mgmt, member self-registration. Plan: [docs/phase-3-plan.md](../docs/phase-3-plan.md).
+  Central decisions: sub-parish (leader) RLS scoping, denormalized partial unique index for
+  PA-16, enqueue+cron worker for comms.
 
 ## How to run
 
