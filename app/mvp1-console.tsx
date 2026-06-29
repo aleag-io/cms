@@ -44,7 +44,24 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
-  const data = (await response.json()) as T & { ok?: boolean; error?: string };
+  // The body may not be JSON (e.g. an auth redirect to /login HTML, or an
+  // unhandled 500 error page). Read text first so we can surface a real
+  // message instead of an opaque "Unexpected end of JSON input".
+  const raw = await response.text();
+  let data: (T & { ok?: boolean; error?: string }) | null = null;
+  try {
+    data = raw ? (JSON.parse(raw) as T & { ok?: boolean; error?: string }) : null;
+  } catch {
+    data = null;
+  }
+
+  if (data === null) {
+    throw new Error(
+      response.status === 401 || response.status === 403
+        ? "Your session has expired — please sign in again."
+        : `Request failed (${response.status} ${response.statusText}).`,
+    );
+  }
 
   if (!response.ok || ("ok" in data && data.ok === false)) {
     throw new Error((data as { error?: string }).error ?? "Request failed");
