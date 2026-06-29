@@ -2,7 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { AuditOutcome, Role } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { writeAuditEntry } from '@/lib/audit';
-import { createSupabaseAdminClient, createSupabaseServerClient } from '@/lib/supabase/server';
+import {
+  createSupabaseAdminClient,
+  createSupabaseServerClient,
+} from '@/lib/supabase/server';
 
 const BOOTSTRAP_EMAIL = 'admin@cms.local';
 const BOOTSTRAP_PASSWORD = 'Admin@Local1';
