@@ -7,14 +7,15 @@
  */
 
 import { PrismaClient, Role } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 // Use a dedicated client for the test DB so it is independent of the
 // application singleton in lib/prisma.ts.
-const testDb = new PrismaClient({
-  datasources: {
-    db: { url: process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL },
-  },
+const testPool = new Pool({
+  connectionString: process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL,
 });
+const testDb = new PrismaClient({ adapter: new PrismaPg(testPool) });
 
 export { testDb };
 
