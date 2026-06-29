@@ -73,7 +73,9 @@ export const PATCH = (
         where: { id },
         data: {
           ...(body.name && { name: body.name.trim() }),
-          ...(body.address !== undefined && { address: body.address?.trim() || null }),
+          ...(body.address !== undefined && {
+            address: body.address?.trim() || null,
+          }),
           ...(body.isActive !== undefined && { isActive: body.isActive }),
           ...(body.familyNumberPrefix !== undefined && {
             familyNumberPrefix: body.familyNumberPrefix,

@@ -25,10 +25,9 @@ export async function withTenantSession<T>(
   try {
     await client.query('BEGIN');
     await client.query('SET LOCAL ROLE app_authenticated');
-    await client.query(
-      `SELECT set_config('request.jwt.claims', $1, true)`,
-      [JSON.stringify(claims)],
-    );
+    await client.query(`SELECT set_config('request.jwt.claims', $1, true)`, [
+      JSON.stringify(claims),
+    ]);
     const result = await fn(client);
     // Always rollback — RLS tests must not persist data.
     await client.query('ROLLBACK');

@@ -99,13 +99,13 @@ model Diocese {
 }
 
 model Parish {
-  id        String       @id @default(uuid()) @db.Uuid
-  dioceseId String       @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
+  dioceseId String   @db.Uuid
   name      String
   address   String?
-  isActive  Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Configurable family-number scheme (MM-10)
   // familyNumberPrefix: alphabetic prefix, e.g. "PAR-" or "" for none
@@ -115,56 +115,56 @@ model Parish {
   familyNumberWidth  Int    @default(4)
   familyNumberStart  Int    @default(1)
 
-  diocese Diocese      @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
-  users   AppUser[]
-  families Family[]
-  members  Member[]
-  officers ParishOfficer[]
-  memberParishes MemberParish[]
-  privateNotes MemberPrivateNote[]
-  memberPastoralData MemberPastoralData[]
-  familyPastoralData FamilyPastoralData[]
+  diocese             Diocese                    @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  users               AppUser[]
+  families            Family[]
+  members             Member[]
+  officers            ParishOfficer[]
+  memberParishes      MemberParish[]
+  privateNotes        MemberPrivateNote[]
+  memberPastoralData  MemberPastoralData[]
+  familyPastoralData  FamilyPastoralData[]
   permissionOverrides ParishPermissionOverride[]
   memberRelationships MemberRelationship[]
-  audits   AuditEntry[]
+  audits              AuditEntry[]
 
   @@index([dioceseId])
 }
 
 model AppUser {
-  id          String       @id @default(uuid()) @db.Uuid
-  email       String       @unique
-  displayName String
-  role        Role
-  dioceseId   String       @db.Uuid
-  parishId    String?      @db.Uuid
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  diocese     Diocese      @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
-  parish      Parish?      @relation(fields: [parishId], references: [id], onDelete: SetNull)
-  memberProfile Member?    @relation("AppUserMember")
+  id                         String                     @id @default(uuid()) @db.Uuid
+  email                      String                     @unique
+  displayName                String
+  role                       Role
+  dioceseId                  String                     @db.Uuid
+  parishId                   String?                    @db.Uuid
+  isActive                   Boolean                    @default(true)
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  diocese                    Diocese                    @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish                     Parish?                    @relation(fields: [parishId], references: [id], onDelete: SetNull)
+  memberProfile              Member?                    @relation("AppUserMember")
   grantedPermissionOverrides ParishPermissionOverride[] @relation("ParishPermissionOverrideGrantedBy")
-  audits      AuditEntry[] @relation("AuditActor")
+  audits                     AuditEntry[]               @relation("AuditActor")
 
   @@index([dioceseId, role])
   @@index([parishId, role])
 }
 
 model Family {
-  id                  String   @id @default(uuid()) @db.Uuid
-  dioceseId           String   @db.Uuid
-  parishId            String   @db.Uuid
+  id                  String              @id @default(uuid()) @db.Uuid
+  dioceseId           String              @db.Uuid
+  parishId            String              @db.Uuid
   familyNumber        String
   familyName          String
   primaryContactEmail String?
   primaryContactPhone String?
   address             String?
-  registrationDate    DateTime @default(now())
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  parish              Parish   @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  registrationDate    DateTime            @default(now())
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  parish              Parish              @relation(fields: [parishId], references: [id], onDelete: Cascade)
   members             Member[]
   pastoralData        FamilyPastoralData?
 
@@ -173,54 +173,54 @@ model Family {
 }
 
 model Member {
-  id               String       @id @default(uuid()) @db.Uuid
-  dioceseId        String       @db.Uuid
-  parishId         String       @db.Uuid
-  familyId         String?      @db.Uuid
+  id                      String               @id @default(uuid()) @db.Uuid
+  dioceseId               String               @db.Uuid
+  parishId                String               @db.Uuid
+  familyId                String?              @db.Uuid
   // Linked Supabase/AppUser for self-service access (staged for Phase 3)
-  userId           String?      @unique @db.Uuid
-  memberIdentifier String
-  firstName        String
-  lastName         String
-  email            String?
-  phone            String?
-  workNotes        String?
-  educationLevel   EducationLevel?
-  skillsInterests  String[]      @default([])
-  status           MemberStatus @default(ACTIVE)
+  userId                  String?              @unique @db.Uuid
+  memberIdentifier        String
+  firstName               String
+  lastName                String
+  email                   String?
+  phone                   String?
+  workNotes               String?
+  educationLevel          EducationLevel?
+  skillsInterests         String[]             @default([])
+  status                  MemberStatus         @default(ACTIVE)
   // Transfer stub — full workflow in Phase 4
-  transferredFromParishId String? @db.Uuid
+  transferredFromParishId String?              @db.Uuid
   transferredAt           DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  parish           Parish       @relation(fields: [parishId], references: [id], onDelete: Cascade)
-  family           Family?      @relation(fields: [familyId], references: [id], onDelete: SetNull)
-  user             AppUser?     @relation("AppUserMember", fields: [userId], references: [id], onDelete: SetNull)
-  officerAssignments ParishOfficer[]
-  privateNote      MemberPrivateNote?
-  pastoralData     MemberPastoralData?
-  memberParishes   MemberParish[]
-  relatedTo        MemberRelationship[] @relation("MemberRelationshipFrom")
-  relatedFrom      MemberRelationship[] @relation("MemberRelationshipTo")
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  parish                  Parish               @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  family                  Family?              @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  user                    AppUser?             @relation("AppUserMember", fields: [userId], references: [id], onDelete: SetNull)
+  officerAssignments      ParishOfficer[]
+  privateNote             MemberPrivateNote?
+  pastoralData            MemberPastoralData?
+  memberParishes          MemberParish[]
+  relatedTo               MemberRelationship[] @relation("MemberRelationshipFrom")
+  relatedFrom             MemberRelationship[] @relation("MemberRelationshipTo")
 
   @@unique([parishId, memberIdentifier])
   @@index([dioceseId, parishId, status])
 }
 
 model ParishOfficer {
-  id         String      @id @default(uuid()) @db.Uuid
-  parishId   String      @db.Uuid
-  memberId   String      @db.Uuid
-  title      String
+  id          String      @id @default(uuid()) @db.Uuid
+  parishId    String      @db.Uuid
+  memberId    String      @db.Uuid
+  title       String
   officerType OfficerType
-  termStart  DateTime    @default(now())
-  termEnd    DateTime?
-  isActive   Boolean     @default(true)
-  notes      String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  parish     Parish      @relation(fields: [parishId], references: [id], onDelete: Cascade)
-  member     Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  termStart   DateTime    @default(now())
+  termEnd     DateTime?
+  isActive    Boolean     @default(true)
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  parish      Parish      @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  member      Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([parishId, officerType, isActive])
   @@index([memberId, officerType])
@@ -240,29 +240,29 @@ model MemberPrivateNote {
 }
 
 model MemberPastoralData {
-  id            String   @id @default(uuid()) @db.Uuid
-  memberId       String   @unique @db.Uuid
-  parishId       String   @db.Uuid
-  dateOfBirth    DateTime?
-  baptismDate    DateTime?
+  id              String    @id @default(uuid()) @db.Uuid
+  memberId        String    @unique @db.Uuid
+  parishId        String    @db.Uuid
+  dateOfBirth     DateTime?
+  baptismDate     DateTime?
   chrismationDate DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  parish         Parish   @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  member          Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  parish          Parish    @relation(fields: [parishId], references: [id], onDelete: Cascade)
 
   @@index([parishId])
 }
 
 model FamilyPastoralData {
-  id              String   @id @default(uuid()) @db.Uuid
-  familyId        String   @unique @db.Uuid
-  parishId        String   @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
+  familyId        String    @unique @db.Uuid
+  parishId        String    @db.Uuid
   anniversaryDate DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  family          Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  parish          Parish   @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  family          Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  parish          Parish    @relation(fields: [parishId], references: [id], onDelete: Cascade)
 
   @@index([parishId])
 }

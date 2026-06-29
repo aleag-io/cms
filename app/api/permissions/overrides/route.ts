@@ -55,20 +55,30 @@ export const PUT = (request: Request) =>
       isAllowed?: boolean;
     };
 
-    if (!body.role || !body.resource || !body.action || body.isAllowed === undefined) {
-      throw new ApiError(400, 'role, resource, action, and isAllowed are required');
+    if (
+      !body.role ||
+      !body.resource ||
+      !body.action ||
+      body.isAllowed === undefined
+    ) {
+      throw new ApiError(
+        400,
+        'role, resource, action, and isAllowed are required',
+      );
     }
 
     const currentOverrides = await withTenant(claims, (tx) =>
       tx.parishPermissionOverride.findMany({ where: { parishId } }),
     );
 
-    const mappedOverrides: PermissionOverride[] = currentOverrides.map((row) => ({
-      role: row.role.toLowerCase(),
-      resource: toPermissionResource(row.resource),
-      action: toPermissionAction(row.action),
-      isAllowed: row.isAllowed,
-    }));
+    const mappedOverrides: PermissionOverride[] = currentOverrides.map(
+      (row) => ({
+        role: row.role.toLowerCase(),
+        resource: toPermissionResource(row.resource),
+        action: toPermissionAction(row.action),
+        isAllowed: row.isAllowed,
+      }),
+    );
 
     try {
       assertCanGrant(

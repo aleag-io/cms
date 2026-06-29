@@ -39,7 +39,10 @@ export const GET = () =>
         phone: projected.phone,
         status: projected.status,
         familyName:
-          projected.family && typeof projected.family === 'object' && projected.family !== null && 'familyName' in projected.family
+          projected.family &&
+          typeof projected.family === 'object' &&
+          projected.family !== null &&
+          'familyName' in projected.family
             ? String(projected.family.familyName)
             : null,
       };

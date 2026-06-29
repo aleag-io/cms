@@ -57,7 +57,10 @@ export const PATCH = (
     };
 
     const member = await withTenant(claims, (tx) =>
-      tx.member.findFirst({ where: { id }, select: { id: true, parishId: true } }),
+      tx.member.findFirst({
+        where: { id },
+        select: { id: true, parishId: true },
+      }),
     );
     if (!member) throw new ApiError(404, 'Member not found');
 
@@ -72,7 +75,9 @@ export const PATCH = (
             baptismDate: body.baptismDate ? new Date(body.baptismDate) : null,
           }),
           ...(body.chrismationDate !== undefined && {
-            chrismationDate: body.chrismationDate ? new Date(body.chrismationDate) : null,
+            chrismationDate: body.chrismationDate
+              ? new Date(body.chrismationDate)
+              : null,
           }),
         },
         create: {
@@ -80,7 +85,9 @@ export const PATCH = (
           parishId: member.parishId,
           dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null,
           baptismDate: body.baptismDate ? new Date(body.baptismDate) : null,
-          chrismationDate: body.chrismationDate ? new Date(body.chrismationDate) : null,
+          chrismationDate: body.chrismationDate
+            ? new Date(body.chrismationDate)
+            : null,
         },
       }),
     );

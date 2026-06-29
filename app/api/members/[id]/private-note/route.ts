@@ -48,7 +48,10 @@ export const PATCH = (
     if (!note) throw new ApiError(400, 'note is required');
 
     const member = await withTenant(claims, (tx) =>
-      tx.member.findFirst({ where: { id }, select: { id: true, parishId: true } }),
+      tx.member.findFirst({
+        where: { id },
+        select: { id: true, parishId: true },
+      }),
     );
     if (!member) throw new ApiError(404, 'Member not found');
 

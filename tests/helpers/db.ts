@@ -118,7 +118,7 @@ async function seedFixtures() {
         displayName: 'Diocese Admin',
         role: Role.DIOCESE_ADMIN,
         dioceseId,
-        parishId: null,  // Diocese-level — no parish scope
+        parishId: null, // Diocese-level — no parish scope
       },
       {
         id: users.parishAAdmin.id,

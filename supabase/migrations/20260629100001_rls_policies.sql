@@ -12,14 +12,11 @@
 --
 -- Every table has deny-by-default: absence of a matching
 -- policy means zero rows. No permissive fallback.
+--
+-- Every CREATE POLICY is preceded by DROP POLICY IF EXISTS so the
+-- whole RLS bundle is re-runnable via `npm run db:apply-rls` against
+-- any database state (fresh or already-migrated).
 -- ============================================================
-
--- ────────────────────────────────────────────────────────────
--- Helpers (inlined to keep the migration self-contained)
--- ────────────────────────────────────────────────────────────
-
--- Claim extractors used in every policy
--- (auth.jwt() is defined in 20260629100000)
 
 -- ────────────────────────────────────────────────────────────
 -- Diocese  — Tier-1 structural read only
@@ -28,6 +25,7 @@ ALTER TABLE "Diocese" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Diocese" FORCE ROW LEVEL SECURITY;
 
 -- Any authenticated user in this diocese sees its own Diocese row.
+DROP POLICY IF EXISTS diocese_own_read ON "Diocese";
 CREATE POLICY diocese_own_read ON "Diocese"
   FOR SELECT
   USING (
@@ -41,12 +39,15 @@ CREATE POLICY diocese_own_read ON "Diocese"
 ALTER TABLE "Parish" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Parish" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS parish_diocese_read ON "Parish";
 CREATE POLICY parish_diocese_read ON "Parish"
   FOR SELECT
   USING (
     "dioceseId" = (auth.jwt()->'app_metadata'->>'diocese_id')::uuid
   );
 
+-- Superseded by 20260629140000 (parish_scoped_write + parish_diocese_write).
+DROP POLICY IF EXISTS parish_admin_write ON "Parish";
 CREATE POLICY parish_admin_write ON "Parish"
   FOR ALL
   USING (
@@ -65,6 +66,7 @@ ALTER TABLE "AppUser" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AppUser" FORCE ROW LEVEL SECURITY;
 
 -- Parish-scoped read
+DROP POLICY IF EXISTS appuser_parish_read ON "AppUser";
 CREATE POLICY appuser_parish_read ON "AppUser"
   FOR SELECT
   USING (
@@ -73,6 +75,7 @@ CREATE POLICY appuser_parish_read ON "AppUser"
   );
 
 -- Diocese-level read (diocese admins/staff see all users in their diocese)
+DROP POLICY IF EXISTS appuser_diocese_read ON "AppUser";
 CREATE POLICY appuser_diocese_read ON "AppUser"
   FOR SELECT
   USING (
@@ -82,6 +85,7 @@ CREATE POLICY appuser_diocese_read ON "AppUser"
   );
 
 -- Self-read (any user can read their own AppUser row)
+DROP POLICY IF EXISTS appuser_self_read ON "AppUser";
 CREATE POLICY appuser_self_read ON "AppUser"
   FOR SELECT
   USING (
@@ -89,6 +93,7 @@ CREATE POLICY appuser_self_read ON "AppUser"
   );
 
 -- Write: parish admin can manage users in their parish
+DROP POLICY IF EXISTS appuser_parish_admin_write ON "AppUser";
 CREATE POLICY appuser_parish_admin_write ON "AppUser"
   FOR ALL
   USING (
@@ -106,6 +111,7 @@ CREATE POLICY appuser_parish_admin_write ON "AppUser"
 ALTER TABLE "Family" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Family" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS family_parish_read ON "Family";
 CREATE POLICY family_parish_read ON "Family"
   FOR SELECT
   USING (
@@ -113,6 +119,8 @@ CREATE POLICY family_parish_read ON "Family"
     AND (auth.jwt()->'app_metadata'->>'parish_id') IS NOT NULL
   );
 
+-- Superseded by 20260629140000 (adds diocese_admin / global_admin to USING).
+DROP POLICY IF EXISTS family_parish_write ON "Family";
 CREATE POLICY family_parish_write ON "Family"
   FOR ALL
   USING (
@@ -131,6 +139,8 @@ CREATE POLICY family_parish_write ON "Family"
 ALTER TABLE "Member" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Member" FORCE ROW LEVEL SECURITY;
 
+-- Superseded by 20260629171000 (multi-parish read + role gate).
+DROP POLICY IF EXISTS member_parish_read ON "Member";
 CREATE POLICY member_parish_read ON "Member"
   FOR SELECT
   USING (
@@ -138,6 +148,8 @@ CREATE POLICY member_parish_read ON "Member"
     AND (auth.jwt()->'app_metadata'->>'parish_id') IS NOT NULL
   );
 
+-- Superseded by 20260629140000 / 20260629171000.
+DROP POLICY IF EXISTS member_parish_write ON "Member";
 CREATE POLICY member_parish_write ON "Member"
   FOR ALL
   USING (
@@ -151,6 +163,7 @@ CREATE POLICY member_parish_write ON "Member"
   );
 
 -- Self-read: a member can read their own record (for Phase 3 self-registration)
+DROP POLICY IF EXISTS member_self_read ON "Member";
 CREATE POLICY member_self_read ON "Member"
   FOR SELECT
   USING (
@@ -166,6 +179,7 @@ CREATE POLICY member_self_read ON "Member"
 ALTER TABLE "AuditEntry" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AuditEntry" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS audit_parish_read ON "AuditEntry";
 CREATE POLICY audit_parish_read ON "AuditEntry"
   FOR SELECT
   USING (
@@ -174,6 +188,7 @@ CREATE POLICY audit_parish_read ON "AuditEntry"
     AND (auth.jwt()->'app_metadata'->'roles') ?| array['parish_admin','parish_staff']
   );
 
+DROP POLICY IF EXISTS audit_diocese_read ON "AuditEntry";
 CREATE POLICY audit_diocese_read ON "AuditEntry"
   FOR SELECT
   USING (
@@ -186,6 +201,7 @@ CREATE POLICY audit_diocese_read ON "AuditEntry"
 -- INSERT is allowed for all authenticated users (so DENIED audit rows can be
 -- written even when the main operation is rejected).
 -- The INSERT must still scope to the actor's own diocese/parish.
+DROP POLICY IF EXISTS audit_insert ON "AuditEntry";
 CREATE POLICY audit_insert ON "AuditEntry"
   FOR INSERT
   WITH CHECK (

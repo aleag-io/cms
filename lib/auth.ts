@@ -62,7 +62,9 @@ let _claimsResolver: ClaimsResolver = async (user) => {
   });
 
   const roles = new Set([user.role.toLowerCase()]);
-  const clergyParishIds = [...new Set(member?.officerAssignments.map((o) => o.parishId) ?? [])];
+  const clergyParishIds = [
+    ...new Set(member?.officerAssignments.map((o) => o.parishId) ?? []),
+  ];
   if (clergyParishIds.length > 0) {
     roles.add('clergy');
   }
@@ -133,7 +135,9 @@ export async function requireClaimRole(
 ): Promise<{ user: AppUser; claims: SessionClaims }> {
   const user = await requireSessionUser();
   const claims = await claimsFromUser(user);
-  const roleSet = new Set(claims.app_metadata.roles.map((role) => role.toLowerCase()));
+  const roleSet = new Set(
+    claims.app_metadata.roles.map((role) => role.toLowerCase()),
+  );
   const allowed = requiredRoles.some((role) => roleSet.has(role.toLowerCase()));
   if (!allowed) throw new ApiError(403, 'Forbidden');
   return { user, claims };

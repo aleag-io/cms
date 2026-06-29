@@ -87,14 +87,18 @@ const dioceseAdminClaims = makeClaims({
 describe('Member — cross-tenant isolation', () => {
   it('Parish-A admin sees Parish-A members', async () => {
     const { rows } = await withTenantSession(parishAAdminClaims, (client) =>
-      client.query(`SELECT id FROM "Member" WHERE "parishId" = $1`, [FX.parishAId]),
+      client.query(`SELECT id FROM "Member" WHERE "parishId" = $1`, [
+        FX.parishAId,
+      ]),
     );
     expect(rows.length).toBeGreaterThan(0);
   });
 
   it('Parish-A admin sees ZERO Parish-B members', async () => {
     const { rows } = await withTenantSession(parishAAdminClaims, (client) =>
-      client.query(`SELECT id FROM "Member" WHERE "parishId" = $1`, [FX.parishBId]),
+      client.query(`SELECT id FROM "Member" WHERE "parishId" = $1`, [
+        FX.parishBId,
+      ]),
     );
     expect(rows).toHaveLength(0);
   });
@@ -117,7 +121,9 @@ describe('Member — cross-tenant isolation', () => {
 
   it('Parish-B admin sees ZERO Parish-A members', async () => {
     const { rows } = await withTenantSession(parishBAdminClaims, (client) =>
-      client.query(`SELECT id FROM "Member" WHERE "parishId" = $1`, [FX.parishAId]),
+      client.query(`SELECT id FROM "Member" WHERE "parishId" = $1`, [
+        FX.parishAId,
+      ]),
     );
     expect(rows).toHaveLength(0);
   });
@@ -141,7 +147,9 @@ describe('Phase 2 sensitive field RLS', () => {
 
   it('Clergy can read private notes only for assigned clergy parish', async () => {
     const { rows } = await withTenantSession(clergyAClaims, (client) =>
-      client.query(`SELECT "parishId" FROM "MemberPrivateNote" ORDER BY "parishId"`),
+      client.query(
+        `SELECT "parishId" FROM "MemberPrivateNote" ORDER BY "parishId"`,
+      ),
     );
 
     expect(rows.length).toBeGreaterThan(0);
@@ -178,12 +186,33 @@ describe('Phase 2 sensitive field RLS', () => {
       ),
     ).then(
       () => {
-        throw new Error('Expected selecting sensitive columns from directory view to fail');
+        throw new Error(
+          'Expected selecting sensitive columns from directory view to fail',
+        );
       },
       () => {
         expect(true).toBe(true);
       },
     );
+  });
+
+  it('Member sees same-parish peers via directory (MM-14), not just self', async () => {
+    const { rows } = await withTenantSession(parishAMemberClaims, (client) =>
+      client.query(`SELECT id, "parishId" FROM parish_member_directory`),
+    );
+    // More than the member's own row — the whole point of the directory.
+    expect(rows.length).toBeGreaterThan(1);
+    expect(rows.every((r) => r.parishId === FX.parishAId)).toBe(true);
+  });
+
+  it('Member directory shows ZERO other-parish members (MM-14 isolation)', async () => {
+    const { rows } = await withTenantSession(parishAMemberClaims, (client) =>
+      client.query(
+        `SELECT id FROM parish_member_directory WHERE "parishId" = $1`,
+        [FX.parishBId],
+      ),
+    );
+    expect(rows).toHaveLength(0);
   });
 });
 
@@ -192,14 +221,18 @@ describe('Phase 2 sensitive field RLS', () => {
 describe('Family — cross-tenant isolation', () => {
   it('Parish-A admin sees Parish-A families', async () => {
     const { rows } = await withTenantSession(parishAAdminClaims, (client) =>
-      client.query(`SELECT id FROM "Family" WHERE "parishId" = $1`, [FX.parishAId]),
+      client.query(`SELECT id FROM "Family" WHERE "parishId" = $1`, [
+        FX.parishAId,
+      ]),
     );
     expect(rows.length).toBeGreaterThan(0);
   });
 
   it('Parish-A admin sees ZERO Parish-B families', async () => {
     const { rows } = await withTenantSession(parishAAdminClaims, (client) =>
-      client.query(`SELECT id FROM "Family" WHERE "parishId" = $1`, [FX.parishBId]),
+      client.query(`SELECT id FROM "Family" WHERE "parishId" = $1`, [
+        FX.parishBId,
+      ]),
     );
     expect(rows).toHaveLength(0);
   });
@@ -245,7 +278,9 @@ describe('Member — cross-tenant write blocked (WITH CHECK)', () => {
 describe('Parish — diocese structural read (Tier-1)', () => {
   it('Diocese admin sees parishes in their diocese', async () => {
     const { rows } = await withTenantSession(dioceseAdminClaims, (client) =>
-      client.query(`SELECT id FROM "Parish" WHERE "dioceseId" = $1`, [FX.dioceseId]),
+      client.query(`SELECT id FROM "Parish" WHERE "dioceseId" = $1`, [
+        FX.dioceseId,
+      ]),
     );
     expect(rows.length).toBeGreaterThanOrEqual(2);
   });
@@ -280,9 +315,10 @@ describe('AuditEntry — append-only (AU-10)', () => {
     // Both prove the operation is blocked at the DB layer — AU-10 satisfied.
     await expect(
       withTenantSession(parishAAdminClaims, (client) =>
-        client.query(`UPDATE "AuditEntry" SET "actorLabel" = 'tampered' WHERE id = $1`, [
-          auditId,
-        ]),
+        client.query(
+          `UPDATE "AuditEntry" SET "actorLabel" = 'tampered' WHERE id = $1`,
+          [auditId],
+        ),
       ),
     ).rejects.toThrow();
   });

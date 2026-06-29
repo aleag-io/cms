@@ -18,19 +18,21 @@ export const GET = () =>
       return Response.json({ ok: true, members: [] });
     }
 
-    const members = await withTenant(claims, (tx) =>
-      tx.$queryRaw<
-        Array<{
-          id: string;
-          parishId: string;
-          memberIdentifier: string;
-          firstName: string;
-          lastName: string;
-          email: string | null;
-          phone: string | null;
-          status: string;
-        }>
-      >`SELECT id, "parishId", "memberIdentifier", "firstName", "lastName", email, phone, status::text as status FROM parish_member_directory WHERE "parishId" = ${parishId} ORDER BY "lastName", "firstName"`,
+    const members = await withTenant(
+      claims,
+      (tx) =>
+        tx.$queryRaw<
+          Array<{
+            id: string;
+            parishId: string;
+            memberIdentifier: string;
+            firstName: string;
+            lastName: string;
+            email: string | null;
+            phone: string | null;
+            status: string;
+          }>
+        >`SELECT id, "parishId", "memberIdentifier", "firstName", "lastName", email, phone, status::text as status FROM parish_member_directory WHERE "parishId" = ${parishId} ORDER BY "lastName", "firstName"`,
     );
 
     return Response.json({

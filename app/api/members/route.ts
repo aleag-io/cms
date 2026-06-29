@@ -25,19 +25,21 @@ export const GET = () =>
     const roles = claims.app_metadata.roles;
 
     if (actor.role === Role.MEMBER) {
-      const directoryRows = await withTenant(claims, (tx) =>
-        tx.$queryRaw<
-          Array<{
-            id: string;
-            parishId: string;
-            memberIdentifier: string;
-            firstName: string;
-            lastName: string;
-            email: string | null;
-            phone: string | null;
-            status: string;
-          }>
-        >`SELECT id, "parishId", "memberIdentifier", "firstName", "lastName", email, phone, status::text as status FROM parish_member_directory WHERE "parishId" = ${parishId}`,
+      const directoryRows = await withTenant(
+        claims,
+        (tx) =>
+          tx.$queryRaw<
+            Array<{
+              id: string;
+              parishId: string;
+              memberIdentifier: string;
+              firstName: string;
+              lastName: string;
+              email: string | null;
+              phone: string | null;
+              status: string;
+            }>
+          >`SELECT id, "parishId", "memberIdentifier", "firstName", "lastName", email, phone, status::text as status FROM parish_member_directory WHERE "parishId" = ${parishId}`,
       );
       return Response.json({
         ok: true,
@@ -100,7 +102,8 @@ export const POST = (request: Request) =>
         family = await tx.family.findFirst({
           where: { id: body.familyId, parishId },
         });
-        if (!family) throw new ApiError(400, 'Family not found in current parish');
+        if (!family)
+          throw new ApiError(400, 'Family not found in current parish');
       }
 
       const inFamilyIndex = family
@@ -123,7 +126,10 @@ export const POST = (request: Request) =>
           phone: body.phone?.trim() || null,
           workNotes: body.workNotes?.trim() || null,
           educationLevel: body.educationLevel ?? null,
-          skillsInterests: body.skillsInterests?.map((value) => value.trim()).filter(Boolean) ?? [],
+          skillsInterests:
+            body.skillsInterests
+              ?.map((value) => value.trim())
+              .filter(Boolean) ?? [],
           status: body.status ?? MemberStatus.ACTIVE,
         },
         include: { family: true, privateNote: true, pastoralData: true },

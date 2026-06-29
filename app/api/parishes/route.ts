@@ -44,7 +44,10 @@ export const POST = (request: Request) =>
     const adminName = body.adminName?.trim();
 
     if (!parishName || !adminEmail || !adminName) {
-      throw new ApiError(400, 'parishName, adminEmail and adminName are required');
+      throw new ApiError(
+        400,
+        'parishName, adminEmail and adminName are required',
+      );
     }
 
     // Privileged path — RLS bypass intentional for provisioning.
@@ -88,5 +91,9 @@ export const POST = (request: Request) =>
       },
     });
 
-    return Response.json({ ok: true, parish: created.parish, admin: created.admin });
+    return Response.json({
+      ok: true,
+      parish: created.parish,
+      admin: created.admin,
+    });
   });

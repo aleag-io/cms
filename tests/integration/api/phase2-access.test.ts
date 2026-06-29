@@ -19,10 +19,10 @@ async function loadRoutes() {
   ({ GET: membersGET } = await import('@/app/api/members/route'));
   ({ GET: exportGET } = await import('@/app/api/members/export/route'));
   ({ GET: directoryGET } = await import('@/app/api/parish/directory/route'));
-  ({ GET: privateNoteGET, PATCH: privateNotePATCH } = await import(
-    '@/app/api/members/[id]/private-note/route'
-  ));
-  ({ PUT: overridesPUT } = await import('@/app/api/permissions/overrides/route'));
+  ({ GET: privateNoteGET, PATCH: privateNotePATCH } =
+    await import('@/app/api/members/[id]/private-note/route'));
+  ({ PUT: overridesPUT } =
+    await import('@/app/api/permissions/overrides/route'));
 }
 
 describe('Phase 2 access controls', () => {

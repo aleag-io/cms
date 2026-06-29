@@ -21,9 +21,17 @@ type MemberForProjection = {
   } | null;
 };
 
-const WORK_NOTES_ROLES = new Set(['parish_admin', 'parish_staff', 'organization_leader']);
+const WORK_NOTES_ROLES = new Set([
+  'parish_admin',
+  'parish_staff',
+  'organization_leader',
+]);
 const PRIVATE_NOTE_ROLES = new Set(['clergy']);
-const PASTORAL_ROLES = new Set(['clergy', 'parish_admin', 'pastoral_data_accessor']);
+const PASTORAL_ROLES = new Set([
+  'clergy',
+  'parish_admin',
+  'pastoral_data_accessor',
+]);
 
 function hasRole(roles: RoleName[], accepted: Set<string>) {
   return roles.some((role) => accepted.has(role.toLowerCase()));
@@ -44,11 +52,15 @@ export function projectMember(member: MemberForProjection, roles: RoleName[]) {
     phone: member.phone,
     status: member.status,
     family: member.family ?? null,
-    workNotes: canSeeWorkNotes ? member.workNotes ?? null : undefined,
-    educationLevel: canSeeWorkNotes ? member.educationLevel ?? null : undefined,
-    skillsInterests: canSeeWorkNotes ? member.skillsInterests ?? [] : undefined,
-    privateNote: canSeePrivateNotes ? member.privateNote ?? null : undefined,
-    pastoralData: canSeePastoral ? member.pastoralData ?? null : undefined,
+    workNotes: canSeeWorkNotes ? (member.workNotes ?? null) : undefined,
+    educationLevel: canSeeWorkNotes
+      ? (member.educationLevel ?? null)
+      : undefined,
+    skillsInterests: canSeeWorkNotes
+      ? (member.skillsInterests ?? [])
+      : undefined,
+    privateNote: canSeePrivateNotes ? (member.privateNote ?? null) : undefined,
+    pastoralData: canSeePastoral ? (member.pastoralData ?? null) : undefined,
   };
 }
 

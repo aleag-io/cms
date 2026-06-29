@@ -1,8 +1,15 @@
-import type { PermissionAction, PermissionResource } from '@/lib/permissions/types';
+import type {
+  PermissionAction,
+  PermissionResource,
+} from '@/lib/permissions/types';
 
-type ResourceActions = Partial<Record<PermissionResource, Set<PermissionAction>>>;
+type ResourceActions = Partial<
+  Record<PermissionResource, Set<PermissionAction>>
+>;
 
-function allow(resources: Array<[PermissionResource, PermissionAction[]]>): ResourceActions {
+function allow(
+  resources: Array<[PermissionResource, PermissionAction[]]>,
+): ResourceActions {
   const map: ResourceActions = {};
   for (const [resource, actions] of resources) {
     map[resource] = new Set(actions);
@@ -60,7 +67,5 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['member_profile', ['read']],
     ['parish_directory', ['read']],
   ]),
-  member: allow([
-    ['parish_directory', ['read']],
-  ]),
+  member: allow([['parish_directory', ['read']]]),
 };

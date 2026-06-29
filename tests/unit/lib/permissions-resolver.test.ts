@@ -24,7 +24,9 @@ describe('permissions resolver', () => {
       },
     ];
 
-    expect(can(['parish_staff'], 'member_profile', 'write', overrides)).toBe(false);
+    expect(can(['parish_staff'], 'member_profile', 'write', overrides)).toBe(
+      false,
+    );
     expect(can(['member'], 'member_export', 'read', overrides)).toBe(true);
   });
 

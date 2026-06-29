@@ -111,7 +111,8 @@ export const DELETE = (
     const family = await withTenant(claims, async (tx) => {
       const existing = await tx.family.findFirst({ where: { id, parishId } });
       if (!existing) throw new ApiError(404, 'Family not found');
-      if (!existing.isActive) throw new ApiError(409, 'Family is already inactive');
+      if (!existing.isActive)
+        throw new ApiError(409, 'Family is already inactive');
       return tx.family.update({ where: { id }, data: { isActive: false } });
     });
 

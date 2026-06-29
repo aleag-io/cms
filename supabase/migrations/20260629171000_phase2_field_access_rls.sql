@@ -34,6 +34,7 @@ ALTER TABLE "ParishPermissionOverride" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ParishPermissionOverride" FORCE ROW LEVEL SECURITY;
 
 -- Parish officer table: broad read inside parish; parish admin manages records.
+DROP POLICY IF EXISTS parish_officer_parish_read ON "ParishOfficer";
 CREATE POLICY parish_officer_parish_read ON "ParishOfficer"
   FOR SELECT
   USING (
@@ -45,6 +46,7 @@ CREATE POLICY parish_officer_parish_read ON "ParishOfficer"
     )
   );
 
+DROP POLICY IF EXISTS parish_officer_parish_admin_write ON "ParishOfficer";
 CREATE POLICY parish_officer_parish_admin_write ON "ParishOfficer"
   FOR ALL
   USING (
@@ -56,6 +58,10 @@ CREATE POLICY parish_officer_parish_admin_write ON "ParishOfficer"
   );
 
 -- Private notes: clergy-only and scoped to clergy assignment in the target parish.
+-- Both USING (read/delete) and WITH CHECK (insert/update) require the caller to hold
+-- an active clergy officer position in the note's parish — clergy serve via
+-- ParishOfficer, not necessarily parish membership, so WITH CHECK mirrors USING.
+DROP POLICY IF EXISTS private_note_clergy_rw ON "MemberPrivateNote";
 CREATE POLICY private_note_clergy_rw ON "MemberPrivateNote"
   FOR ALL
   USING (
@@ -69,14 +75,18 @@ CREATE POLICY private_note_clergy_rw ON "MemberPrivateNote"
     )
   )
   WITH CHECK (
-    "parishId" IN (
-      SELECT mp."parishId"
-      FROM "MemberParish" mp
-      WHERE mp."memberId" = (auth.jwt()->'app_metadata'->>'member_id')::uuid
+    EXISTS (
+      SELECT 1
+      FROM "ParishOfficer" po
+      WHERE po."memberId" = (auth.jwt()->'app_metadata'->>'member_id')::uuid
+        AND po."parishId" = "MemberPrivateNote"."parishId"
+        AND po."officerType" = 'CLERGY'
+        AND po."isActive" = true
     )
   );
 
 -- Pastoral data: clergy/parish admin/pastoral accessor only.
+DROP POLICY IF EXISTS member_pastoral_privileged_rw ON "MemberPastoralData";
 CREATE POLICY member_pastoral_privileged_rw ON "MemberPastoralData"
   FOR ALL
   USING (
@@ -87,6 +97,7 @@ CREATE POLICY member_pastoral_privileged_rw ON "MemberPastoralData"
     "parishId" = (auth.jwt()->'app_metadata'->>'parish_id')::uuid
   );
 
+DROP POLICY IF EXISTS family_pastoral_privileged_rw ON "FamilyPastoralData";
 CREATE POLICY family_pastoral_privileged_rw ON "FamilyPastoralData"
   FOR ALL
   USING (
@@ -98,12 +109,14 @@ CREATE POLICY family_pastoral_privileged_rw ON "FamilyPastoralData"
   );
 
 -- Member relationships: same-parish read and parish-admin/staff write.
+DROP POLICY IF EXISTS member_relationship_read ON "MemberRelationship";
 CREATE POLICY member_relationship_read ON "MemberRelationship"
   FOR SELECT
   USING (
     "parishId" = (auth.jwt()->'app_metadata'->>'parish_id')::uuid
   );
 
+DROP POLICY IF EXISTS member_relationship_write ON "MemberRelationship";
 CREATE POLICY member_relationship_write ON "MemberRelationship"
   FOR ALL
   USING (
@@ -115,6 +128,7 @@ CREATE POLICY member_relationship_write ON "MemberRelationship"
   );
 
 -- Multi-parish mapping table: members can read their own mapping; admins/staff manage within parish.
+DROP POLICY IF EXISTS member_parish_self_or_parish_read ON "MemberParish";
 CREATE POLICY member_parish_self_or_parish_read ON "MemberParish"
   FOR SELECT
   USING (
@@ -122,6 +136,7 @@ CREATE POLICY member_parish_self_or_parish_read ON "MemberParish"
     OR "parishId" = (auth.jwt()->'app_metadata'->>'parish_id')::uuid
   );
 
+DROP POLICY IF EXISTS member_parish_admin_write ON "MemberParish";
 CREATE POLICY member_parish_admin_write ON "MemberParish"
   FOR ALL
   USING (
@@ -133,12 +148,14 @@ CREATE POLICY member_parish_admin_write ON "MemberParish"
   );
 
 -- Parish permission overrides: parish admin only.
+DROP POLICY IF EXISTS permission_override_read ON "ParishPermissionOverride";
 CREATE POLICY permission_override_read ON "ParishPermissionOverride"
   FOR SELECT
   USING (
     "parishId" = (auth.jwt()->'app_metadata'->>'parish_id')::uuid
   );
 
+DROP POLICY IF EXISTS permission_override_write ON "ParishPermissionOverride";
 CREATE POLICY permission_override_write ON "ParishPermissionOverride"
   FOR ALL
   USING (
@@ -193,11 +210,18 @@ CREATE POLICY member_parish_write ON "Member"
     AND "dioceseId" = (auth.jwt()->'app_metadata'->>'diocese_id')::uuid
   );
 
--- Directory view with narrow projection for parish members.
+-- Directory view (MM-14): basic contact fields of ACTIVE members in the caller's
+-- parish(es), available to ANY authenticated same-parish member — including the bare
+-- `member` role, which the base "Member" RLS denies.
+--
+-- This is a SECURITY DEFINER view (no `security_invoker`): it runs as the view owner
+-- (a BYPASSRLS role), so the base-table RLS does not collapse it to the caller's own
+-- row. The view therefore does its OWN tenant-scoping in the WHERE clause via the JWT
+-- claims, and only ever projects the `parish_directory_basic` columns — pastoral dates
+-- and private notes live in satellite tables and are structurally unreachable here.
 DROP VIEW IF EXISTS parish_member_directory;
 
-CREATE VIEW parish_member_directory
-WITH (security_invoker = true) AS
+CREATE VIEW parish_member_directory AS
 SELECT
   m.id,
   m."parishId",
@@ -208,6 +232,14 @@ SELECT
   m.phone,
   m.status
 FROM "Member" m
-WHERE m.status = 'ACTIVE';
+WHERE m.status = 'ACTIVE'
+  AND (
+    m."parishId" = (auth.jwt()->'app_metadata'->>'parish_id')::uuid
+    OR m."parishId" IN (
+      SELECT mp."parishId"
+      FROM "MemberParish" mp
+      WHERE mp."memberId" = (auth.jwt()->'app_metadata'->>'member_id')::uuid
+    )
+  );
 
 GRANT SELECT ON parish_member_directory TO app_authenticated;

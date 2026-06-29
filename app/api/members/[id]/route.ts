@@ -53,14 +53,22 @@ export const PATCH = (
         data: {
           ...(body.firstName && { firstName: body.firstName.trim() }),
           ...(body.lastName && { lastName: body.lastName.trim() }),
-          ...(body.email !== undefined && { email: body.email?.trim() || null }),
-          ...(body.phone !== undefined && { phone: body.phone?.trim() || null }),
-          ...(body.workNotes !== undefined && { workNotes: body.workNotes?.trim() || null }),
+          ...(body.email !== undefined && {
+            email: body.email?.trim() || null,
+          }),
+          ...(body.phone !== undefined && {
+            phone: body.phone?.trim() || null,
+          }),
+          ...(body.workNotes !== undefined && {
+            workNotes: body.workNotes?.trim() || null,
+          }),
           ...(body.educationLevel !== undefined && {
             educationLevel: body.educationLevel,
           }),
           ...(body.skillsInterests !== undefined && {
-            skillsInterests: (body.skillsInterests ?? []).map((value) => value.trim()).filter(Boolean),
+            skillsInterests: (body.skillsInterests ?? [])
+              .map((value) => value.trim())
+              .filter(Boolean),
           }),
           ...(body.status && { status: body.status }),
         },
