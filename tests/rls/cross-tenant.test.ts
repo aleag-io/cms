@@ -362,6 +362,24 @@ describe('Policy schema — RLS enabled+forced on all tenant tables', () => {
     'MemberRelationship',
     'MemberParish',
     'ParishPermissionOverride',
+    // Phase 3
+    'Program',
+    'ProgramEnrollment',
+    'ProgramSession',
+    'ProgramSessionAttendance',
+    'Organization',
+    'OrganizationMembership',
+    'OrganizationOfficer',
+    'Event',
+    'EventAttendance',
+    'Facility',
+    'FacilityBooking',
+    'Message',
+    'MessageRecipient',
+    'MessageTemplate',
+    'CommunicationPreference',
+    'VolunteerAssignment',
+    'MemberRegistration',
   ];
 
   for (const table of tenantTables) {

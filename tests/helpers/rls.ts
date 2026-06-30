@@ -48,6 +48,8 @@ export function makeClaims(opts: {
   role: string;
   memberId?: string | null;
   clergyParishIds?: string[];
+  programLeaderIds?: string[];
+  orgLeaderIds?: string[];
 }): SessionClaims {
   return {
     sub: opts.userId,
@@ -57,6 +59,8 @@ export function makeClaims(opts: {
       roles: [opts.role],
       member_id: opts.memberId ?? null,
       clergy_parish_ids: opts.clergyParishIds ?? [],
+      program_leader_ids: opts.programLeaderIds ?? [],
+      org_leader_ids: opts.orgLeaderIds ?? [],
     },
   };
 }

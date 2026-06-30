@@ -34,7 +34,12 @@ export async function proxy(request: NextRequest) {
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth/') ||
-    pathname === '/api/bootstrap';
+    pathname === '/api/bootstrap' ||
+    // Public member self-registration intake (MM-8) — validated + rate-limited
+    // in the handler; pending members are invisible until approved.
+    pathname === '/api/registrations' ||
+    // Cron worker — guarded by a shared secret header, not user auth.
+    pathname === '/api/jobs/process-communications';
 
   if (!user && !isPublic) {
     if (pathname.startsWith('/api/')) {

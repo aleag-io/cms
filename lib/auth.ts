@@ -17,6 +17,8 @@ export interface SessionClaims {
     roles: string[];
     member_id: string | null;
     clergy_parish_ids: string[];
+    program_leader_ids: string[];
+    org_leader_ids: string[];
   };
 }
 
@@ -69,6 +71,50 @@ let _claimsResolver: ClaimsResolver = async (user) => {
     roles.add('clergy');
   }
 
+  // Sub-parish leader scoping (Phase 3): derive the programs/organizations
+  // this member leads. The DB remains authoritative via in-policy subqueries;
+  // these arrays are UX hints so the app can show/hide nav without a round-trip.
+  let programLeaderIds: string[] = [];
+  let orgLeaderIds: string[] = [];
+  if (member?.id) {
+    const [coordinated, ledEnrollments, officerRoles, ledMemberships] =
+      await Promise.all([
+        prisma.program.findMany({
+          where: { coordinatorMemberId: member.id },
+          select: { id: true },
+        }),
+        prisma.programEnrollment.findMany({
+          where: {
+            memberId: member.id,
+            role: { in: ['COORDINATOR', 'FACILITATOR'] },
+          },
+          select: { programId: true },
+        }),
+        prisma.organizationOfficer.findMany({
+          where: { memberId: member.id, isActive: true },
+          select: { organizationId: true },
+        }),
+        prisma.organizationMembership.findMany({
+          where: { memberId: member.id, role: 'LEADER', leftAt: null },
+          select: { organizationId: true },
+        }),
+      ]);
+    programLeaderIds = [
+      ...new Set([
+        ...coordinated.map((p) => p.id),
+        ...ledEnrollments.map((e) => e.programId),
+      ]),
+    ];
+    orgLeaderIds = [
+      ...new Set([
+        ...officerRoles.map((o) => o.organizationId),
+        ...ledMemberships.map((m) => m.organizationId),
+      ]),
+    ];
+    if (programLeaderIds.length > 0) roles.add('ministry_leader');
+    if (orgLeaderIds.length > 0) roles.add('organization_leader');
+  }
+
   return {
     sub: user.id,
     app_metadata: {
@@ -77,6 +123,8 @@ let _claimsResolver: ClaimsResolver = async (user) => {
       roles: [...roles],
       member_id: member?.id ?? null,
       clergy_parish_ids: clergyParishIds,
+      program_leader_ids: programLeaderIds,
+      org_leader_ids: orgLeaderIds,
     },
   };
 };

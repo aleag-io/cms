@@ -71,10 +71,121 @@ enum PermissionAction {
 }
 
 enum MemberStatus {
+  PENDING
   ACTIVE
   INACTIVE
   DECEASED
   MOVED
+}
+
+// ── Phase 3: Parish operations enums ─────────────────────────────────────────
+
+enum ProgramType {
+  FAITH_FORMATION
+  BIBLE_STUDY
+  YOUTH
+  CHOIR
+  OUTREACH
+  OTHER
+}
+
+enum EnrollmentRole {
+  PARTICIPANT
+  FACILITATOR
+  COORDINATOR
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  WITHDRAWN
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+}
+
+enum OrganizationType {
+  PRAYER_GROUP
+  COMMITTEE
+  AUXILIARY
+  MINISTRY
+  OTHER
+}
+
+enum MembershipMode {
+  OPEN
+  EXCLUSIVE
+}
+
+enum OrgMembershipRole {
+  MEMBER
+  OFFICER
+  LEADER
+}
+
+enum EventType {
+  SERVICE
+  MEETING
+  SOCIAL
+  OUTREACH
+  OTHER
+}
+
+enum RsvpStatus {
+  YES
+  NO
+  MAYBE
+}
+
+enum FacilityBookingStatus {
+  TENTATIVE
+  CONFIRMED
+  CANCELLED
+  CLOSURE
+}
+
+enum MessageChannel {
+  EMAIL
+  SMS
+}
+
+enum MessageStatus {
+  DRAFT
+  QUEUED
+  PROCESSING
+  SENT
+  FAILED
+}
+
+enum RecipientStatus {
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum AudienceType {
+  ALL_MEMBERS
+  FAMILIES
+  PROGRAM
+  ORGANIZATION
+  CUSTOM
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VolunteerScopeType {
+  PROGRAM
+  ORGANIZATION
+  EVENT
 }
 
 enum ActorType {
@@ -115,18 +226,38 @@ model Parish {
   familyNumberWidth  Int    @default(4)
   familyNumberStart  Int    @default(1)
 
-  diocese             Diocese                    @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
-  users               AppUser[]
-  families            Family[]
-  members             Member[]
-  officers            ParishOfficer[]
-  memberParishes      MemberParish[]
-  privateNotes        MemberPrivateNote[]
-  memberPastoralData  MemberPastoralData[]
-  familyPastoralData  FamilyPastoralData[]
-  permissionOverrides ParishPermissionOverride[]
-  memberRelationships MemberRelationship[]
-  audits              AuditEntry[]
+  // Member self-registration: auto-approve PENDING intakes (MM-8)
+  autoApprove Boolean @default(false)
+
+  diocese                  Diocese                    @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  users                    AppUser[]
+  families                 Family[]
+  members                  Member[]
+  officers                 ParishOfficer[]
+  memberParishes           MemberParish[]
+  privateNotes             MemberPrivateNote[]
+  memberPastoralData       MemberPastoralData[]
+  familyPastoralData       FamilyPastoralData[]
+  permissionOverrides      ParishPermissionOverride[]
+  memberRelationships      MemberRelationship[]
+  programs                 Program[]
+  programEnrollments       ProgramEnrollment[]
+  programSessions          ProgramSession[]
+  programSessionAttendance ProgramSessionAttendance[]
+  organizations            Organization[]
+  organizationMemberships  OrganizationMembership[]
+  organizationOfficers     OrganizationOfficer[]
+  events                   Event[]
+  eventAttendances         EventAttendance[]
+  facilities               Facility[]
+  facilityBookings         FacilityBooking[]
+  messages                 Message[]
+  messageRecipients        MessageRecipient[]
+  messageTemplates         MessageTemplate[]
+  communicationPreferences CommunicationPreference[]
+  volunteerAssignments     VolunteerAssignment[]
+  memberRegistrations      MemberRegistration[]
+  audits                   AuditEntry[]
 
   @@index([dioceseId])
 }
@@ -173,35 +304,45 @@ model Family {
 }
 
 model Member {
-  id                      String               @id @default(uuid()) @db.Uuid
-  dioceseId               String               @db.Uuid
-  parishId                String               @db.Uuid
-  familyId                String?              @db.Uuid
+  id                       String                     @id @default(uuid()) @db.Uuid
+  dioceseId                String                     @db.Uuid
+  parishId                 String                     @db.Uuid
+  familyId                 String?                    @db.Uuid
   // Linked Supabase/AppUser for self-service access (staged for Phase 3)
-  userId                  String?              @unique @db.Uuid
-  memberIdentifier        String
-  firstName               String
-  lastName                String
-  email                   String?
-  phone                   String?
-  workNotes               String?
-  educationLevel          EducationLevel?
-  skillsInterests         String[]             @default([])
-  status                  MemberStatus         @default(ACTIVE)
+  userId                   String?                    @unique @db.Uuid
+  memberIdentifier         String
+  firstName                String
+  lastName                 String
+  email                    String?
+  phone                    String?
+  workNotes                String?
+  educationLevel           EducationLevel?
+  skillsInterests          String[]                   @default([])
+  status                   MemberStatus               @default(ACTIVE)
   // Transfer stub — full workflow in Phase 4
-  transferredFromParishId String?              @db.Uuid
-  transferredAt           DateTime?
-  createdAt               DateTime             @default(now())
-  updatedAt               DateTime             @updatedAt
-  parish                  Parish               @relation(fields: [parishId], references: [id], onDelete: Cascade)
-  family                  Family?              @relation(fields: [familyId], references: [id], onDelete: SetNull)
-  user                    AppUser?             @relation("AppUserMember", fields: [userId], references: [id], onDelete: SetNull)
-  officerAssignments      ParishOfficer[]
-  privateNote             MemberPrivateNote?
-  pastoralData            MemberPastoralData?
-  memberParishes          MemberParish[]
-  relatedTo               MemberRelationship[] @relation("MemberRelationshipFrom")
-  relatedFrom             MemberRelationship[] @relation("MemberRelationshipTo")
+  transferredFromParishId  String?                    @db.Uuid
+  transferredAt            DateTime?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+  parish                   Parish                     @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  family                   Family?                    @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  user                     AppUser?                   @relation("AppUserMember", fields: [userId], references: [id], onDelete: SetNull)
+  officerAssignments       ParishOfficer[]
+  privateNote              MemberPrivateNote?
+  pastoralData             MemberPastoralData?
+  memberParishes           MemberParish[]
+  relatedTo                MemberRelationship[]       @relation("MemberRelationshipFrom")
+  relatedFrom              MemberRelationship[]       @relation("MemberRelationshipTo")
+  coordinatedPrograms      Program[]                  @relation("ProgramCoordinator")
+  programEnrollments       ProgramEnrollment[]
+  sessionAttendances       ProgramSessionAttendance[]
+  organizationMemberships  OrganizationMembership[]
+  organizationOfficerRoles OrganizationOfficer[]
+  eventAttendances         EventAttendance[]
+  messageRecipients        MessageRecipient[]
+  communicationPreferences CommunicationPreference[]
+  volunteerAssignments     VolunteerAssignment[]
+  registration             MemberRegistration?        @relation("MemberRegistrationApproved")
 
   @@unique([parishId, memberIdentifier])
   @@index([dioceseId, parishId, status])
@@ -337,4 +478,362 @@ model AuditEntry {
 
   @@index([timestamp])
   @@index([dioceseId, parishId, action])
+}
+
+// ── Phase 3: Programs & ministries (PA-3, MM-3/4) ────────────────────────────
+
+model Program {
+  id                   String                @id @default(uuid()) @db.Uuid
+  dioceseId            String                @db.Uuid
+  parishId             String                @db.Uuid
+  name                 String
+  description          String?
+  programType          ProgramType           @default(OTHER)
+  coordinatorMemberId  String?               @db.Uuid
+  isActive             Boolean               @default(true)
+  startDate            DateTime?
+  endDate              DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  parish               Parish                @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  coordinator          Member?               @relation("ProgramCoordinator", fields: [coordinatorMemberId], references: [id], onDelete: SetNull)
+  enrollments          ProgramEnrollment[]
+  sessions             ProgramSession[]
+  volunteerAssignments VolunteerAssignment[]
+
+  @@index([dioceseId, parishId, isActive])
+  @@index([coordinatorMemberId])
+}
+
+model ProgramEnrollment {
+  id         String           @id @default(uuid()) @db.Uuid
+  dioceseId  String           @db.Uuid
+  parishId   String           @db.Uuid
+  programId  String           @db.Uuid
+  memberId   String           @db.Uuid
+  role       EnrollmentRole   @default(PARTICIPANT)
+  status     EnrollmentStatus @default(ACTIVE)
+  enrolledAt DateTime         @default(now())
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  parish     Parish           @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  program    Program          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  member     Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, memberId])
+  @@index([dioceseId, parishId])
+  @@index([memberId, role])
+}
+
+model ProgramSession {
+  id          String                     @id @default(uuid()) @db.Uuid
+  dioceseId   String                     @db.Uuid
+  parishId    String                     @db.Uuid
+  programId   String                     @db.Uuid
+  title       String
+  scheduledAt DateTime
+  location    String?
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  parish      Parish                     @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  program     Program                    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  attendance  ProgramSessionAttendance[]
+
+  @@index([dioceseId, parishId])
+  @@index([programId, scheduledAt])
+}
+
+model ProgramSessionAttendance {
+  id        String           @id @default(uuid()) @db.Uuid
+  dioceseId String           @db.Uuid
+  parishId  String           @db.Uuid
+  sessionId String           @db.Uuid
+  memberId  String           @db.Uuid
+  status    AttendanceStatus @default(PRESENT)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  parish    Parish           @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  session   ProgramSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  member    Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, memberId])
+  @@index([dioceseId, parishId])
+}
+
+// ── Phase 3: Organizations (PA-14/15/16) ─────────────────────────────────────
+
+model Organization {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  dioceseId            String                   @db.Uuid
+  parishId             String                   @db.Uuid
+  name                 String
+  description          String?
+  organizationType     OrganizationType         @default(OTHER)
+  membershipMode       MembershipMode           @default(OPEN)
+  hasOwnLedger         Boolean                  @default(false)
+  isActive             Boolean                  @default(true)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  parish               Parish                   @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  memberships          OrganizationMembership[]
+  officers             OrganizationOfficer[]
+  volunteerAssignments VolunteerAssignment[]
+
+  @@index([dioceseId, parishId, isActive])
+  @@index([parishId, organizationType])
+}
+
+model OrganizationMembership {
+  id               String            @id @default(uuid()) @db.Uuid
+  dioceseId        String            @db.Uuid
+  parishId         String            @db.Uuid
+  organizationId   String            @db.Uuid
+  memberId         String            @db.Uuid
+  role             OrgMembershipRole @default(MEMBER)
+  joinedAt         DateTime          @default(now())
+  leftAt           DateTime?
+  // Denormalized from parent Organization for the PA-16 partial unique index.
+  // Kept in sync by the org_membership_propagate trigger (Supabase SQL).
+  organizationType OrganizationType
+  membershipMode   MembershipMode
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  parish           Parish            @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  member           Member            @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  // Note: the PA-16 exclusivity partial unique index is declared in Supabase SQL
+  // (org_membership_exclusive_active) — it cannot be expressed in Prisma.
+
+  @@index([dioceseId, parishId])
+  @@index([organizationId])
+  @@index([memberId])
+}
+
+model OrganizationOfficer {
+  id             String       @id @default(uuid()) @db.Uuid
+  dioceseId      String       @db.Uuid
+  parishId       String       @db.Uuid
+  organizationId String       @db.Uuid
+  memberId       String       @db.Uuid
+  title          String
+  isActive       Boolean      @default(true)
+  termStart      DateTime     @default(now())
+  termEnd        DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  parish         Parish       @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  member         Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([dioceseId, parishId])
+  @@index([organizationId, isActive])
+  @@index([memberId])
+}
+
+// ── Phase 3: Events & facilities (PA-4/5, MM-4) ──────────────────────────────
+
+model Event {
+  id                   String                @id @default(uuid()) @db.Uuid
+  dioceseId            String                @db.Uuid
+  parishId             String                @db.Uuid
+  name                 String
+  description          String?
+  eventType            EventType             @default(OTHER)
+  startAt              DateTime
+  endAt                DateTime
+  recurrenceRule       String?
+  maxCapacity          Int?
+  facilityId           String?               @db.Uuid
+  isPublic             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  parish               Parish                @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  facility             Facility?             @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  attendance           EventAttendance[]
+  bookings             FacilityBooking[]
+  volunteerAssignments VolunteerAssignment[]
+
+  @@index([dioceseId, parishId, startAt])
+  @@index([facilityId])
+}
+
+model EventAttendance {
+  id         String     @id @default(uuid()) @db.Uuid
+  dioceseId  String     @db.Uuid
+  parishId   String     @db.Uuid
+  eventId    String     @db.Uuid
+  memberId   String     @db.Uuid
+  rsvpStatus RsvpStatus @default(YES)
+  attended   Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  parish     Parish     @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  member     Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, memberId])
+  @@index([dioceseId, parishId])
+}
+
+model Facility {
+  id        String            @id @default(uuid()) @db.Uuid
+  dioceseId String            @db.Uuid
+  parishId  String            @db.Uuid
+  name      String
+  capacity  Int?
+  location  String?
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  parish    Parish            @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  bookings  FacilityBooking[]
+  events    Event[]
+
+  @@index([dioceseId, parishId, isActive])
+}
+
+model FacilityBooking {
+  id         String                @id @default(uuid()) @db.Uuid
+  dioceseId  String                @db.Uuid
+  parishId   String                @db.Uuid
+  facilityId String                @db.Uuid
+  eventId    String?               @db.Uuid
+  title      String
+  startAt    DateTime              @db.Timestamptz(6)
+  endAt      DateTime              @db.Timestamptz(6)
+  status     FacilityBookingStatus @default(CONFIRMED)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  parish     Parish                @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  facility   Facility              @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  event      Event?                @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  // Note: the no_facility_overlap exclusion constraint is declared in Supabase SQL.
+
+  @@index([dioceseId, parishId])
+  @@index([facilityId, startAt])
+}
+
+// ── Phase 3: Communications (PA-8) ───────────────────────────────────────────
+
+model Message {
+  id              String             @id @default(uuid()) @db.Uuid
+  dioceseId       String             @db.Uuid
+  parishId        String             @db.Uuid
+  channel         MessageChannel     @default(EMAIL)
+  subject         String?
+  body            String
+  audienceType    AudienceType       @default(ALL_MEMBERS)
+  audienceRefId   String?            @db.Uuid
+  status          MessageStatus      @default(DRAFT)
+  createdByUserId String?            @db.Uuid
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  parish          Parish             @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  recipients      MessageRecipient[]
+
+  @@index([dioceseId, parishId, status])
+}
+
+model MessageRecipient {
+  id                String          @id @default(uuid()) @db.Uuid
+  dioceseId         String          @db.Uuid
+  parishId          String          @db.Uuid
+  messageId         String          @db.Uuid
+  memberId          String          @db.Uuid
+  channel           MessageChannel
+  status            RecipientStatus @default(QUEUED)
+  providerMessageId String?
+  destination       String?
+  error             String?
+  sentAt            DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  parish            Parish          @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  message           Message         @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  member            Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, memberId, channel])
+  @@index([dioceseId, parishId, status])
+  @@index([status])
+}
+
+model MessageTemplate {
+  id        String         @id @default(uuid()) @db.Uuid
+  dioceseId String         @db.Uuid
+  parishId  String         @db.Uuid
+  name      String
+  channel   MessageChannel @default(EMAIL)
+  subject   String?
+  body      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  parish    Parish         @relation(fields: [parishId], references: [id], onDelete: Cascade)
+
+  @@index([dioceseId, parishId])
+}
+
+model CommunicationPreference {
+  id        String         @id @default(uuid()) @db.Uuid
+  dioceseId String         @db.Uuid
+  parishId  String         @db.Uuid
+  memberId  String         @db.Uuid
+  channel   MessageChannel
+  optedOut  Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  parish    Parish         @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  member    Member         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, channel])
+  @@index([dioceseId, parishId])
+}
+
+// ── Phase 3: Staff/volunteer (PA-6) ──────────────────────────────────────────
+
+model VolunteerAssignment {
+  id             String             @id @default(uuid()) @db.Uuid
+  dioceseId      String             @db.Uuid
+  parishId       String             @db.Uuid
+  memberId       String             @db.Uuid
+  scopeType      VolunteerScopeType
+  programId      String?            @db.Uuid
+  organizationId String?            @db.Uuid
+  eventId        String?            @db.Uuid
+  roleLabel      String
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  parish         Parish             @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  member         Member             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  program        Program?           @relation(fields: [programId], references: [id], onDelete: Cascade)
+  organization   Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event          Event?             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([dioceseId, parishId])
+  @@index([memberId])
+}
+
+// ── Phase 3: Member self-registration (MM-8) ─────────────────────────────────
+
+model MemberRegistration {
+  id               String             @id @default(uuid()) @db.Uuid
+  dioceseId        String             @db.Uuid
+  parishId         String             @db.Uuid
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  familyName       String?
+  notes            String?
+  approvalStatus   RegistrationStatus @default(PENDING)
+  submittedAt      DateTime           @default(now())
+  reviewedByUserId String?            @db.Uuid
+  reviewedAt       DateTime?
+  approvedMemberId String?            @unique @db.Uuid
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  parish           Parish             @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  approvedMember   Member?            @relation("MemberRegistrationApproved", fields: [approvedMemberId], references: [id], onDelete: SetNull)
+
+  @@index([dioceseId, parishId, approvalStatus])
 }

@@ -28,6 +28,8 @@ BEGIN
         user_rec record;
         member_id uuid;
         clergy_parish_ids uuid[];
+        program_leader_ids uuid[];
+        org_leader_ids uuid[];
         user_found boolean := false;
       BEGIN
         claims := event->'claims';
@@ -54,17 +56,45 @@ BEGIN
           AND po."officerType" = 'CLERGY'
           AND po."isActive" = true;
 
+        -- Sub-parish leader scoping (Phase 3): programs/orgs this member leads.
+        -- DB policies remain authoritative via in-policy subqueries; these are
+        -- UX hints only.
+        SELECT coalesce(array_agg(DISTINCT pid), ARRAY[]::uuid[])
+        INTO program_leader_ids
+        FROM (
+          SELECT p.id AS pid FROM "Program" p WHERE p."coordinatorMemberId" = member_id
+          UNION
+          SELECT pe."programId" AS pid FROM "ProgramEnrollment" pe
+          WHERE pe."memberId" = member_id AND pe.role IN ('COORDINATOR','FACILITATOR')
+        ) leaders;
+
+        SELECT coalesce(array_agg(DISTINCT oid), ARRAY[]::uuid[])
+        INTO org_leader_ids
+        FROM (
+          SELECT oo."organizationId" AS oid FROM "OrganizationOfficer" oo
+          WHERE oo."memberId" = member_id AND oo."isActive" = true
+          UNION
+          SELECT om."organizationId" AS oid FROM "OrganizationMembership" om
+          WHERE om."memberId" = member_id AND om.role = 'LEADER' AND om."leftAt" IS NULL
+        ) org_leaders;
+
         IF user_found THEN
           app_meta := jsonb_build_object(
             'diocese_id', user_rec.diocese_id,
             'parish_id',  user_rec.parish_id,
-            'roles',      CASE
-              WHEN array_length(clergy_parish_ids, 1) > 0
-                THEN jsonb_build_array(user_rec.role_name, 'clergy')
-              ELSE jsonb_build_array(user_rec.role_name)
-            END,
+            'roles',      (
+              jsonb_build_array(user_rec.role_name)
+              || CASE WHEN array_length(clergy_parish_ids, 1) > 0
+                   THEN jsonb_build_array('clergy') ELSE '[]'::jsonb END
+              || CASE WHEN array_length(program_leader_ids, 1) > 0
+                   THEN jsonb_build_array('ministry_leader') ELSE '[]'::jsonb END
+              || CASE WHEN array_length(org_leader_ids, 1) > 0
+                   THEN jsonb_build_array('organization_leader') ELSE '[]'::jsonb END
+            ),
             'member_id', member_id,
-            'clergy_parish_ids', to_jsonb(clergy_parish_ids)
+            'clergy_parish_ids', to_jsonb(clergy_parish_ids),
+            'program_leader_ids', to_jsonb(program_leader_ids),
+            'org_leader_ids', to_jsonb(org_leader_ids)
           );
           claims := jsonb_set(
             claims,

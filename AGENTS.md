@@ -55,11 +55,21 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   atomic `set_member_primary_parish()` (MM-17); permission resolver + `ParishPermissionOverride`
   + `/settings/permissions` (PA-12). Full suite green (unit/integration/rls/e2e). Plan:
   [docs/phase-2-plan.md](docs/phase-2-plan.md).
-- **Phase 3 — planned.** Parish operations: programs/ministries, organizations with the
-  DB-enforced exclusive-membership constraint (PA-16), events/facilities, async communications,
-  staff/volunteer mgmt, member self-registration. Plan: [docs/phase-3-plan.md](docs/phase-3-plan.md).
-  Central decisions: sub-parish (leader) RLS scoping, denormalized partial unique index for
-  PA-16, enqueue+cron worker for comms.
+- **Phase 3 — backend complete (gates met).** Parish operations: programs/ministries,
+  organizations, events/facilities, async communications, self-registration. Sub-parish
+  leader scoping via SECURITY DEFINER helpers (`current_program_leader_ids()` /
+  `current_org_leader_ids()`) — leaders read/write only their own programs/orgs (claims add
+  `program_leader_ids`/`org_leader_ids`). PA-16 exclusive membership: BEFORE-INSERT
+  denormalize trigger + partial unique index `org_membership_exclusive_active` (parish_write
+  WITH CHECK now role-guarded so non-leaders can't write). PA-5 facility double-booking:
+  `btree_gist` EXCLUDE constraint. Comms: enqueue (`/api/messages`) + idempotent cron worker
+  (`processQueuedCommunications`, FOR UPDATE SKIP LOCKED, `/api/jobs/process-communications`
+  GET/POST secret-guarded, registered in `vercel.json`). Self-registration creates PENDING
+  members invisible in the directory until approved. Migration
+  `20260629181842_phase3_parish_operations` + RLS `20260629182000_phase3_parish_operations_rls.sql`.
+  Exit gates proven by tests (rls: org exclusivity + leader scope; integration: comms worker,
+  RSVP capacity, self-reg visibility, exclusivity/booking 409s). Plan:
+  [docs/phase-3-plan.md](docs/phase-3-plan.md).
 
 ## How to run
 
