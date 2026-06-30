@@ -11,13 +11,7 @@
  * rows their leadership grants — no more.
  */
 
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  it,
-} from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   EnrollmentRole,
   EnrollmentStatus,

@@ -57,7 +57,8 @@ export const POST = (request: Request) =>
     }
     const startAt = new Date(body.startAt);
     const endAt = new Date(body.endAt);
-    if (endAt <= startAt) throw new ApiError(400, 'endAt must be after startAt');
+    if (endAt <= startAt)
+      throw new ApiError(400, 'endAt must be after startAt');
 
     const event = await withTenant(claims, (tx) =>
       tx.event.create({

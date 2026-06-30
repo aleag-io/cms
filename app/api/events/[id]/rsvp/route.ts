@@ -26,7 +26,12 @@ export const POST = (request: Request, ctx: Ctx) =>
     const attendance = await withTenant(claims, async (tx) => {
       const event = await tx.event.findUnique({
         where: { id: eventId },
-        select: { id: true, parishId: true, dioceseId: true, maxCapacity: true },
+        select: {
+          id: true,
+          parishId: true,
+          dioceseId: true,
+          maxCapacity: true,
+        },
       });
       if (!event) throw new ApiError(404, 'Event not found');
 

@@ -33,7 +33,9 @@ export const GET = (_request: Request, ctx: Ctx) =>
     const enrollments = await withTenant(claims, (tx) =>
       tx.programEnrollment.findMany({
         where: { programId },
-        include: { member: { select: { id: true, firstName: true, lastName: true } } },
+        include: {
+          member: { select: { id: true, firstName: true, lastName: true } },
+        },
         orderBy: { enrolledAt: 'asc' },
       }),
     );
@@ -89,7 +91,11 @@ export const POST = (request: Request, ctx: Ctx) =>
       outcome: AuditOutcome.SUCCESS,
       dioceseId: actor.dioceseId,
       parishId,
-      metadata: { programId, memberId: enrollment.memberId, role: enrollment.role },
+      metadata: {
+        programId,
+        memberId: enrollment.memberId,
+        role: enrollment.role,
+      },
     });
 
     return Response.json({ ok: true, enrollment });

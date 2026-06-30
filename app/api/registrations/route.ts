@@ -119,7 +119,10 @@ export const GET = () =>
 
     const registrations = await withTenant(claims, (tx) =>
       tx.memberRegistration.findMany({
-        where: { parishId: actor.parishId!, approvalStatus: RegistrationStatus.PENDING },
+        where: {
+          parishId: actor.parishId!,
+          approvalStatus: RegistrationStatus.PENDING,
+        },
         orderBy: { submittedAt: 'asc' },
       }),
     );

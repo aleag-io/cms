@@ -27,7 +27,9 @@ export const GET = (_request: Request, ctx: Ctx) =>
     const memberships = await withTenant(claims, (tx) =>
       tx.organizationMembership.findMany({
         where: { organizationId, leftAt: null },
-        include: { member: { select: { id: true, firstName: true, lastName: true } } },
+        include: {
+          member: { select: { id: true, firstName: true, lastName: true } },
+        },
         orderBy: { joinedAt: 'asc' },
       }),
     );
@@ -123,13 +125,18 @@ export const POST = (request: Request, ctx: Ctx) =>
           outcome: AuditOutcome.DENIED,
           dioceseId: actor.dioceseId,
           parishId,
-          metadata: { organizationId, memberId: body.memberId, reason: 'exclusive_conflict' },
+          metadata: {
+            organizationId,
+            memberId: body.memberId,
+            reason: 'exclusive_conflict',
+          },
         });
 
         return Response.json(
           {
             ok: false,
-            error: 'Member already belongs to an exclusive organization of this type',
+            error:
+              'Member already belongs to an exclusive organization of this type',
             conflict: conflict
               ? {
                   membershipId: conflict.id,

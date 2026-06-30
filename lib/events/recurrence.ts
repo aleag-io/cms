@@ -59,9 +59,7 @@ function parseUntil(value: string): Date {
   );
   if (compact) {
     const [, y, mo, d, h = '00', mi = '00', s = '00'] = compact;
-    return new Date(
-      Date.UTC(+y, +mo - 1, +d, +h, +mi, +s),
-    );
+    return new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s));
   }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {

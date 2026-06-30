@@ -7,9 +7,7 @@ import { MembershipMode, OrganizationType } from '@prisma/client';
  * active prayer group per parish); everything else is open. Admins may override
  * the default at creation time.
  */
-export function defaultMembershipMode(
-  type: OrganizationType,
-): MembershipMode {
+export function defaultMembershipMode(type: OrganizationType): MembershipMode {
   return type === OrganizationType.PRAYER_GROUP
     ? MembershipMode.EXCLUSIVE
     : MembershipMode.OPEN;

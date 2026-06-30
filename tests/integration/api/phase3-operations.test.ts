@@ -180,17 +180,23 @@ describe('Phase 3 parish operations', () => {
     expect(o1.organization.membershipMode).toBe('EXCLUSIVE');
 
     const join1 = await memberships.POST(
-      jsonReq(`http://localhost/api/organizations/${o1.organization.id}/memberships`, {
-        memberId: FX.members.aliceSmithId,
-      }),
+      jsonReq(
+        `http://localhost/api/organizations/${o1.organization.id}/memberships`,
+        {
+          memberId: FX.members.aliceSmithId,
+        },
+      ),
       ctx(o1.organization.id),
     );
     expect(join1.status).toBe(200);
 
     const join2 = await memberships.POST(
-      jsonReq(`http://localhost/api/organizations/${o2.organization.id}/memberships`, {
-        memberId: FX.members.aliceSmithId,
-      }),
+      jsonReq(
+        `http://localhost/api/organizations/${o2.organization.id}/memberships`,
+        {
+          memberId: FX.members.aliceSmithId,
+        },
+      ),
       ctx(o2.organization.id),
     );
     expect(join2.status).toBe(409);

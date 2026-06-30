@@ -45,11 +45,16 @@ export const POST = (request: Request) =>
       let members: AudienceMember[] = [];
       if (audienceType === AudienceType.PROGRAM) {
         if (!body.audienceRefId) {
-          throw new ApiError(400, 'audienceRefId required for PROGRAM audience');
+          throw new ApiError(
+            400,
+            'audienceRefId required for PROGRAM audience',
+          );
         }
         const enrollments = await tx.programEnrollment.findMany({
           where: { programId: body.audienceRefId, parishId, status: 'ACTIVE' },
-          select: { member: { select: { id: true, email: true, phone: true } } },
+          select: {
+            member: { select: { id: true, email: true, phone: true } },
+          },
         });
         members = enrollments.map((e) => ({
           memberId: e.member.id,
@@ -58,11 +63,16 @@ export const POST = (request: Request) =>
         }));
       } else if (audienceType === AudienceType.ORGANIZATION) {
         if (!body.audienceRefId) {
-          throw new ApiError(400, 'audienceRefId required for ORGANIZATION audience');
+          throw new ApiError(
+            400,
+            'audienceRefId required for ORGANIZATION audience',
+          );
         }
         const memberships = await tx.organizationMembership.findMany({
           where: { organizationId: body.audienceRefId, parishId, leftAt: null },
-          select: { member: { select: { id: true, email: true, phone: true } } },
+          select: {
+            member: { select: { id: true, email: true, phone: true } },
+          },
         });
         members = memberships.map((m) => ({
           memberId: m.member.id,

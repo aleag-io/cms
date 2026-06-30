@@ -1,10 +1,13 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+
 <!-- END:nextjs-agent-rules -->
 
 <!-- BEGIN:project-status (shared assistant memory — keep in sync with .github/copilot-instructions.md) -->
+
 # Project Status & Context
 
 > Shared context for all AI assistants (Codex, Copilot, Grok, Cursor, Claude). Migrated
@@ -53,8 +56,8 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   MM-19); pastoral-data + work-notes projection; security-definer `parish_member_directory`
   view (MM-14, members see peers, no DOB); `MemberRelationship` (MM-13); `MemberParish` +
   atomic `set_member_primary_parish()` (MM-17); permission resolver + `ParishPermissionOverride`
-  + `/settings/permissions` (PA-12). Full suite green (unit/integration/rls/e2e). Plan:
-  [docs/phase-2-plan.md](docs/phase-2-plan.md).
+  - `/settings/permissions` (PA-12). Full suite green (unit/integration/rls/e2e). Plan:
+    [docs/phase-2-plan.md](docs/phase-2-plan.md).
 - **Phase 3 — backend complete (gates met).** Parish operations: programs/ministries,
   organizations, events/facilities, async communications, self-registration. Sub-parish
   leader scoping via SECURITY DEFINER helpers (`current_program_leader_ids()` /
@@ -86,6 +89,5 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   audit row asserted where the action is auditable; docs updated. Write RLS / finance /
   permission tests **first**.
 - Tenant-scoped reads/writes go through `withTenant` — never the bare privileged Prisma
-  client (that is reserved for provisioning, the claims hook, and audit writes).
+client (that is reserved for provisioning, the claims hook, and audit writes).
 <!-- END:project-status -->
-
