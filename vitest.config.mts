@@ -1,9 +1,19 @@
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
+const env = loadEnv('test', process.cwd(), '');
+
 export default defineConfig({
   test: {
+    // Load .env.local (and .env) so DATABASE_URL is available without
+    // needing to set it in the shell before running tests locally.
+    env: {
+      DATABASE_URL: env.DATABASE_URL ?? '',
+      TEST_DATABASE_URL: env.TEST_DATABASE_URL ?? env.DATABASE_URL ?? '',
+      POSTGRES_URL: env.POSTGRES_URL ?? env.DATABASE_URL ?? '',
+    },
     projects: [
       {
         // Unit tests: pure logic + React component tests (jsdom)

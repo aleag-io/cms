@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Build artifacts (not checked in, generated locally/CI):
+    ".vercel/**",
+    // Utility scripts use CommonJS require() — not TypeScript source:
+    "scripts/**",
   ]),
 ]);
 

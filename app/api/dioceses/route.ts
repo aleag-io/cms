@@ -7,7 +7,7 @@ import { ApiError, handle } from '@/lib/api';
 
 export const GET = () =>
   handle(async () => {
-    const actor = await requireRole([Role.GLOBAL_ADMIN]);
+    await requireRole([Role.GLOBAL_ADMIN]);
     const dioceses = await prisma.diocese.findMany({ orderBy: { name: 'asc' } });
     return Response.json({ ok: true, dioceses });
   });
