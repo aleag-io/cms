@@ -10,7 +10,7 @@
 A multi-tenant **Church Management System (CMS)** for the Mar Thoma Church, Diocese of
 North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Supabase**
 (Auth + Postgres + Row-Level Security). Delivery is phased — see
-[docs/delivery-plan.md](../docs/delivery-plan.md) and the per-phase plans in `docs/`.
+[docs/module-delivery-plan.md](../docs/module-delivery-plan.md) and the per-phase plans in `docs/`.
 
 > **Next.js note:** this is Next.js 16 with breaking changes from older versions. Read the
 > relevant guide in `node_modules/next/dist/docs/` before writing Next.js code; don't rely on
@@ -51,7 +51,7 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   MM-19); security-definer `parish_member_directory` view (MM-14, members see peers, no DOB);
   `MemberRelationship` (MM-13); `MemberParish` + atomic `set_member_primary_parish()` (MM-17);
   permission resolver + `ParishPermissionOverride` + `/settings/permissions` (PA-12). Full
-  suite green. Plan: [docs/phase-2-plan.md](../docs/phase-2-plan.md).
+  suite green. Plan: [docs/releases/r0-platform-foundation/2-access-control.md](../docs/releases/r0-platform-foundation/2-access-control.md).
 - **Phase 3 — backend complete (gates met).** Parish operations: programs/ministries,
   organizations, events/facilities, async communications, self-registration. Sub-parish
   leader scoping via SECURITY DEFINER helpers (`current_program_leader_ids()` /
@@ -64,7 +64,7 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   GET/POST secret-guarded, registered in `vercel.json`). Self-registration creates PENDING
   members invisible in the directory until approved. Exit gates proven by tests (rls: org
   exclusivity + leader scope; integration: comms worker, RSVP capacity, self-reg visibility,
-  exclusivity/booking 409s). Plan: [docs/phase-3-plan.md](../docs/phase-3-plan.md).
+  exclusivity/booking 409s). Plan: [docs/releases/r0-platform-foundation/3-parish-operations.md](../docs/releases/r0-platform-foundation/3-parish-operations.md).
 - **Phase 4 — implemented.** Data-sharing governance and diocese aggregate: new
   `DIOCESE_REPORT_VIEWER` + `PARISH_DATA_SHARING_MANAGER` roles; schema for
   `DataSharingRequest`, `DataSharingGrant`, `EmergencyAccessGrant`, and
@@ -76,7 +76,7 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   expiry; diocese aggregate endpoint (`/api/diocese/aggregate`). Migration
   `20260630000001_phase4_data_sharing` + RLS
   `20260630000002_phase4_data_sharing_rls.sql`. Plan:
-  [docs/phase-4-plan.md](../docs/phase-4-plan.md).
+  [docs/releases/r0-platform-foundation/4-data-sharing-aggregate.md](../docs/releases/r0-platform-foundation/4-data-sharing-aggregate.md).
 
 ## How to run
 

@@ -1,9 +1,12 @@
-# Phase 5 Implementation Plan — Finance Core
+# Phase 20 Implementation Plan — Finance & Giving  *(Release R5 · Module M10)*
 
-> Companion to [delivery-plan.md](delivery-plan.md) Phase 5. This turns that phase's
+> **Release R5 — Finance & Giving · Module M10.** Giving (donations, campaigns, pledges, annual
+> statements, Stripe ingestion) ships in the **same** module/release as the general ledger —
+> donations post directly into it, so they are not split. Canonical map:
+> [module-delivery-plan.md](../../module-delivery-plan.md) §5. Implementation detail for Phase 20. This turns that phase's
 > deliverables into an ordered, implementable work breakdown with the concrete
 > architectural decisions, schema/migrations, RLS policies, invariant-enforcing triggers,
-> and tests required to reach the **Phase 5 exit gate**. It builds directly on the Phase 1–4
+> and tests required to reach the **Phase 20 exit gate**. It builds directly on the Phase 1–4
 > spine: `withTenant`, deny-by-default + forced RLS, the claims pipeline (incl.
 > `org_leader_ids` and the `current_org_leader_ids()` SECURITY DEFINER helper), the
 > permission resolver, append-only audit, and the Phase 4 grant-aware Tier-3 pattern
@@ -57,7 +60,7 @@ PA-24; features §2.11 (all sub-sections); access-control §2–3 (finance categ
 | Money/decimal convention | ❌ not established | — |
 | Stripe / CSV tooling | ❌ no `stripe` SDK, no CSV parser dependency | `package.json` |
 
-**The headline shift:** Phases 1–4 governed *who can read which rows*. Phase 5 introduces
+**The headline shift:** Phases 1–4 governed *who can read which rows*. Phase 20 introduces
 *correctness invariants on writes* — double-entry balancing, period locks, and maker-checker
 approval — that must be enforced by the database so the ledger cannot be corrupted by an
 app bug, a bad migration, or a direct SQL write inside a tenant transaction. The DB is still
@@ -166,7 +169,7 @@ A report run takes `?basis=cash|accrual`:
 - **cash** → only entries representing actual cash movement (`cashImpact = true`).
 
 No data is duplicated; the basis switch is a filter. The selected basis is echoed in report
-metadata (features §2.11.4). Full report rendering/exports land in **Phase 6**; Phase 5
+metadata (features §2.11.4). Full report rendering/exports land in **Phase 6**; Phase 20
 delivers the basis-aware aggregation primitives and one summary endpoint to prove the switch.
 
 ### 2.8 Stripe webhook ingestion is idempotent on the Stripe event id (PA-9, IN-6)
@@ -223,7 +226,7 @@ implementation, per the working agreement: **write the finance/RLS/permission te
 
 ---
 
-## 4. PR 5-1 — Schema: money convention + core ledger models
+## 4. PR 20-1 — Schema: money convention + core ledger models
 
 Migration timestamp: `20260701000001_phase5_finance_core`
 
@@ -322,13 +325,13 @@ CREATE INDEX ON "JournalLine" ("accountId");
 
 Add the enums and models above with `amountCents BigInt`, all relations, and `@@index`
 matching the SQL. Add the `Parish` and `Organization` back-relations. No `Role` enum change
-is required for Phase 5 (approver sets are config-driven `Role[]` arrays, and org-leader
+is required for Phase 20 (approver sets are config-driven `Role[]` arrays, and org-leader
 financial capability is expressed via the existing permission resolver — see §8). The
-`proxy.ts` public-path list gains **one** new entry (`/api/webhooks/stripe`, PR 5-10).
+`proxy.ts` public-path list gains **one** new entry (`/api/webhooks/stripe`, PR 20-10).
 
 ---
 
-## 5. PR 5-2 — SQL: invariant triggers, ledger RLS, grant-aware diocese read, giving view
+## 5. PR 20-2 — SQL: invariant triggers, ledger RLS, grant-aware diocese read, giving view
 
 Migration timestamp: `20260701000002_phase5_finance_rls.sql` (in `supabase/migrations/`)
 
@@ -412,7 +415,7 @@ CREATE TRIGGER journal_posted_immutable BEFORE UPDATE OR DELETE ON "JournalEntry
 ```
 
 The **approval-gate** trigger (DRAFT/PENDING_APPROVAL → POSTED only when the linked
-`ApprovalRequest` is `APPROVED`/`AUTO_APPROVED`) is added in PR 5-5 once the approval tables
+`ApprovalRequest` is `APPROVED`/`AUTO_APPROVED`) is added in PR 20-5 once the approval tables
 exist, to keep migrations self-contained.
 
 ### 5.4 Ledger RLS — parish isolation + org-leader scope + parish-admin oversight
@@ -474,7 +477,7 @@ CREATE POLICY je_diocese_grant_read ON "JournalEntry"
     AND (auth.jwt()->'app_metadata'->>'diocese_id') IS NOT NULL
     AND ( has_active_grant("parishId", 'LEDGER_DETAIL') OR has_emergency_access("parishId") )
   );
--- Donation gets the analogous policy with category 'GIVING_DETAIL' (PR 5-6).
+-- Donation gets the analogous policy with category 'GIVING_DETAIL' (PR 20-6).
 ```
 
 ### 5.6 Tier-2 giving aggregate view (PII-free, follows Phase 4 rules)
@@ -501,7 +504,7 @@ GRANT SELECT ON public.diocese_parish_giving_summary TO app_authenticated;
 
 ---
 
-## 6. PR 5-3 — Posting engine + chart of accounts + journal API
+## 6. PR 20-3 — Posting engine + chart of accounts + journal API
 
 ### `lib/finance/posting.ts` (pure, heavily unit-tested)
 
@@ -519,7 +522,7 @@ export function assertBalanced(lines: DraftLine[]): void {
 `postJournalEntry(tx, input)` resolves the covering `AccountingPeriod`, calls
 `assertBalanced`, validates all accounts share the entry's ledger owner, inserts the entry +
 lines inside the caller's `withTenant` transaction, and (when the entry is submitted for
-posting) creates/looks up the `ApprovalRequest` (PR 5-5). The **DB trigger remains the
+posting) creates/looks up the `ApprovalRequest` (PR 20-5). The **DB trigger remains the
 backstop** — the engine never assumes it is the only guard.
 
 ### API routes
@@ -537,7 +540,7 @@ All reads/writes go through `withTenant` (never bare `prisma`), per the architec
 
 ---
 
-## 7. PR 5-4 — Periods: open/close/reopen API + audit (PA-21)
+## 7. PR 20-4 — Periods: open/close/reopen API + audit (PA-21)
 
 - `GET /api/finance/periods` — list periods for the caller's ledger owner(s).
 - `POST /api/finance/periods` — create the next period (roles `PARISH_ADMIN`; org variant for
@@ -553,7 +556,7 @@ All reads/writes go through `withTenant` (never bare `prisma`), per the architec
 
 ---
 
-## 8. PR 5-5 — Maker-checker approval engine (PA-23/24)
+## 8. PR 20-5 — Maker-checker approval engine (PA-23/24)
 
 ### Schema (added in this PR's migration + RLS file)
 
@@ -595,7 +598,7 @@ and gate org-ledger writes / approval-policy config through the existing resolve
 
 ---
 
-## 9. PR 5-6 — Donations + campaigns + pledges (PA-22)
+## 9. PR 20-6 — Donations + campaigns + pledges (PA-22)
 
 - `Donation(parishId, familyId, memberId?, fundId, campaignId?, periodId, amountCents,
   method, checkNumber?, externalTxnId?, receivedAt, journalEntryId)`. `Campaign(goalCents,
@@ -611,7 +614,7 @@ and gate org-ledger writes / approval-policy config through the existing resolve
 
 ---
 
-## 10. PR 5-7 — Vendor bills & payments (PA-19)
+## 10. PR 20-7 — Vendor bills & payments (PA-19)
 
 - `Vendor`, `VendorBill(status: DRAFT|SUBMITTED|APPROVED|POSTED|PAID|VOID, amountCents,
   dueDate, ...)`, `Payment(vendorBillId, amountCents, method, paidAt, journalEntryId)`.
@@ -622,7 +625,7 @@ and gate org-ledger writes / approval-policy config through the existing resolve
 
 ---
 
-## 11. PR 5-8 — Budgets + reporting-basis primitives (PA-17/18)
+## 11. PR 20-8 — Budgets + reporting-basis primitives (PA-17/18)
 
 - `Budget(ownerType, ownerId, fiscalYear)` + `BudgetLine(accountId, originalCents,
   revisedCents)`. Variance = actual (from posted lines) − revised; over-budget flagged when
@@ -634,7 +637,7 @@ and gate org-ledger writes / approval-policy config through the existing resolve
 
 ---
 
-## 12. PR 5-9 — Bank reconciliation (CSV only, PA-20)
+## 12. PR 20-9 — Bank reconciliation (CSV only, PA-20)
 
 - `BankStatementLine(parishId, ownerType, ownerId, postedDate, amountCents, descriptionRaw,
   reconciledJournalLineId?, status)`; `ReconciliationRun(status, matchedCount,
@@ -646,7 +649,7 @@ and gate org-ledger writes / approval-policy config through the existing resolve
 
 ---
 
-## 13. PR 5-10 — Stripe webhook ingestion (idempotent, IN-6)
+## 13. PR 20-10 — Stripe webhook ingestion (idempotent, IN-6)
 
 - Add `stripe` SDK. `StripeEvent(id UNIQUE, type, receivedAt, processedAt)`.
 - `POST /api/webhooks/stripe` — **public** (added to `proxy.ts`), verifies the signature
@@ -658,7 +661,7 @@ and gate org-ledger writes / approval-policy config through the existing resolve
 
 ---
 
-## 14. PR 5-11 — Exit gate tests
+## 14. PR 20-11 — Exit gate tests
 
 ### `tests/unit/finance/posting.test.ts` (property-based)
 
@@ -751,7 +754,7 @@ When all exit gates pass, add to the `## Phase status` block in `AGENTS.md` (and
 `.github/copilot-instructions.md`):
 
 ```
-- **Phase 5 — implemented.** Finance core: double-entry ledger (Account/Fund/JournalEntry/
+- **Phase 20 — implemented.** Finance core: double-entry ledger (Account/Fund/JournalEntry/
   JournalLine) with DB-enforced balancing (deferred constraint trigger), period lock +
   super-admin audited reopen (PA-21), posted-entry immutability (reversing entries only),
   polymorphic parish/organization ledgers with RLS isolation (org-leader scope via
@@ -764,5 +767,5 @@ When all exit gates pass, add to the `## Phase status` block in `AGENTS.md` (and
   (GIVING_DETAIL) and parish JournalEntry (LEDGER_DETAIL; org ledgers excluded); Tier-2
   diocese_parish_giving_summary view (PII-free). Migration 20260701000001_phase5_finance_core
   + RLS 20260701000002_phase5_finance_rls.sql. Money stored as integer cents (BIGINT).
-  Plan: [docs/phase-5-plan.md](docs/phase-5-plan.md).
+  Plan: `docs/releases/r5-finance-giving/1-finance-giving.md`.
 ```

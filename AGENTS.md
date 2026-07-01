@@ -18,8 +18,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 A multi-tenant **Church Management System (CMS)** for the Mar Thoma Church, Diocese of
 North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Supabase**
-(Auth + Postgres + Row-Level Security). Delivery is phased — see
-[docs/delivery-plan.md](docs/delivery-plan.md) and the per-phase plans in `docs/`.
+(Auth + Postgres + Row-Level Security). Delivery is organized by **module & release** — see the
+canonical [docs/module-delivery-plan.md](docs/module-delivery-plan.md) and the per-work-item plans
+under [docs/releases/](docs/releases/).
 
 ## Architecture spine (load-bearing — don't bypass)
 
@@ -40,6 +41,27 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   enablement, the claims hook, triggers, views, grants, and the `app_authenticated` role.
   Apply order: `prisma migrate deploy` → Supabase SQL.
 
+## Delivery organization — modules & releases (canonical 2026-07-01)
+
+**Canonical plan: [docs/module-delivery-plan.md](docs/module-delivery-plan.md).** Delivery is
+organized by **module** (M0 Platform Foundation, M1 People & Membership, M2 Parish Admin, M3
+Diocese & Aggregate, M4 Data Sharing, M5 Orgs & Ministries, M6 Events & Facilities, M7
+Communications, M8 Sacramental Records, M9 Liturgical Calendar, M10 **Finance & Giving** (one
+module), M11 Reporting, M12 Integrations, M13 Public, M14 Hardening) and shipped in module-based
+**releases R0–R7**. R0 (Platform Foundation + backend of M1–M7/M4) is **complete** — the secure,
+API-and-database-only platform (no real UI beyond `mvp1-console`, `/directory`, `/login`, partial
+`/settings/permissions`). R1–R3 build the UI over that API surface (phases 5–12); R4 adds
+sacramental records + liturgical calendar; R5 is finance & giving (phase 20); R6 reporting; R7
+public + hardening.
+
+The per-work-item plans under [docs/releases/](docs/releases/) are the **implementation detail**
+each module reuses (one folder per release; each item headed with its owning release + module). UI
+build conventions and the MVP1-API→screen map live in
+[docs/releases/r1-people-core/1-design-system-shell.md](docs/releases/r1-people-core/1-design-system-shell.md);
+engineering standards (test pyramid + DoD) in module-delivery-plan.md §8. Load-bearing UI rule:
+**the UI is not the security boundary** — it renders whatever the RLS-guarded, role-projected API returns and
+never filters sensitive data client-side.
+
 ## Phase status
 
 - **Phase 0 — complete.** Test harness: Vitest (unit + integration projects), Playwright
@@ -57,7 +79,7 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   view (MM-14, members see peers, no DOB); `MemberRelationship` (MM-13); `MemberParish` +
   atomic `set_member_primary_parish()` (MM-17); permission resolver + `ParishPermissionOverride`
   - `/settings/permissions` (PA-12). Full suite green (unit/integration/rls/e2e). Plan:
-    [docs/phase-2-plan.md](docs/phase-2-plan.md).
+    [docs/releases/r0-platform-foundation/2-access-control.md](docs/releases/r0-platform-foundation/2-access-control.md).
 - **Phase 3 — backend complete (gates met).** Parish operations: programs/ministries,
   organizations, events/facilities, async communications, self-registration. Sub-parish
   leader scoping via SECURITY DEFINER helpers (`current_program_leader_ids()` /
@@ -72,7 +94,7 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   `20260629181842_phase3_parish_operations` + RLS `20260629182000_phase3_parish_operations_rls.sql`.
   Exit gates proven by tests (rls: org exclusivity + leader scope; integration: comms worker,
   RSVP capacity, self-reg visibility, exclusivity/booking 409s). Plan:
-  [docs/phase-3-plan.md](docs/phase-3-plan.md).
+  [docs/releases/r0-platform-foundation/3-parish-operations.md](docs/releases/r0-platform-foundation/3-parish-operations.md).
 - **Phase 4 — implemented.** Data-sharing governance and diocese aggregate: new
   `DIOCESE_REPORT_VIEWER` + `PARISH_DATA_SHARING_MANAGER` roles; schema for
   `DataSharingRequest`, `DataSharingGrant`, `EmergencyAccessGrant`, and
@@ -84,7 +106,7 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   expiry; diocese aggregate endpoint (`/api/diocese/aggregate`). Migration
   `20260630000001_phase4_data_sharing` + RLS
   `20260630000002_phase4_data_sharing_rls.sql`. Plan:
-  [docs/phase-4-plan.md](docs/phase-4-plan.md).
+  [docs/releases/r0-platform-foundation/4-data-sharing-aggregate.md](docs/releases/r0-platform-foundation/4-data-sharing-aggregate.md).
 
 ## How to run
 

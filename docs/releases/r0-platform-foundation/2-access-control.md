@@ -1,10 +1,11 @@
-# Phase 2 Implementation Plan — Intra-Parish Access Control & Sensitive Fields
+# Phase 2 Implementation Plan — Intra-Parish Access Control & Sensitive Fields  *(Release R0 · Modules M1, M2)*
 
-> Companion to [delivery-plan.md](delivery-plan.md) Phase 2. This document turns that
+> **Release R0 — Platform Foundation · Modules M1, M2 (backend).** Canonical map:
+> [module-delivery-plan.md](../../module-delivery-plan.md) §5. Implementation detail for Phase 2. This document turns that
 > phase's deliverables into an ordered, implementable work breakdown with the concrete
 > architectural decisions, schema/migration changes, RLS policies, and tests required to
 > reach the **Phase 2 exit gate**. It builds directly on the secure multi-tenant spine
-> delivered in [phase-1-plan.md](phase-1-plan.md) (`withTenant`, deny-by-default RLS,
+> delivered in [1-identity-tenancy.md](1-identity-tenancy.md) (`withTenant`, deny-by-default RLS,
 > the claims pipeline, append-only audit).
 
 **Phase goal:** correct *within-parish* visibility — the subtle, high-risk privacy rules.
@@ -14,8 +15,8 @@ private notes, privileged-only pastoral dates, staff-only work notes, and a memb
 directory — all enforced at the database layer, not just hidden in the UI.
 
 **Requirements covered:** MM-11/12/13/14/15/17/18/19, PA-11/12, SE-9; role model from
-[user-roles.md](user-roles.md) §2–3; intra-parish tiers from
-[access-control.md](access-control.md) §1.2, §6.1, §6.3.
+[user-roles.md](../../user-roles.md) §2–3; intra-parish tiers from
+[access-control.md](../../access-control.md) §1.2, §6.1, §6.3.
 
 **Exit gate (must all be green in CI):**
 1. An automated test asserts every sensitive field (`private_notes`, work notes, pastoral
@@ -185,7 +186,7 @@ A pure, unit-testable resolver is the application-layer companion to RLS (RLS is
 backstop; the resolver shapes responses and gates writes before they hit the DB).
 
 - **`lib/permissions/defaults.ts`** — the default permission matrix from
-  [user-roles.md](user-roles.md) §3 encoded as data: `Map<Role, Map<Resource, Set<Action>>>`.
+  [user-roles.md](../../user-roles.md) §3 encoded as data: `Map<Role, Map<Resource, Set<Action>>>`.
 - **`lib/permissions/resolver.ts`** — `can(roles, resource, action, overrides)` →
   `boolean`. Applies defaults, then parish overrides (allow/deny) on top. Deterministic and
   side-effect-free → property/truth-table tested.

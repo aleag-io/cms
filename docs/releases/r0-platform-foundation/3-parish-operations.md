@@ -1,6 +1,7 @@
-# Phase 3 Implementation Plan — Parish Operations
+# Phase 3 Implementation Plan — Parish Operations  *(Release R0 · Modules M5, M6, M7)*
 
-> Companion to [delivery-plan.md](delivery-plan.md) Phase 3. This turns that phase's
+> **Release R0 — Platform Foundation · Modules M5, M6, M7 (backend; their UI ships in R2).**
+> Canonical map: [module-delivery-plan.md](../../module-delivery-plan.md) §5. Implementation detail for Phase 3. This turns that phase's
 > deliverables into an ordered, implementable work breakdown with the concrete
 > architectural decisions, schema/migrations, RLS policies, DB constraints, and tests
 > required to reach the **Phase 3 exit gate**. It builds on the secure multi-tenant spine
@@ -13,7 +14,7 @@ ministries, organizations (with the DB-enforced exclusive-membership rule), even
 facilities, communications, staff/volunteer management, and member self-registration.
 
 **Requirements covered:** PA-3/4/5/6/8/14/15/16, MM-3/4/8; features §2.4–2.7, §2.10,
-§2.2.4; role model from [user-roles.md](user-roles.md) §2.5–2.6 (Ministry Leader,
+§2.2.4; role model from [user-roles.md](../../user-roles.md) §2.5–2.6 (Ministry Leader,
 Organization Leader).
 
 **Exit gate (must all be green in CI):**

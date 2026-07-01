@@ -1,6 +1,7 @@
-# Phase 4 Implementation Plan — Data-Sharing Governance & Diocese Aggregate
+# Phase 4 Implementation Plan — Data-Sharing Governance & Diocese Aggregate  *(Release R0 · Modules M3, M4)*
 
-> Companion to [delivery-plan.md](delivery-plan.md) Phase 4. This turns that phase's
+> **Release R0 — Platform Foundation · Modules M3, M4 (backend; UI ships in R1/R3).** Canonical
+> map: [module-delivery-plan.md](../../module-delivery-plan.md) §5. Implementation detail for Phase 4. This turns that phase's
 > deliverables into an ordered, implementable work breakdown with the concrete
 > architectural decisions, schema/migrations, RLS policies, aggregate views, and tests
 > required to reach the **Phase 4 exit gate**. It builds directly on the Phase 1–3 spine:
@@ -868,7 +869,7 @@ When all exit gates pass, update the `## Phase status` block in `AGENTS.md`:
   Migration `20260630000001_phase4_data_sharing` + RLS `20260630000002_phase4_data_sharing_rls.sql`.
   Exit gates: grant gates Tier-3 (RLS proven); aggregate views schema-asserted PII-free;
   full sharing lifecycle + secure-link deny cases have audit entries (integration proven).
-  Plan: [docs/phase-4-plan.md](docs/phase-4-plan.md).
+  Plan: `docs/releases/r0-platform-foundation/4-data-sharing-aggregate.md`.
 ```
 
 Also sync `.github/copilot-instructions.md`.

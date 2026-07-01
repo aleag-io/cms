@@ -1,6 +1,7 @@
-# Phase 1 Implementation Plan — Identity, Tenancy & Core Membership
+# Phase 1 Implementation Plan — Identity, Tenancy & Core Membership  *(Release R0 · Modules M0, M1)*
 
-> Companion to [delivery-plan.md](delivery-plan.md) Phase 1. This document turns that
+> **Release R0 — Platform Foundation · Modules M0, M1 (backend).** Canonical map:
+> [module-delivery-plan.md](../../module-delivery-plan.md) §5. Implementation detail for Phase 1. This document turns that
 > phase's deliverables into an ordered, implementable work breakdown with the concrete
 > architectural decisions, schema/migration changes, RLS policies, and tests required to
 > reach the **Phase 1 exit gate**.
