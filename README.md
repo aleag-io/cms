@@ -21,6 +21,7 @@ The CMS provides a unified system for managing:
 | [Data Model](docs/data-model.md)                        | Entity relationships and data model                |
 | [User Roles & Permissions](docs/user-roles.md)          | Role-based access control                          |
 | [Access Control & Data Sharing](docs/access-control.md) | Parish data sovereignty and granular sharing model |
+| [API Reference](docs/api.md)                            | REST API endpoint reference (IN-9)                 |
 | [Features](docs/features.md)                            | Detailed feature descriptions                      |
 | [Glossary](docs/glossary.md)                            | Domain terminology                                 |
 

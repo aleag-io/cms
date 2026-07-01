@@ -34,7 +34,8 @@ The system uses a **shared database, shared schema with tenant discriminator** s
 
 - Every major table includes a `parish_id` foreign key (and implicitly a `diocese_id`).
 - Diocese-level entities carry only `diocese_id`.
-- Application-level middleware enforces tenant scoping on every query.
+- Next.js Proxy performs only optimistic request gating; PostgreSQL RLS enforces tenant
+  scoping on every user-facing query through `withTenant()`.
 - A dedicated **Diocese Admin** role can query across all parishes for reporting purposes (read-only aggregate queries).
 
 **Rationale:** This approach balances operational simplicity (single schema to maintain) with scalability (can migrate to per-tenant schemas or databases later if needed).
@@ -123,10 +124,10 @@ flowchart TD
 
 ### 3.2 API Layer
 
-- **Style:** Next.js API Routes (Route Handlers in App Router)
+- **Style:** Next.js App Router Route Handlers
 - **Responsibilities:**
   - Business logic enforcement
-  - Tenant isolation middleware (all queries scoped to current tenant via Supabase RLS)
+  - Tenant-scoped data access through `withTenant()` and Supabase/PostgreSQL RLS
   - Input validation and error handling
   - Share workflow orchestration (recipient validation, anonymization policy enforcement, link token issuance/revocation)
   - Rate limiting per tenant (via Vercel Edge Middleware)

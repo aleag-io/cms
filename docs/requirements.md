@@ -239,6 +239,7 @@ This document captures the functional and non-functional requirements for the Ma
 | IN-6 | The system shall integrate with **Twilio** for SMS notifications to members.                       |
 | IN-7 | The system shall use **Supabase Auth** for user authentication, SSO, and MFA.                      |
 | IN-8 | The system shall use **Vercel Blob** for file storage (photos, documents, exports).                |
+| IN-9 | The REST API (IN-1) shall be **documented** with an up-to-date, version-controlled API reference that, for every endpoint, specifies the HTTP method and path, required role(s) and tenant scope, request parameters and body schema, success and error responses (with status codes), and whether the operation writes an audit entry. The reference shall live in `docs/api.md` and shall be kept in sync as endpoints are added or changed (part of the Definition of Done). |
 
 ---
 

@@ -34,6 +34,7 @@ export default defineConfig({
           include: ['tests/integration/**/*.test.ts'],
           setupFiles: ['tests/setup/integration.ts'],
           // Serialise integration tests — they share a single test DB.
+          fileParallelism: false,
           maxWorkers: 1,
         },
       },
@@ -48,6 +49,7 @@ export default defineConfig({
           include: ['tests/rls/**/*.test.ts'],
           setupFiles: ['tests/setup/integration.ts'],
           // Serialise RLS tests — they share a single test DB.
+          fileParallelism: false,
           maxWorkers: 1,
         },
       },

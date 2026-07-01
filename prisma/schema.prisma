@@ -163,6 +163,7 @@ enum MessageStatus {
 
 enum RecipientStatus {
   QUEUED
+  PROCESSING
   SENT
   FAILED
   SKIPPED

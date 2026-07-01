@@ -1,0 +1,105 @@
+# API Reference
+
+This reference covers the currently implemented Next.js App Router route handlers. All
+authenticated tenant-scoped handlers derive claims from Supabase/AppUser state and run
+user-facing data access through `withTenant()` so PostgreSQL RLS remains authoritative.
+
+Unless noted otherwise:
+
+- Request and response bodies are JSON.
+- Errors use `{ ok: false, error: string }` with the listed HTTP status.
+- Parish-scoped writes require the caller's `app_metadata.parish_id` to match the row scope.
+- Auditable create/update/deactivate/denied operations write `AuditEntry` with a request
+  correlation id.
+
+## Public and Session
+
+| Method | Path | Roles | Tenant scope | Request | Success | Errors | Audit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/session` | Authenticated user | Current user | None | Current session/user payload | `401` unauthenticated | No |
+| `POST` | `/api/bootstrap` | Public development bootstrap | Creates seed diocese/parish/admin data | None | Bootstrap state | `500` unexpected setup failure | Yes |
+| `POST` | `/api/registrations` | Public | Target active parish by `parishId` | `{ parishId, firstName, lastName, email?, phone?, familyName?, notes? }` | `{ ok, registration: { id, approvalStatus } }` | `400` invalid body, `404` parish missing | Yes |
+| `GET` | `/api/registrations` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | None | Pending registration list | `400` no parish scope, `401`, `403` | No |
+| `POST` | `/api/registrations/[id]/approve` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | `{ decision?: "APPROVE" \| "REJECT" }` | Updated registration | `400`, `404`, `409`, `401`, `403` | Yes |
+| `GET`/`POST` | `/api/jobs/process-communications` | Cron shared secret | System queue | `Authorization: Bearer $CRON_SECRET` or `x-cron-secret` | `{ claimed, sent, skipped, failed }` | `401` bad secret | System job endpoint; per-recipient status persisted |
+
+## Diocese and Parish Administration
+
+| Method | Path | Roles | Tenant scope | Request | Success | Errors | Audit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/dioceses` | Authenticated user | Structural diocese list | None | Diocese list | `401` | No |
+| `POST` | `/api/dioceses` | `GLOBAL_ADMIN` | New diocese | `{ name }` | Created diocese | `400`, `401`, `403` | Yes |
+| `GET` | `/api/parishes` | Authenticated user | RLS-visible parishes | None | Parish list | `401` | No |
+| `POST` | `/api/parishes` | `DIOCESE_ADMIN`, `GLOBAL_ADMIN` | New parish under actor diocese | Parish profile fields and initial admin data | Created parish | `400`, `401`, `403` | Yes |
+| `GET` | `/api/parishes/[id]` | Authenticated user | RLS-visible parish | None | Parish | `404`, `401` | No |
+| `PATCH` | `/api/parishes/[id]` | `PARISH_ADMIN`, `DIOCESE_ADMIN`, `GLOBAL_ADMIN` | RLS-visible parish | Parish profile/settings fields | Updated parish | `400`, `404`, `401`, `403` | Yes |
+| `GET` | `/api/audit` | `DIOCESE_ADMIN`, `PARISH_ADMIN` | Diocese-level audit only for diocese users; caller parish for parish admins | Query: `page?`, `limit?` max 50 | `{ auditEntries, pagination }` | `401`, `403` | Read is not currently audited |
+
+## Families and Members
+
+| Method | Path | Roles | Tenant scope | Request | Success | Errors | Audit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/families` | Authenticated parish roles per RLS | Caller parish | None | Family list | `401`, `403` | No |
+| `POST` | `/api/families` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | Family profile/contact fields | Created family | `400`, `401`, `403` | Yes |
+| `GET` | `/api/families/[id]` | Authenticated parish roles per RLS | Caller parish | None | Family | `404`, `401`, `403` | No |
+| `PATCH` | `/api/families/[id]` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | Family profile/contact fields | Updated family | `400`, `404`, `401`, `403` | Yes |
+| `DELETE` | `/api/families/[id]` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | None | Soft-deactivated family | `404`, `401`, `403` | Yes |
+| `GET` | `/api/members` | Authenticated parish roles per RLS | Caller parish or directory projection | Query may request directory projection | Member list | `401`, `403` | No |
+| `POST` | `/api/members` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | Member profile fields plus optional sensitive satellite fields | Created member | `400`, `401`, `403` | Yes |
+| `GET` | `/api/members/[id]` | Authenticated parish roles per RLS | Caller parish | None | Member | `404`, `401`, `403` | No |
+| `PATCH` | `/api/members/[id]` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | Member profile fields | Updated member | `400`, `404`, `401`, `403` | Yes |
+| `DELETE` | `/api/members/[id]` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | None | Soft-deactivated member | `404`, `401`, `403` | Yes |
+| `GET` | `/api/members/export` | Export-capable parish roles per RLS | Caller parish | None | CSV/export rows | `401`, `403` | Export should be audited when export pipeline is completed |
+| `GET` | `/api/parish/directory` | `MEMBER`, `PARISH_STAFF`, `PARISH_ADMIN`, clergy-related roles | Caller parish directory view | None | Basic active-member directory without DOB/private notes | `401`, `403` | No |
+
+## Sensitive Member Data
+
+| Method | Path | Roles | Tenant scope | Request | Success | Errors | Audit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/members/[id]/private-note` | `CLERGY` role derived from active clergy assignment | Assigned clergy parish | None | Private note row | `404`, `401`, `403` | Yes |
+| `PUT` | `/api/members/[id]/private-note` | `CLERGY` | Assigned clergy parish | `{ note }` | Upserted private note | `400`, `404`, `401`, `403` | Yes |
+| `GET` | `/api/members/[id]/pastoral-data` | `PARISH_ADMIN`, `PARISH_STAFF`, `PASTORAL_DATA_ACCESSOR` | Caller parish | None | Pastoral data row | `404`, `401`, `403` | Yes |
+| `PUT` | `/api/members/[id]/pastoral-data` | `PARISH_ADMIN`, `PARISH_STAFF`, `PASTORAL_DATA_ACCESSOR` | Caller parish | Pastoral-sensitive date fields | Upserted pastoral data | `400`, `404`, `401`, `403` | Yes |
+| `GET` | `/api/members/[id]/relationships` | Authenticated parish roles per RLS | Caller parish | None | Relationship list | `404`, `401`, `403` | No |
+| `POST` | `/api/members/[id]/relationships` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | `{ relatedMemberId, relationshipType, notes? }` | Created relationship | `400`, `404`, `401`, `403` | Yes |
+| `DELETE` | `/api/members/[id]/relationships` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | Relationship identifier | Deleted relationship | `400`, `404`, `401`, `403` | Yes |
+| `GET` | `/api/members/[id]/parishes` | Authenticated parish roles per RLS | Caller parish | None | Parish membership list | `404`, `401`, `403` | No |
+| `POST` | `/api/members/[id]/parishes` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | `{ parishId, membershipType?, isPrimary? }` | Added parish membership | `400`, `404`, `401`, `403` | Yes |
+| `PATCH` | `/api/members/[id]/parishes` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | Primary parish update payload | Updated primary parish | `400`, `404`, `401`, `403` | Yes |
+
+## Permissions and Officers
+
+| Method | Path | Roles | Tenant scope | Request | Success | Errors | Audit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/permissions/overrides` | `PARISH_ADMIN` | Caller parish | None | Permission override list | `401`, `403` | No |
+| `PUT` | `/api/permissions/overrides` | `PARISH_ADMIN` | Caller parish | Override set `{ role, resource, action, isAllowed }[]` | Replaced overrides | `400`, `401`, `403` | Yes |
+| `GET` | `/api/parish-officers` | Parish roles per RLS | Caller parish | None | Officer list | `401`, `403` | No |
+| `POST` | `/api/parish-officers` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | `{ memberId, title, officerType, termStart?, termEnd?, notes? }` | Created officer assignment | `400`, `404`, `401`, `403` | Yes |
+
+## Parish Operations
+
+| Method | Path | Roles | Tenant scope | Request | Success | Errors | Audit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/programs` | Authenticated parish users | Caller parish | None | Program catalog | `401`, `403` | No |
+| `POST` | `/api/programs` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | `{ name, description?, programType?, coordinatorMemberId?, startDate?, endDate? }` | Created program | `400`, `401`, `403` | Yes |
+| `GET` | `/api/programs/[id]/enrollments` | `PARISH_ADMIN`, `PARISH_STAFF`, `MINISTRY_LEADER` | Caller parish or led program via RLS | None | Enrollment list | `404`, `401`, `403` | No |
+| `POST` | `/api/programs/[id]/enrollments` | `PARISH_ADMIN`, `PARISH_STAFF`, `MINISTRY_LEADER`; self-request through DB policy where implemented | Caller parish or led program | `{ memberId, role?, status? }` | Created enrollment | `400`, `404`, `409`, `401`, `403` | Yes |
+| `GET` | `/api/organizations` | Authenticated parish users | Caller parish | None | Organization list | `401`, `403` | No |
+| `POST` | `/api/organizations` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | `{ name, description?, organizationType, membershipMode?, hasOwnLedger? }` | Created organization | `400`, `401`, `403` | Yes |
+| `GET` | `/api/organizations/[id]/memberships` | `PARISH_ADMIN`, `PARISH_STAFF`, `ORGANIZATION_LEADER` | Caller parish or led org via RLS | None | Active memberships | `404`, `401`, `403` | No |
+| `POST` | `/api/organizations/[id]/memberships` | `PARISH_ADMIN`, `PARISH_STAFF`, `ORGANIZATION_LEADER` | Caller parish or led org via RLS | `{ memberId, role? }` | Created membership | `400`, `404`, `409` exclusive conflict, `401`, `403` | Yes, including denied conflict |
+| `GET` | `/api/events` | Authenticated parish users | Caller parish | None | Event list | `401`, `403` | No |
+| `POST` | `/api/events` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | `{ name, description?, eventType?, startAt, endAt, recurrenceRule?, maxCapacity?, facilityId?, isPublic? }` | Created event | `400`, `401`, `403` | Yes |
+| `POST` | `/api/events/[id]/rsvp` | Authenticated member with linked `member_id` | Caller parish and self member | `{ rsvpStatus }` | Upserted RSVP | `400`, `404`, `409` capacity, `401`, `403` | Yes |
+| `GET` | `/api/facilities` | Authenticated parish users | Caller parish | None | Facility list | `401`, `403` | No |
+| `POST` | `/api/facilities` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | `{ name, capacity?, location?, isActive? }` | Created facility | `400`, `401`, `403` | Yes |
+| `POST` | `/api/facilities/bookings` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | `{ facilityId, eventId?, title, startAt, endAt, status? }` | Created booking | `400`, `404`, `409` overlap, `401`, `403` | Yes, including denied overlap |
+| `POST` | `/api/messages` | `PARISH_ADMIN`, `PARISH_STAFF` | Caller parish | `{ channel?, subject?, body, audienceType?, audienceRefId? }` | Created queued message and recipients | `400`, `401`, `403` | Yes |
+
+## Notes
+
+- Data-sharing grant and contextual share APIs described in `docs/access-control.md` are not
+  implemented yet.
+- Finance, sacramental records, documents, imports/exports, webhooks, Stripe, Vercel Blob,
+  Resend/SendGrid, and Twilio production providers are future-phase work unless noted in
+  the route tables above.

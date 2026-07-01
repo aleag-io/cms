@@ -90,7 +90,10 @@ async function mintCookie(email: string, password: string) {
     expires_at: s.expires_at,
     user: s.user,
   };
-  return { name: COOKIE_NAME, value: encodeURIComponent(JSON.stringify(session)) };
+  return {
+    name: COOKIE_NAME,
+    value: `base64-${Buffer.from(JSON.stringify(session)).toString('base64url')}`,
+  };
 }
 
 /**

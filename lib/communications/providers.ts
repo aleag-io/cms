@@ -18,7 +18,7 @@ export interface CommProvider {
   send(
     channel: MessageChannel,
     destination: string,
-    payload: { subject?: string | null; body: string },
+    payload: { subject?: string | null; body: string; idempotencyKey: string },
   ): Promise<SendResult>;
 }
 

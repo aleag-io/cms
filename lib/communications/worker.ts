@@ -8,11 +8,11 @@ import { getCommProvider } from '@/lib/communications/providers';
  * Runs as a trusted system job (Vercel Cron → /api/jobs/process-communications,
  * secret-guarded), not under user auth, so it uses the privileged client like
  * audit writes. Guarantees from the plan:
- *   - claims a batch with FOR UPDATE SKIP LOCKED and sends/updates within the
- *     same transaction, so the row locks are held until commit — concurrent
- *     invocations take disjoint sets and never double-send;
- *   - one-way QUEUED → SENT transition (plus SKIPPED/FAILED) so a redelivered or
- *     retried job sends each recipient at most once (idempotent);
+ *   - claims a batch with FOR UPDATE SKIP LOCKED and commits the claim before
+ *     network I/O, so DB locks are short-lived and concurrent invocations take
+ *     disjoint sets;
+ *   - one-way QUEUED/expired PROCESSING → PROCESSING → SENT/SKIPPED/FAILED
+ *     transition, with recipient id as the provider idempotency key;
  *   - re-checks opt-out at send for race safety.
  */
 
@@ -30,7 +30,7 @@ export async function processQueuedCommunications(opts?: {
   const provider = getCommProvider();
   const result: ProcessResult = { claimed: 0, sent: 0, skipped: 0, failed: 0 };
 
-  const touchedMessageIds = await prisma.$transaction(async (tx) => {
+  const rows = await prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<
       {
         id: string;
@@ -43,75 +43,87 @@ export async function processQueuedCommunications(opts?: {
       SELECT id, "messageId", "memberId", channel, destination
       FROM "MessageRecipient"
       WHERE status = 'QUEUED'
+         OR (status = 'PROCESSING' AND "updatedAt" < now() - interval '15 minutes')
       ORDER BY "createdAt"
       FOR UPDATE SKIP LOCKED
       LIMIT ${batchSize}
     `;
 
     result.claimed = rows.length;
-    const messageIds = new Set<string>();
-
-    for (const row of rows) {
-      messageIds.add(row.messageId);
-
-      // Re-check opt-out at send time (race safety).
-      const pref = await tx.communicationPreference.findUnique({
-        where: {
-          memberId_channel: { memberId: row.memberId, channel: row.channel },
-        },
+    if (rows.length > 0) {
+      await tx.messageRecipient.updateMany({
+        where: { id: { in: rows.map((row) => row.id) } },
+        data: { status: RecipientStatus.PROCESSING, error: null },
       });
-
-      if (pref?.optedOut || !row.destination) {
-        await tx.messageRecipient.update({
-          where: { id: row.id },
-          data: {
-            status: RecipientStatus.SKIPPED,
-            error: pref?.optedOut ? 'opted_out' : 'no_destination',
-          },
-        });
-        result.skipped++;
-        continue;
-      }
-
-      const message = await tx.message.findUnique({
-        where: { id: row.messageId },
-        select: { subject: true, body: true },
-      });
-
-      try {
-        const sent = await provider.send(row.channel, row.destination, {
-          subject: message?.subject ?? null,
-          body: message?.body ?? '',
-        });
-        await tx.messageRecipient.update({
-          where: { id: row.id },
-          data: {
-            status: RecipientStatus.SENT,
-            providerMessageId: sent.providerMessageId,
-            sentAt: new Date(),
-            error: null,
-          },
-        });
-        result.sent++;
-      } catch (err) {
-        await tx.messageRecipient.update({
-          where: { id: row.id },
-          data: {
-            status: RecipientStatus.FAILED,
-            error: err instanceof Error ? err.message : 'send_failed',
-          },
-        });
-        result.failed++;
-      }
     }
 
-    return [...messageIds];
+    return rows;
   });
 
+  const messageIds = new Set<string>();
+
+  for (const row of rows) {
+    messageIds.add(row.messageId);
+
+    // Re-check opt-out at send time (race safety).
+    const pref = await prisma.communicationPreference.findUnique({
+      where: {
+        memberId_channel: { memberId: row.memberId, channel: row.channel },
+      },
+    });
+
+    if (pref?.optedOut || !row.destination) {
+      await prisma.messageRecipient.update({
+        where: { id: row.id },
+        data: {
+          status: RecipientStatus.SKIPPED,
+          error: pref?.optedOut ? 'opted_out' : 'no_destination',
+        },
+      });
+      result.skipped++;
+      continue;
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: row.messageId },
+      select: { subject: true, body: true },
+    });
+
+    try {
+      const sent = await provider.send(row.channel, row.destination, {
+        subject: message?.subject ?? null,
+        body: message?.body ?? '',
+        idempotencyKey: row.id,
+      });
+      await prisma.messageRecipient.update({
+        where: { id: row.id },
+        data: {
+          status: RecipientStatus.SENT,
+          providerMessageId: sent.providerMessageId,
+          sentAt: new Date(),
+          error: null,
+        },
+      });
+      result.sent++;
+    } catch (err) {
+      await prisma.messageRecipient.update({
+        where: { id: row.id },
+        data: {
+          status: RecipientStatus.FAILED,
+          error: err instanceof Error ? err.message : 'send_failed',
+        },
+      });
+      result.failed++;
+    }
+  }
+
   // Mark messages whose recipients are now fully resolved as SENT.
-  for (const messageId of touchedMessageIds) {
+  for (const messageId of messageIds) {
     const remaining = await prisma.messageRecipient.count({
-      where: { messageId, status: RecipientStatus.QUEUED },
+      where: {
+        messageId,
+        status: { in: [RecipientStatus.QUEUED, RecipientStatus.PROCESSING] },
+      },
     });
     if (remaining === 0) {
       await prisma.message.update({
