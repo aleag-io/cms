@@ -403,5 +403,3 @@ For each phase:
   Phases 5 and 6 can be a parallel stream once Phase 4 lands.
 - **Continuous:** Phase 7's performance indexes and a11y patterns should be applied as each
   feature lands, with a dedicated hardening pass at the end rather than deferring all of it.
-</content>
-</invoke>
