@@ -1,14 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { AuditOutcome, Role } from '@prisma/client';
-import { requireRole } from '@/lib/auth';
+import { requireRole, requireSessionUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { writeAuditEntry } from '@/lib/audit';
 import { ApiError, handle } from '@/lib/api';
 
 export const GET = () =>
   handle(async () => {
-    await requireRole([Role.GLOBAL_ADMIN]);
-    const dioceses = await prisma.diocese.findMany({ orderBy: { name: 'asc' } });
+    const actor = await requireSessionUser();
+    const dioceses = await prisma.diocese.findMany({
+      where: actor.role === Role.GLOBAL_ADMIN ? undefined : { id: actor.dioceseId },
+      orderBy: { name: 'asc' },
+    });
     return Response.json({ ok: true, dioceses });
   });
 

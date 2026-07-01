@@ -10,8 +10,10 @@ enum Role {
   GLOBAL_ADMIN
   DIOCESE_ADMIN
   DIOCESE_STAFF
+  DIOCESE_REPORT_VIEWER
   PARISH_ADMIN
   PARISH_STAFF
+  PARISH_DATA_SHARING_MANAGER
   CLERGY
   MINISTRY_LEADER
   ORGANIZATION_LEADER
@@ -50,6 +52,46 @@ enum RelationshipType {
 enum MembershipType {
   PRIMARY
   SECONDARY
+}
+
+enum DataCategory {
+  MEMBER_DIRECTORY
+  MEMBER_DEMOGRAPHICS_DETAIL
+  FAMILY_RECORDS
+  SACRAMENTAL_RECORDS
+  GIVING_DETAIL
+  GIVING_STATEMENTS
+  PROGRAM_ROSTER
+  FINANCIAL_STATEMENTS
+  LEDGER_DETAIL
+  ATTENDANCE_DETAIL
+  AUDIT_LOG
+  COMMUNICATIONS_HISTORY
+}
+
+enum GranteeType {
+  DIOCESE
+  PARISH
+}
+
+enum SharingScope {
+  ALL_RECORDS
+  SUMMARY_ONLY
+  PROGRAM_SCOPED
+  PERIOD_SCOPED
+}
+
+enum SharingRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum ShareMode {
+  USER_SHARE
+  ROLE_SHARE
+  SECURE_LINK
 }
 
 enum PermissionResource {
@@ -208,6 +250,10 @@ model Diocese {
   parishes  Parish[]
   users     AppUser[]
   audits    AuditEntry[]
+  sharingRequests       DataSharingRequest[]
+  sharingGrants         DataSharingGrant[]
+  emergencyAccessGrants EmergencyAccessGrant[]
+  contextualShares      ContextualShare[]
 }
 
 model Parish {
@@ -259,6 +305,10 @@ model Parish {
   volunteerAssignments     VolunteerAssignment[]
   memberRegistrations      MemberRegistration[]
   audits                   AuditEntry[]
+  sharingRequests          DataSharingRequest[]
+  sharingGrants            DataSharingGrant[]
+  emergencyAccessGrants    EmergencyAccessGrant[]
+  contextualShares         ContextualShare[]
 
   @@index([dioceseId])
 }
@@ -278,6 +328,15 @@ model AppUser {
   memberProfile              Member?                    @relation("AppUserMember")
   grantedPermissionOverrides ParishPermissionOverride[] @relation("ParishPermissionOverrideGrantedBy")
   audits                     AuditEntry[]               @relation("AuditActor")
+  requestedSharingRequests   DataSharingRequest[]       @relation("SharingRequestRequestedBy")
+  reviewedSharingRequests    DataSharingRequest[]       @relation("SharingRequestReviewedBy")
+  grantedSharingGrants       DataSharingGrant[]         @relation("SharingGrantGrantedBy")
+  revokedSharingGrants       DataSharingGrant[]         @relation("SharingGrantRevokedBy")
+  grantedEmergencyAccess     EmergencyAccessGrant[]     @relation("EmergencyAccessGrantedBy")
+  revokedEmergencyAccess     EmergencyAccessGrant[]     @relation("EmergencyAccessRevokedBy")
+  createdContextualShares    ContextualShare[]          @relation("ContextualShareCreatedBy")
+  recipientContextualShares  ContextualShare[]          @relation("ContextualShareRecipient")
+  revokedContextualShares    ContextualShare[]          @relation("ContextualShareRevokedBy")
 
   @@index([dioceseId, role])
   @@index([parishId, role])
@@ -479,6 +538,112 @@ model AuditEntry {
 
   @@index([timestamp])
   @@index([dioceseId, parishId, action])
+}
+
+// ── Phase 4: Data-sharing governance ─────────────────────────────────────────
+
+model DataSharingRequest {
+  id                String               @id @default(uuid()) @db.Uuid
+  parishId          String               @db.Uuid
+  dioceseId         String               @db.Uuid
+  dataCategory      DataCategory
+  reason            String
+  status            SharingRequestStatus @default(PENDING)
+  requestedByUserId String               @db.Uuid
+  reviewedByUserId  String?              @db.Uuid
+  reviewedAt        DateTime?
+  expiresAt         DateTime
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  parish            Parish               @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  diocese           Diocese              @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  requestedBy       AppUser              @relation("SharingRequestRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  reviewedBy        AppUser?             @relation("SharingRequestReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  grant             DataSharingGrant?
+
+  @@index([parishId, status])
+  @@index([dioceseId, status])
+  @@index([expiresAt])
+}
+
+model DataSharingGrant {
+  id               String          @id @default(uuid()) @db.Uuid
+  parishId         String          @db.Uuid
+  dioceseId        String          @db.Uuid
+  dataCategory     DataCategory
+  granteeType      GranteeType     @default(DIOCESE)
+  granteeId        String          @db.Uuid
+  granteeRoleFilter Role?
+  scope            SharingScope    @default(ALL_RECORDS)
+  scopeDetail      Json?
+  grantedByUserId  String          @db.Uuid
+  requestId        String?         @unique @db.Uuid
+  grantedAt        DateTime        @default(now())
+  expiresAt        DateTime?
+  isActive         Boolean         @default(true)
+  revokedAt        DateTime?
+  revokedByUserId  String?         @db.Uuid
+  notes            String?
+  parish           Parish          @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  diocese          Diocese         @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  grantedBy        AppUser         @relation("SharingGrantGrantedBy", fields: [grantedByUserId], references: [id], onDelete: Restrict)
+  request          DataSharingRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  revokedBy        AppUser?        @relation("SharingGrantRevokedBy", fields: [revokedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([parishId, dataCategory, isActive])
+  @@index([dioceseId, granteeId, isActive])
+  @@index([expiresAt])
+}
+
+model EmergencyAccessGrant {
+  id              String    @id @default(uuid()) @db.Uuid
+  parishId        String    @db.Uuid
+  dioceseId       String    @db.Uuid
+  grantedByUserId String    @db.Uuid
+  justification   String
+  grantedAt       DateTime  @default(now())
+  expiresAt       DateTime
+  isActive        Boolean   @default(true)
+  revokedAt       DateTime?
+  revokedByUserId String?   @db.Uuid
+  parish          Parish    @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  diocese         Diocese   @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  grantedBy       AppUser   @relation("EmergencyAccessGrantedBy", fields: [grantedByUserId], references: [id], onDelete: Restrict)
+  revokedBy       AppUser?  @relation("EmergencyAccessRevokedBy", fields: [revokedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([parishId, isActive])
+  @@index([dioceseId, isActive])
+  @@index([expiresAt])
+}
+
+model ContextualShare {
+  id              String    @id @default(uuid()) @db.Uuid
+  parishId        String    @db.Uuid
+  dioceseId       String    @db.Uuid
+  resourceType    String
+  resourceId      String?
+  shareMode       ShareMode
+  createdByUserId String    @db.Uuid
+  recipientUserId String?   @db.Uuid
+  recipientRole   Role?
+  tokenHash       String?   @unique
+  isAnonymized    Boolean   @default(false)
+  expiresAt       DateTime?
+  maxViews        Int?
+  viewCount       Int       @default(0)
+  isActive        Boolean   @default(true)
+  revokedAt       DateTime?
+  revokedByUserId String?   @db.Uuid
+  createdAt       DateTime  @default(now())
+  parish          Parish    @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  diocese         Diocese   @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  createdBy       AppUser   @relation("ContextualShareCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  recipientUser   AppUser?  @relation("ContextualShareRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  revokedBy       AppUser?  @relation("ContextualShareRevokedBy", fields: [revokedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([parishId, resourceType, isActive])
+  @@index([dioceseId, isActive])
+  @@index([expiresAt])
 }
 
 // ── Phase 3: Programs & ministries (PA-3, MM-3/4) ────────────────────────────

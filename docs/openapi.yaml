@@ -1,0 +1,1264 @@
+openapi: 3.1.0
+info:
+  title: Mar Thoma Church CMS API
+  version: 0.1.0
+  summary: Tenant-scoped Church Management System API
+  description: |
+    This reference covers the implemented Next.js App Router API route handlers.
+    Authenticated tenant-scoped handlers derive claims from Supabase/AppUser state
+    and run user-facing data access through withTenant() so PostgreSQL RLS remains
+    authoritative.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: /
+    description: Current deployment
+security:
+  - BearerAuth: []
+tags:
+  - name: Session
+    description: Authentication/session utilities and development bootstrap endpoints.
+  - name: Registrations
+    description: Public self-registration and parish approval workflows.
+  - name: Jobs
+    description: Secret-guarded background job endpoints.
+  - name: Diocese
+    description: Diocese administration endpoints.
+  - name: Parish
+    description: Parish catalog and administration endpoints.
+  - name: Audit
+    description: Append-only audit entry access.
+  - name: Families
+    description: Family profile management endpoints.
+  - name: Members
+    description: Member profile, directory, export, relationship, and parish membership endpoints.
+  - name: Sensitive Member Data
+    description: Clergy and pastoral data endpoints with stricter access controls.
+  - name: Permissions
+    description: Parish permission override endpoints.
+  - name: Officers
+    description: Parish officer assignment endpoints.
+  - name: Programs
+    description: Program and enrollment endpoints.
+  - name: Organizations
+    description: Organization and membership endpoints.
+  - name: Events
+    description: Event catalog and RSVP endpoints.
+  - name: Facilities
+    description: Facility and booking endpoints.
+  - name: Communications
+    description: Message queueing endpoints.
+  - name: Data Sharing
+    description: Data-sharing governance, contextual shares, and diocese aggregate endpoints.
+paths:
+  /api/session:
+    get:
+      tags: [Session]
+      summary: Get current session
+      operationId: getSession
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+  /api/bootstrap:
+    post:
+      tags: [Session]
+      summary: Bootstrap development seed data
+      operationId: bootstrapDevelopmentData
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+  /api/registrations:
+    get:
+      tags: [Registrations]
+      summary: List pending self-registrations
+      operationId: listRegistrations
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Registrations]
+      summary: Submit a public self-registration
+      operationId: createRegistration
+      security: []
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/registrations/{id}/approve:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Registrations]
+      summary: Approve or reject a self-registration
+      operationId: decideRegistration
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+  /api/jobs/process-communications:
+    get:
+      tags: [Jobs]
+      summary: Process queued communications
+      operationId: processCommunicationsGet
+      security:
+        - BearerAuth: []
+        - CronSecret: []
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Jobs]
+      summary: Process queued communications
+      operationId: processCommunicationsPost
+      security:
+        - BearerAuth: []
+        - CronSecret: []
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+  /api/dioceses:
+    get:
+      tags: [Diocese]
+      summary: List visible dioceses
+      operationId: listDioceses
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Diocese]
+      summary: Create a diocese
+      operationId: createDiocese
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/parishes:
+    get:
+      tags: [Parish]
+      summary: List visible parishes
+      operationId: listParishes
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Parish]
+      summary: Create a parish
+      operationId: createParish
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/parishes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Parish]
+      summary: Get a parish
+      operationId: getParish
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    patch:
+      tags: [Parish]
+      summary: Update a parish
+      operationId: updateParish
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/audit:
+    get:
+      tags: [Audit]
+      summary: List audit entries
+      operationId: listAuditEntries
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/families:
+    get:
+      tags: [Families]
+      summary: List families
+      operationId: listFamilies
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Families]
+      summary: Create a family
+      operationId: createFamily
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/families/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Families]
+      summary: Get a family
+      operationId: getFamily
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    patch:
+      tags: [Families]
+      summary: Update a family
+      operationId: updateFamily
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Families]
+      summary: Soft-deactivate a family
+      operationId: deactivateFamily
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/members:
+    get:
+      tags: [Members]
+      summary: List members
+      operationId: listMembers
+      parameters:
+        - name: directory
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Members]
+      summary: Create a member
+      operationId: createMember
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/members/export:
+    get:
+      tags: [Members]
+      summary: Export members
+      operationId: exportMembers
+      responses:
+        '200':
+          description: Member export.
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/members/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Members]
+      summary: Get a member
+      operationId: getMember
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    patch:
+      tags: [Members]
+      summary: Update a member
+      operationId: updateMember
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Members]
+      summary: Soft-deactivate a member
+      operationId: deactivateMember
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/parish/directory:
+    get:
+      tags: [Members]
+      summary: List active parish directory members
+      operationId: listParishDirectory
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/members/{id}/private-note:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Sensitive Member Data]
+      summary: Get a member private note
+      operationId: getMemberPrivateNote
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [Sensitive Member Data]
+      summary: Upsert a member private note
+      operationId: upsertMemberPrivateNote
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/members/{id}/pastoral-data:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Sensitive Member Data]
+      summary: Get member pastoral data
+      operationId: getMemberPastoralData
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [Sensitive Member Data]
+      summary: Upsert member pastoral data
+      operationId: upsertMemberPastoralData
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/members/{id}/relationships:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Members]
+      summary: List member relationships
+      operationId: listMemberRelationships
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Members]
+      summary: Create a member relationship
+      operationId: createMemberRelationship
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Members]
+      summary: Delete a member relationship
+      operationId: deleteMemberRelationship
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/members/{id}/parishes:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Members]
+      summary: List member parish memberships
+      operationId: listMemberParishes
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Members]
+      summary: Add a member parish membership
+      operationId: addMemberParish
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    patch:
+      tags: [Members]
+      summary: Update a member primary parish
+      operationId: updateMemberPrimaryParish
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/permissions/overrides:
+    get:
+      tags: [Permissions]
+      summary: List parish permission overrides
+      operationId: listPermissionOverrides
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [Permissions]
+      summary: Replace parish permission overrides
+      operationId: replacePermissionOverrides
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/parish-officers:
+    get:
+      tags: [Officers]
+      summary: List parish officers
+      operationId: listParishOfficers
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Officers]
+      summary: Create a parish officer assignment
+      operationId: createParishOfficer
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/programs:
+    get:
+      tags: [Programs]
+      summary: List programs
+      operationId: listPrograms
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Programs]
+      summary: Create a program
+      operationId: createProgram
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/programs/{id}/enrollments:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Programs]
+      summary: List program enrollments
+      operationId: listProgramEnrollments
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Programs]
+      summary: Create a program enrollment
+      operationId: createProgramEnrollment
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+  /api/organizations:
+    get:
+      tags: [Organizations]
+      summary: List organizations
+      operationId: listOrganizations
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Organizations]
+      summary: Create an organization
+      operationId: createOrganization
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/organizations/{id}/memberships:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Organizations]
+      summary: List organization memberships
+      operationId: listOrganizationMemberships
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Organizations]
+      summary: Create an organization membership
+      operationId: createOrganizationMembership
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+  /api/events:
+    get:
+      tags: [Events]
+      summary: List events
+      operationId: listEvents
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Events]
+      summary: Create an event
+      operationId: createEvent
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/events/{id}/rsvp:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Events]
+      summary: Upsert an event RSVP
+      operationId: upsertEventRsvp
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+  /api/facilities:
+    get:
+      tags: [Facilities]
+      summary: List facilities
+      operationId: listFacilities
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Facilities]
+      summary: Create a facility
+      operationId: createFacility
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/facilities/bookings:
+    post:
+      tags: [Facilities]
+      summary: Create a facility booking
+      operationId: createFacilityBooking
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+  /api/messages:
+    post:
+      tags: [Communications]
+      summary: Queue a message
+      operationId: createMessage
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/diocese/aggregate:
+    get:
+      tags: [Data Sharing]
+      summary: Read diocese aggregate summaries
+      operationId: getDioceseAggregate
+      parameters:
+        - name: parishId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/jobs/expire-sharing-requests:
+    get:
+      tags: [Jobs]
+      summary: Expire pending sharing requests
+      operationId: expireSharingRequestsGet
+      security:
+        - BearerAuth: []
+        - CronSecret: []
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Jobs]
+      summary: Expire pending sharing requests
+      operationId: expireSharingRequestsPost
+      security:
+        - BearerAuth: []
+        - CronSecret: []
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+  /api/jobs/expire-emergency-access:
+    get:
+      tags: [Jobs]
+      summary: Expire emergency access grants
+      operationId: expireEmergencyAccessGet
+      security:
+        - BearerAuth: []
+        - CronSecret: []
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Jobs]
+      summary: Expire emergency access grants
+      operationId: expireEmergencyAccessPost
+      security:
+        - BearerAuth: []
+        - CronSecret: []
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+  /api/sharing/requests:
+    get:
+      tags: [Data Sharing]
+      summary: List sharing requests
+      operationId: listSharingRequests
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Data Sharing]
+      summary: Create a sharing request
+      operationId: createSharingRequest
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/sharing/requests/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    patch:
+      tags: [Data Sharing]
+      summary: Review a sharing request
+      operationId: reviewSharingRequest
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+  /api/sharing/grants:
+    get:
+      tags: [Data Sharing]
+      summary: List sharing grants
+      operationId: listSharingGrants
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Data Sharing]
+      summary: Create a sharing grant
+      operationId: createSharingGrant
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/sharing/grants/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Data Sharing]
+      summary: Get a sharing grant
+      operationId: getSharingGrant
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Data Sharing]
+      summary: Revoke a sharing grant
+      operationId: revokeSharingGrant
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+  /api/sharing/emergency:
+    get:
+      tags: [Data Sharing]
+      summary: List emergency access grants
+      operationId: listEmergencyAccessGrants
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Data Sharing]
+      summary: Create an emergency access grant
+      operationId: createEmergencyAccessGrant
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/sharing/emergency/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    delete:
+      tags: [Data Sharing]
+      summary: Revoke emergency access
+      operationId: revokeEmergencyAccessGrant
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+  /api/shares:
+    post:
+      tags: [Data Sharing]
+      summary: Create a contextual share
+      operationId: createContextualShare
+      requestBody:
+        $ref: '#/components/requestBodies/JsonBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/shares/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Data Sharing]
+      summary: Get a contextual share
+      operationId: getContextualShare
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Data Sharing]
+      summary: Revoke a contextual share
+      operationId: revokeContextualShare
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+  /api/shares/{id}/view:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Data Sharing]
+      summary: View an authenticated contextual share
+      operationId: viewContextualShare
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/shares/link/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Raw secure-link token. Only its hash is stored server-side.
+        schema:
+          type: string
+    get:
+      tags: [Data Sharing]
+      summary: View a public secure-link share
+      operationId: viewSecureLinkShare
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonSuccess'
+        '403':
+          $ref: '#/components/responses/Error'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Supabase JWT
+    CronSecret:
+      type: apiKey
+      in: header
+      name: x-cron-secret
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      description: Resource identifier.
+      schema:
+        type: string
+  requestBodies:
+    JsonBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JsonObject'
+  responses:
+    JsonSuccess:
+      description: Successful JSON response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JsonObject'
+    Error:
+      description: Error response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    JsonObject:
+      type: object
+      additionalProperties: true
+    ErrorResponse:
+      type: object
+      required:
+        - ok
+        - error
+      properties:
+        ok:
+          type: boolean
+          const: false
+        error:
+          type: string
+      additionalProperties: true

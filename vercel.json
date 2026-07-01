@@ -4,6 +4,14 @@
     {
       "path": "/api/jobs/process-communications",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/jobs/expire-sharing-requests",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/jobs/expire-emergency-access",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

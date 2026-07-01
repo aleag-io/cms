@@ -23,12 +23,14 @@ export const GET = (request: Request) =>
     );
     const skip = (page - 1) * limit;
 
+    // Mirror the RLS policies exactly (the privileged client bypasses them):
+    // parish admins read only their own parish's entries; diocese-level admins
+    // (no parish scope) read only diocese-level (parishId IS NULL) entries.
+    // Diocese-level entries are NOT exposed to parish admins (audit_diocese_read).
     const auditEntries = await prisma.auditEntry.findMany({
       where: {
         dioceseId: user.dioceseId,
-        OR: user.parishId
-          ? [{ parishId: user.parishId }, { parishId: null }]
-          : [{ parishId: null }],
+        parishId: user.parishId ?? null,
       },
       orderBy: { timestamp: 'desc' },
       skip,

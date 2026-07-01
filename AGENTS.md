@@ -73,6 +73,18 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   Exit gates proven by tests (rls: org exclusivity + leader scope; integration: comms worker,
   RSVP capacity, self-reg visibility, exclusivity/booking 409s). Plan:
   [docs/phase-3-plan.md](docs/phase-3-plan.md).
+- **Phase 4 — implemented.** Data-sharing governance and diocese aggregate: new
+  `DIOCESE_REPORT_VIEWER` + `PARISH_DATA_SHARING_MANAGER` roles; schema for
+  `DataSharingRequest`, `DataSharingGrant`, `EmergencyAccessGrant`, and
+  `ContextualShare`; grant-aware Tier-3 RLS via `has_active_grant()` /
+  `has_emergency_access()` SECURITY DEFINER helpers; Tier-2 aggregate views
+  (`diocese_parish_member_summary`, `diocese_parish_family_summary`); sharing
+  request/grant/emergency/share APIs; secure-link token hashing (`lib/sharing/tokens.ts`)
+  and anonymization helper (`lib/sharing/anonymize.ts`); cron jobs for request/emergency
+  expiry; diocese aggregate endpoint (`/api/diocese/aggregate`). Migration
+  `20260630000001_phase4_data_sharing` + RLS
+  `20260630000002_phase4_data_sharing_rls.sql`. Plan:
+  [docs/phase-4-plan.md](docs/phase-4-plan.md).
 
 ## How to run
 

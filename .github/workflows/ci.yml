@@ -32,6 +32,15 @@ jobs:
       - name: Generate Prisma client
         run: npm run prisma:generate
 
+      - name: Build API docs
+        run: npm run api-docs:ci
+
+      - name: Upload API docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-docs
+          path: public/api-docs/
+
       - name: Typecheck
         run: npm run typecheck
 

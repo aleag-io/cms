@@ -13,6 +13,10 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "api-docs:lint": "redocly lint docs/openapi.yaml",
+    "api-docs:build": "redocly build-docs docs/openapi.yaml -o public/api-docs/index.html",
+    "api-docs:ci": "npm run api-docs:lint && npm run api-docs:build",
+    "prebuild": "npm run api-docs:build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --project unit",
@@ -67,6 +71,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "@redocly/cli": "^2.36.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
