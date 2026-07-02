@@ -14,7 +14,11 @@ function parsePositiveInt(value: string | null, fallback: number): number {
 
 export const GET = (request: Request) =>
   handle(async () => {
-    const user = await requireRole([Role.DIOCESE_ADMIN, Role.PARISH_ADMIN]);
+    const user = await requireRole([
+      Role.DIOCESE_ADMIN,
+      Role.DIOCESE_STAFF,
+      Role.PARISH_ADMIN,
+    ]);
     const { searchParams } = new URL(request.url);
     const page = parsePositiveInt(searchParams.get('page'), 1);
     const limit = Math.min(

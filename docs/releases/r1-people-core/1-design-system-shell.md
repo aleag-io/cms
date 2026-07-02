@@ -32,7 +32,9 @@ server-side and must degrade gracefully on `401`/`403`.
 
 ## 2. Central decisions
 
-- **Server-state:** add TanStack Query; provider in a client boundary at the shell root.
+- **Server-state:** prefer native Next.js Server Components, streaming, and route refresh for
+  read-heavy screens. Introduce TanStack Query only for client-heavy workflows that need shared
+  cache, optimistic updates, or fine-grained invalidation.
 - **API client:** `lib/api-client.ts` wraps `fetch`, parses `{ ok, error }`, and normalizes
   `401`→re-auth, `403`→`ForbiddenState`, `5xx`→toast. Reuse the resilient body-parsing pattern
   already in `mvp1-console.tsx` (`api<T>()`).
@@ -93,9 +95,11 @@ field-level masking, private-note gating, and grant-scoped diocese reads are enf
 RLS and the projection helpers (`lib/projection.ts`) *behind* the API. Screens render whatever the
 API returns for the current role and hide what it does not; they degrade gracefully on `401`/`403`.
 
-1. **Data layer.** One typed API client (`lib/api-client.ts`) + colocated hooks on **TanStack
-   Query** (caching, invalidation, optimistic updates). Every hook returns `{ data, error,
-   isLoading }`; `401`→re-auth, `403`→`ForbiddenState`.
+1. **Data layer.** Server Components are the default for read-heavy screens. Use one typed API
+   client (`lib/api-client.ts`) for browser-only requests and introduce colocated **TanStack
+   Query** hooks only where a client-heavy workflow needs caching, invalidation, or optimistic
+   updates. Every client hook returns `{ data, error, isLoading }`; `401`→re-auth,
+   `403`→`ForbiddenState`.
 2. **Server vs client components.** Server Components for read-heavy pages (directory, dashboards,
    profiles) using the session from `lib/auth.ts`; client components for interactive forms and
    TanStack Query mutations. Read `node_modules/next/dist/docs/` before adding routes — this is
