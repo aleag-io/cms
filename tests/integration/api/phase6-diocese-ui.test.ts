@@ -199,6 +199,10 @@ describe('Phase 6 diocese UI APIs', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.auditEntries.length).toBeGreaterThan(0);
-    expect(body.auditEntries.every((entry: { parishId: string | null }) => entry.parishId === null)).toBe(true);
+    expect(
+      body.auditEntries.every(
+        (entry: { parishId: string | null }) => entry.parishId === null,
+      ),
+    ).toBe(true);
   });
 });

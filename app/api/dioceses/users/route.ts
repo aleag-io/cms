@@ -60,20 +60,19 @@ export const POST = (request: Request) =>
   handle(async () => {
     const requestId = randomUUID();
     const actor = await requireRole([Role.GLOBAL_ADMIN, Role.DIOCESE_ADMIN]);
-    const body = (await request.json().catch(() => null)) as
-      | {
-          email?: string;
-          displayName?: string;
-          role?: string;
-          parishId?: string | null;
-          isActive?: boolean;
-        }
-      | null;
+    const body = (await request.json().catch(() => null)) as {
+      email?: string;
+      displayName?: string;
+      role?: string;
+      parishId?: string | null;
+      isActive?: boolean;
+    } | null;
 
     const email = body?.email?.trim().toLowerCase();
     const displayName = body?.displayName?.trim();
     const role = validateRole(body?.role);
-    const parishId = role === Role.PARISH_ADMIN ? body?.parishId ?? null : null;
+    const parishId =
+      role === Role.PARISH_ADMIN ? (body?.parishId ?? null) : null;
     const isActive = body?.isActive ?? true;
 
     if (!email || !displayName) {

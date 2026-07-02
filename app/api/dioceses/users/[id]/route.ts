@@ -28,14 +28,12 @@ export const PATCH = (
     const requestId = randomUUID();
     const actor = await requireRole([Role.GLOBAL_ADMIN, Role.DIOCESE_ADMIN]);
     const { id } = await context.params;
-    const body = (await request.json().catch(() => null)) as
-      | {
-          displayName?: string;
-          role?: string;
-          parishId?: string | null;
-          isActive?: boolean;
-        }
-      | null;
+    const body = (await request.json().catch(() => null)) as {
+      displayName?: string;
+      role?: string;
+      parishId?: string | null;
+      isActive?: boolean;
+    } | null;
 
     const existing = await prisma.appUser.findUnique({ where: { id } });
     if (!existing || existing.dioceseId !== actor.dioceseId) {
@@ -45,7 +43,8 @@ export const PATCH = (
     const role = validateRole(body?.role);
     const displayName = body?.displayName?.trim();
     const isActive = body?.isActive;
-    const parishId = role === Role.PARISH_ADMIN ? body?.parishId ?? null : null;
+    const parishId =
+      role === Role.PARISH_ADMIN ? (body?.parishId ?? null) : null;
 
     if (!displayName || isActive === undefined) {
       throw new ApiError(400, 'displayName, role, and isActive are required');

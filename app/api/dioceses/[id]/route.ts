@@ -47,9 +47,9 @@ export const PATCH = (
       throw new ApiError(403, 'Forbidden');
     }
 
-    const body = (await request.json().catch(() => null)) as
-      | { name?: string }
-      | null;
+    const body = (await request.json().catch(() => null)) as {
+      name?: string;
+    } | null;
 
     const name = body?.name?.trim();
     if (!name) {
