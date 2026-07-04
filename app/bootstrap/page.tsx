@@ -41,7 +41,7 @@ const defaultValues: BootstrapForm = {
     parishAddress: "",
     adminEmail: "admin@cms.local",
     adminName: "Diocese Admin",
-    adminPassword: "",
+    adminPassword: "Admin@Local1",
 };
 
 export default function BootstrapPage() {
