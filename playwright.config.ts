@@ -5,8 +5,13 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 30_000,
+  // Local runs hit the dev server; first navigation to a route pays a compile
+  // cost that regularly exceeds the 5s default expect timeout.
+  expect: { timeout: 15_000 },
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Serial everywhere: tests share seeded auth users/sessions in one database,
+  // and the dev server degrades under parallel first-compile load.
+  workers: 1,
   reporter: process.env.CI ? 'github' : 'list',
 
   use: {

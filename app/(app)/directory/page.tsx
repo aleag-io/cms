@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/patterns/page-header";
+import { ErrorState, PageSkeleton } from "@/components/patterns/states";
+import { Input } from "@/components/ui/input";
+import { apiRequest, isApiClientError } from "@/lib/api-client";
 
 type DirectoryMember = {
   id: string;
@@ -13,18 +17,10 @@ type DirectoryMember = {
 };
 
 async function fetchDirectory(): Promise<DirectoryMember[]> {
-  const res = await fetch("/api/parish/directory");
-  const raw = await res.text();
-  const data = raw ? JSON.parse(raw) : null;
-  if (!res.ok || !data?.ok) {
-    throw new Error(
-      data?.error ??
-        (res.status === 401 || res.status === 403
-          ? "Sign in to view your parish directory."
-          : `Request failed (${res.status}).`),
-    );
-  }
-  return data.members as DirectoryMember[];
+  const data = await apiRequest<{ ok: true; members: DirectoryMember[]; }>(
+    "/api/parish/directory",
+  );
+  return data.members;
 }
 
 // MM-14: same-parish member directory — basic contact fields only. Pastoral
@@ -33,6 +29,7 @@ export default function DirectoryPage() {
   const [members, setMembers] = useState<DirectoryMember[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +42,13 @@ export default function DirectoryPage() {
       },
       (err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unexpected error");
+          setError(
+            isApiClientError(err)
+              ? err.message
+              : err instanceof Error
+                ? err.message
+                : "Unexpected error",
+          );
           setBusy(false);
         }
       },
@@ -55,39 +58,73 @@ export default function DirectoryPage() {
     };
   }, []);
 
-  return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 sm:px-8">
-      <header className="rounded-2xl border bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">
-          Parish Member Directory
-        </h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Active members of your parish. Contact details only — dates of birth
-          and pastoral notes are never shown here.
-        </p>
-      </header>
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter(
+      (m) =>
+        m.firstName.toLowerCase().includes(q) ||
+        m.lastName.toLowerCase().includes(q) ||
+        (m.email?.toLowerCase().includes(q) ?? false),
+    );
+  }, [members, query]);
 
-      <section className="rounded-2xl border bg-white p-6 shadow-sm">
-        {busy ? (
-          <p className="text-sm text-slate-400">Loading…</p>
-        ) : error ? (
-          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </p>
-        ) : members.length === 0 ? (
-          <p className="text-sm text-slate-500">No members to display.</p>
+  if (busy) {
+    return (
+      <div className="flex min-h-full flex-col">
+        <PageHeader title="Directory" description="Loading parish directory…" />
+        <div className="flex-1 p-4 sm:p-6">
+          <PageSkeleton />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-full flex-col">
+        <PageHeader title="Directory" description="Could not load directory." />
+        <div className="flex-1 p-4 sm:p-6">
+          <ErrorState title="Load failed" description={error} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-full flex-col">
+      <PageHeader
+        title="Parish Member Directory"
+        description="Active members of your parish. Contact details only — dates of birth and pastoral notes are never shown here."
+      />
+
+      <div className="flex-1 p-4 sm:p-6">
+        <div className="mb-4">
+          <Input
+            placeholder="Search by name or email…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+
+        {filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No members to display.</p>
         ) : (
-          <ul data-testid="directory-list" className="divide-y divide-slate-100">
-            {members.map((m) => (
+          <ul
+            data-testid="directory-list"
+            className="divide-y rounded-md border"
+          >
+            {filtered.map((m) => (
               <li
                 key={m.id}
                 data-testid="directory-member"
-                className="flex flex-wrap items-baseline justify-between gap-2 py-3"
+                className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3"
               >
-                <span className="font-medium text-slate-900">
+                <span className="font-medium">
                   {m.firstName} {m.lastName}
                 </span>
-                <span className="text-sm text-slate-600">
+                <span className="text-sm text-muted-foreground">
                   {m.email ?? "—"}
                   {m.phone ? ` · ${m.phone}` : ""}
                 </span>
@@ -95,7 +132,7 @@ export default function DirectoryPage() {
             ))}
           </ul>
         )}
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }

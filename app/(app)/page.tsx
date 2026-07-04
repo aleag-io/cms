@@ -100,7 +100,9 @@ function DashboardCard({
         "h-full gap-3 transition",
         href
           ? "hover:border-primary/40 hover:shadow-md"
-          : "opacity-70",
+          : // Muted styling instead of opacity: dimming the whole card drops
+            // its text below the WCAG AA contrast gate (tests/e2e/r1-a11y).
+            "border-dashed bg-muted/50",
       )}
     >
       <CardHeader>
@@ -110,7 +112,12 @@ function DashboardCard({
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <p className="mt-auto px-4 text-xs font-medium text-primary">
+      <p
+        className={cn(
+          "mt-auto px-4 text-xs font-medium",
+          href ? "text-primary" : "text-muted-foreground",
+        )}
+      >
         {href ? "Open →" : "Not available for this role"}
       </p>
     </Card>

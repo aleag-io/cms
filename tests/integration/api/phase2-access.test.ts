@@ -64,14 +64,17 @@ describe('Phase 2 access controls', () => {
     resetAuth = asUser(staffUser);
 
     const res = await exportGET();
-    const data = await res.json();
+    const csv = await res.text();
+    const header = csv.split('\n')[0].toLowerCase();
 
     expect(res.status).toBe(200);
-    expect(data.members.length).toBeGreaterThan(0);
-    expect(data.members[0]).not.toHaveProperty('workNotes');
-    expect(data.members[0]).not.toHaveProperty('privateNote');
-    expect(data.members[0]).not.toHaveProperty('pastoralData');
-    expect(data.members[0]).not.toHaveProperty('dateOfBirth');
+    expect(res.headers.get('content-type')).toContain('text/csv');
+    expect(header).toContain('member id');
+    expect(header).toContain('work notes');
+    expect(header).not.toContain('private note');
+    expect(header).not.toContain('date of birth');
+    expect(header).not.toContain('baptism');
+    expect(header).not.toContain('chrismation');
   });
 
   it('clergy can read/write private notes and staff cannot', async () => {

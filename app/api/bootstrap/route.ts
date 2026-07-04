@@ -10,21 +10,61 @@ import {
 const BOOTSTRAP_EMAIL = 'admin@cms.local';
 const BOOTSTRAP_PASSWORD = 'Admin@Local1';
 
-export async function POST() {
+export async function POST(request: Request) {
   const requestId = randomUUID();
 
   try {
+    const body = (await request.json().catch(() => ({}))) as {
+      dioceseName?: string;
+      parishName?: string;
+      parishAddress?: string;
+      adminEmail?: string;
+      adminName?: string;
+      adminPassword?: string;
+    };
+
+    // First-run only: once a diocese admin exists the system is provisioned and
+    // this endpoint must never mint (or re-role) another admin — it is public
+    // in the proxy, so without this guard any caller could escalate to
+    // DIOCESE_ADMIN. Checked before any Supabase access so it fails closed.
+    const existingAdmin = await prisma.appUser.findFirst({
+      where: { role: Role.DIOCESE_ADMIN },
+      select: { id: true },
+    });
+    if (existingAdmin) {
+      await writeAuditEntry({
+        requestId,
+        actorType: 'SYSTEM',
+        actorLabel: 'bootstrap',
+        action: 'bootstrap.initialize',
+        entityType: 'diocese',
+        outcome: AuditOutcome.DENIED,
+        metadata: { reason: 'already_provisioned' },
+      });
+      return Response.json(
+        { ok: false, error: 'System is already provisioned' },
+        { status: 409 },
+      );
+    }
+
     const supabase = await createSupabaseServerClient();
     const {
       data: { user: sessionUser },
     } = await supabase.auth.getUser();
     const admin = createSupabaseAdminClient();
 
+    const dioceseName = body.dioceseName?.trim() || 'Diocese of North America';
+    const parishName = body.parishName?.trim() || 'St. Thomas Mar Thoma Parish';
+    const parishAddress = body.parishAddress?.trim() || 'Dallas, TX';
+    const adminEmail = body.adminEmail?.trim() || BOOTSTRAP_EMAIL;
+    const adminName = body.adminName?.trim() || 'Diocese Admin';
+    const adminPassword = body.adminPassword?.trim() || BOOTSTRAP_PASSWORD;
+
     // Idempotent tenant bootstrap: ensure diocese and at least one parish exist.
     let diocese = await prisma.diocese.findFirst();
     if (!diocese) {
       diocese = await prisma.diocese.create({
-        data: { name: 'Diocese of North America' },
+        data: { name: dioceseName },
       });
     }
 
@@ -36,8 +76,8 @@ export async function POST() {
       parish = await prisma.parish.create({
         data: {
           dioceseId: diocese.id,
-          name: 'St. Thomas Mar Thoma Parish',
-          address: 'Dallas, TX',
+          name: parishName,
+          address: parishAddress,
         },
       });
     }
@@ -48,11 +88,11 @@ export async function POST() {
       await prisma.appUser.upsert({
         where: { id: sessionUser.id },
         update: {
-          email: sessionUser.email ?? BOOTSTRAP_EMAIL,
+          email: sessionUser.email ?? adminEmail,
           displayName:
             sessionUser.user_metadata?.display_name ??
             sessionUser.email ??
-            'Demo Admin',
+            adminName,
           role: Role.DIOCESE_ADMIN,
           dioceseId: diocese.id,
           parishId: parish.id,
@@ -60,11 +100,11 @@ export async function POST() {
         },
         create: {
           id: sessionUser.id,
-          email: sessionUser.email ?? BOOTSTRAP_EMAIL,
+          email: sessionUser.email ?? adminEmail,
           displayName:
             sessionUser.user_metadata?.display_name ??
             sessionUser.email ??
-            'Demo Admin',
+            adminName,
           role: Role.DIOCESE_ADMIN,
           dioceseId: diocese.id,
           parishId: parish.id,
@@ -75,8 +115,8 @@ export async function POST() {
       // Fallback path for unauthenticated first-run: ensure the default admin user exists.
       const { data: authData, error: authError } =
         await admin.auth.admin.createUser({
-          email: BOOTSTRAP_EMAIL,
-          password: BOOTSTRAP_PASSWORD,
+          email: adminEmail,
+          password: adminPassword,
           email_confirm: true,
         });
 
@@ -94,8 +134,8 @@ export async function POST() {
         await prisma.appUser.upsert({
           where: { id: authData.user.id },
           update: {
-            email: BOOTSTRAP_EMAIL,
-            displayName: 'Diocese Admin',
+            email: adminEmail,
+            displayName: adminName,
             role: Role.DIOCESE_ADMIN,
             dioceseId: diocese.id,
             parishId: parish.id,
@@ -103,8 +143,8 @@ export async function POST() {
           },
           create: {
             id: authData.user.id,
-            email: BOOTSTRAP_EMAIL,
-            displayName: 'Diocese Admin',
+            email: adminEmail,
+            displayName: adminName,
             role: Role.DIOCESE_ADMIN,
             dioceseId: diocese.id,
             parishId: parish.id,
@@ -158,7 +198,7 @@ export async function POST() {
       outcome: AuditOutcome.SUCCESS,
       dioceseId: diocese.id,
       parishId: parish.id,
-      metadata: { adminEmail: BOOTSTRAP_EMAIL },
+      metadata: { adminEmail },
     });
 
     return Response.json({
@@ -167,8 +207,8 @@ export async function POST() {
         ? 'Bootstrap complete! Your current user has been linked to the demo tenant.'
         : 'Bootstrap complete! Sign in with the credentials below.',
       credentials: {
-        email: BOOTSTRAP_EMAIL,
-        password: BOOTSTRAP_PASSWORD,
+        email: adminEmail,
+        password: adminPassword,
       },
     });
   } catch (error) {

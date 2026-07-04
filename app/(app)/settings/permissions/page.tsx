@@ -1,12 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "@/hooks/use-session";
 import { can } from "@/lib/permissions/resolver";
 import type {
   PermissionAction,
   PermissionOverride,
   PermissionResource,
 } from "@/lib/permissions/types";
+import { apiRequest, isApiClientError } from "@/lib/api-client";
+import { PageHeader } from "@/components/patterns/page-header";
+import { ErrorState, PageSkeleton } from "@/components/patterns/states";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 // Roles a Parish Admin may configure (PA-12). Excludes admin/diocese roles,
 // which sit at or above the configuring authority.
@@ -40,27 +47,21 @@ type OverrideRow = {
 const label = (s: string) =>
   s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-// Pure fetch (no setState) so the mount effect only updates state asynchronously.
 async function fetchOverrides(): Promise<OverrideRow[]> {
-  const res = await fetch("/api/permissions/overrides");
-  const raw = await res.text();
-  const data = raw ? JSON.parse(raw) : null;
-  if (!res.ok || !data?.ok) {
-    throw new Error(
-      data?.error ??
-        (res.status === 401 || res.status === 403
-          ? "Parish Admin access required."
-          : `Request failed (${res.status}).`),
-    );
-  }
-  return data.overrides as OverrideRow[];
+  const data = await apiRequest<{ ok: true; overrides: OverrideRow[]; }>(
+    "/api/permissions/overrides",
+  );
+  return data.overrides;
 }
 
 export default function PermissionsSettingsPage() {
+  const { claims, isLoading: sessionLoading } = useSession();
   const [role, setRole] = useState<string>(CONFIGURABLE_ROLES[0]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
+
+  const actorRoles = claims?.app_metadata.roles ?? [];
 
   const resolverOverrides: PermissionOverride[] = useMemo(
     () =>
@@ -73,41 +74,52 @@ export default function PermissionsSettingsPage() {
     [overrides],
   );
 
-  // Event-handler refresh (synchronous setState here is fine — not in an effect).
   const refresh = useCallback(async () => {
     setBusy(true);
     setError(null);
     try {
-      setOverrides(await fetchOverrides());
+      const rows = await fetchOverrides();
+      setOverrides(rows);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unexpected error");
+      setError(
+        isApiClientError(err)
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Unexpected error",
+      );
     } finally {
       setBusy(false);
     }
   }, []);
 
   useEffect(() => {
+    if (sessionLoading) return;
     let cancelled = false;
-    fetchOverrides().then(
-      (rows) => {
+    fetchOverrides()
+      .then((rows) => {
         if (!cancelled) {
           setOverrides(rows);
           setBusy(false);
         }
-      },
-      (err: unknown) => {
+      })
+      .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unexpected error");
+          setError(
+            isApiClientError(err)
+              ? err.message
+              : err instanceof Error
+                ? err.message
+                : "Unexpected error",
+          );
           setBusy(false);
         }
-      },
-    );
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sessionLoading]);
 
-  // Does an explicit override exist for this role/resource/action?
   function overrideFor(resource: PermissionResource, action: PermissionAction) {
     return overrides.find(
       (o) =>
@@ -117,54 +129,95 @@ export default function PermissionsSettingsPage() {
     );
   }
 
+  // Escalation guard: the actor must themselves hold the capability they are
+  // trying to grant. This mirrors the server-side resolver truth table.
+  function canActorGrant(
+    resource: PermissionResource,
+    action: PermissionAction,
+  ) {
+    return can(actorRoles, resource, action, resolverOverrides);
+  }
+
   async function toggle(
     resource: PermissionResource,
     action: PermissionAction,
   ) {
     const current = can([role], resource, action, resolverOverrides);
+    const desired = !current;
+
+    if (desired && !canActorGrant(resource, action)) {
+      toast.error(
+        `You cannot grant ${action} on ${label(resource)} because you do not hold that capability yourself.`,
+      );
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/permissions/overrides", {
+      await apiRequest<{ ok: true; }>("/api/permissions/overrides", {
         method: "PUT",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           role: role.toUpperCase(),
           resource: resource.toUpperCase(),
           action: action.toUpperCase(),
-          isAllowed: !current,
+          isAllowed: desired,
         }),
       });
-      const raw = await res.text();
-      const data = raw ? JSON.parse(raw) : null;
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error ?? `Request failed (${res.status}).`);
-      }
+      toast.success("Permission updated");
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unexpected error");
+      const message = isApiClientError(err)
+        ? err.message
+        : err instanceof Error
+          ? err.message
+          : "Unexpected error";
+      setError(message);
+      toast.error(message);
       setBusy(false);
     }
   }
 
-  return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-8">
-      <header className="rounded-2xl border bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">
-          Church Admin Settings — Permissions
-        </h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Override the default permissions for each role in your parish (PA-12).
-          You cannot grant a capability you do not hold yourself; every change is
-          audited.
-        </p>
-      </header>
+  if (sessionLoading || busy) {
+    return (
+      <div className="flex min-h-full flex-col">
+        <PageHeader
+          title="Permissions"
+          description="Loading permission matrix…"
+        />
+        <div className="flex-1 p-4 sm:p-6">
+          <PageSkeleton />
+        </div>
+      </div>
+    );
+  }
 
-      <section className="rounded-2xl border bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
+  if (error) {
+    return (
+      <div className="flex min-h-full flex-col">
+        <PageHeader
+          title="Permissions"
+          description="Could not load permissions."
+        />
+        <div className="flex-1 p-4 sm:p-6">
+          <ErrorState title="Load failed" description={error} retry={refresh} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-full flex-col">
+      <PageHeader
+        title="Permissions"
+        description="Override default permissions for each role in your parish. You cannot grant a capability you do not hold yourself."
+      />
+
+      <div className="flex-1 p-4 sm:p-6">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
           <label
             htmlFor="role-select"
-            className="text-sm font-medium text-slate-700"
+            className="text-sm font-medium text-muted-foreground"
           >
             Role
           </label>
@@ -172,7 +225,7 @@ export default function PermissionsSettingsPage() {
             id="role-select"
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-md border bg-background px-3 py-2 text-sm"
           >
             {CONFIGURABLE_ROLES.map((r) => (
               <option key={r} value={r}>
@@ -181,63 +234,56 @@ export default function PermissionsSettingsPage() {
             ))}
           </select>
           {busy ? (
-            <span className="text-sm text-slate-400">Working…</span>
+            <span className="text-sm text-muted-foreground">Working…</span>
           ) : null}
         </div>
 
-        {error ? (
-          <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="mt-6 overflow-x-auto">
+        <div className="overflow-x-auto rounded-md border">
           <table className="w-full min-w-[640px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-600">
-                <th className="py-2 pr-4">Resource</th>
+              <tr className="border-b bg-muted/50 text-left">
+                <th className="py-2 pr-4 pl-4">Resource</th>
                 {ACTIONS.map((a) => (
-                  <th key={a} className="px-3 py-2 text-center">
-                    {label(a)}
+                  <th key={a} className="px-3 py-2 text-center capitalize">
+                    {a}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {RESOURCES.map((resource) => (
-                <tr key={resource} className="border-b border-slate-100">
-                  <td className="py-2 pr-4 font-medium text-slate-900">
+                <tr key={resource} className="border-b last:border-b-0">
+                  <td className="py-3 pr-4 pl-4 font-medium">
                     {label(resource)}
                   </td>
                   {ACTIONS.map((action) => {
+                    const explicit = overrideFor(resource, action);
                     const allowed = can(
                       [role],
                       resource,
                       action,
                       resolverOverrides,
                     );
-                    const ov = overrideFor(resource, action);
+                    const canGrant = canActorGrant(resource, action);
                     return (
                       <td key={action} className="px-3 py-2 text-center">
-                        <button
+                        <Button
                           type="button"
-                          disabled={busy}
+                          variant={allowed ? "default" : "outline"}
+                          size="sm"
+                          disabled={!canGrant}
                           onClick={() => toggle(resource, action)}
-                          title={
-                            ov
-                              ? `Overridden to ${allowed ? "allow" : "deny"}`
-                              : "Default"
-                          }
-                          className={[
-                            "inline-flex h-7 min-w-[64px] items-center justify-center rounded-full px-3 text-xs font-medium transition disabled:opacity-50",
-                            allowed
-                              ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                              : "bg-slate-100 text-slate-500 hover:bg-slate-200",
-                            ov ? "ring-2 ring-indigo-300" : "",
-                          ].join(" ")}
                         >
-                          {allowed ? "Allow" : "Deny"}
-                        </button>
+                          {allowed ? "Yes" : "No"}
+                          {explicit ? (
+                            <Badge
+                              variant="secondary"
+                              className="ml-2 text-[10px]"
+                            >
+                              override
+                            </Badge>
+                          ) : null}
+                        </Button>
                       </td>
                     );
                   })}
@@ -246,12 +292,7 @@ export default function PermissionsSettingsPage() {
             </tbody>
           </table>
         </div>
-
-        <p className="mt-4 text-xs text-slate-500">
-          A ring marks an explicit override. Click a cell to flip it; clicking
-          again toggles the override the other way.
-        </p>
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }

@@ -45,6 +45,14 @@ async function parseJsonBody(response: Response): Promise<unknown> {
   }
 }
 
+function redirectToLogin() {
+  if (typeof window !== 'undefined') {
+    const url = new URL('/login', window.location.href);
+    url.searchParams.set('reason', 'session_expired');
+    window.location.assign(url.toString());
+  }
+}
+
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
@@ -75,6 +83,9 @@ export async function apiRequest<T>(
       : undefined;
 
   if (!response.ok || apiError) {
+    if (response.status === 401) {
+      redirectToLogin();
+    }
     throw new ApiClientError(
       response.status,
       apiError ?? fallbackMessage(response.status, response.statusText),

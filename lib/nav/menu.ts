@@ -57,6 +57,18 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    title: 'My Profile',
+    href: '/self-service',
+    section: 'People',
+    roles: ['member'],
+  },
+  {
+    title: 'Registrations',
+    href: '/registrations',
+    section: 'People',
+    roles: ['parish_admin', 'parish_staff'],
+  },
+  {
     title: 'Members',
     href: '/members',
     section: 'People',
@@ -107,6 +119,24 @@ export const NAV_ITEMS: NavItem[] = [
       'parish_admin',
       'parish_data_sharing_manager',
     ],
+  },
+  {
+    title: 'Parish Settings',
+    href: '/settings/parish',
+    section: 'Administration',
+    roles: ['parish_admin'],
+  },
+  {
+    title: 'Officers',
+    href: '/settings/officers',
+    section: 'Administration',
+    roles: ['parish_admin', 'parish_staff', 'clergy'],
+  },
+  {
+    title: 'Parish Users',
+    href: '/settings/users',
+    section: 'Administration',
+    roles: ['parish_admin'],
   },
   {
     title: 'Permissions',

@@ -107,6 +107,38 @@ never filters sensitive data client-side.
   `20260630000001_phase4_data_sharing` + RLS
   `20260630000002_phase4_data_sharing_rls.sql`. Plan:
   [docs/releases/r0-platform-foundation/4-data-sharing-aggregate.md](docs/releases/r0-platform-foundation/4-data-sharing-aggregate.md).
+- **Release R1 — People Core UI (phases 5–9) — complete.** Built the authenticated
+  application shell (`components/app/app-shell.tsx`), role-aware navigation
+  (`lib/nav/menu.ts`), shared data/error/loading patterns (`lib/api-client.ts`,
+  `components/patterns/*`), polished `/login` + first-run bootstrap wizard, role
+  dashboards (`app/(app)/page.tsx`), diocese management surfaces
+  (`/diocese/settings`, `/diocese/aggregate`, `/diocese/users`, `/parishes`),
+  parish admin surfaces (`/settings/parish`, `/settings/officers`,
+  `/settings/users`, `/settings/permissions`), family/member CRUD and composed
+  profile (`/families`, `/members`, `/members/[id]`), role-projected member CSV
+  export (`/api/members/export` + UI button), directory upgrade (`/directory`),
+  member self-service (`/self-service`), and self-registration → approval queue
+  (`/register`, `/registrations`). Added public parish list
+  (`/api/public/parishes`) and R1 E2E coverage (`tests/e2e/r1-people-core.test.ts`).
+  **Peer-review hardening (2026-07-04):** `/api/bootstrap` is now first-run-only
+  (409 + DENIED audit once a `DIOCESE_ADMIN` exists — it is public in the proxy, so
+  without the guard any caller could mint an admin); member self-service edit
+  actually works (new `member_self_update` RLS policy in
+  `supabase/migrations/20260704090000_r1_member_self_update_rls.sql` + self-edit
+  branch in `PATCH /api/members/[id]` limited to own row + email/phone, denials
+  audited); built the missing comms opt-in/out
+  (`/api/self-service/communication-preferences` + `/self-service` toggles, honored
+  by the Phase 11 composer via `CommunicationPreference`); CSV export neutralizes
+  formula injection; `GET /api/parishes` role widening reverted. Exit-gate tests
+  added: per-role member-profile field visibility
+  (`tests/e2e/r1-profile-visibility.test.ts`), registration → approval → directory
+  (`tests/e2e/r1-registration-approval.test.ts`), axe a11y gate
+  (`tests/e2e/r1-a11y.test.ts`, drove a `--muted-foreground` contrast token fix),
+  plus `tests/integration/api/r1-self-service.test.ts` and
+  `tests/rls/r1-self-service.test.ts`. Playwright now runs serially with a 15s
+  expect timeout (shared seeded DB + dev-server compile latency).
+  Full suite green (unit/integration/rls/e2e). Plans:
+  [docs/releases/r1-people-core/](docs/releases/r1-people-core/).
 
 ## How to run
 

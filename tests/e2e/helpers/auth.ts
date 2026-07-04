@@ -98,11 +98,13 @@ async function mintCookie(email: string, password: string) {
 
 /**
  * Ensure a MEMBER-role user in Parish A with a seeded date-of-birth (to prove it
- * never reaches the directory) and at least one peer member. Returns the session
- * cookie for browser injection.
+ * never reaches the directory), work notes and a clergy-only private note (to
+ * prove role projection), and at least one peer member. Returns the session
+ * cookie for browser injection plus the member id (= auth uid).
  */
 export async function ensureMemberSession(): Promise<{
   cookie: { name: string; value: string };
+  memberId: string;
 }> {
   const email = 'member-e2e@cms.local';
   const password = 'E2ePassw0rd!';
@@ -138,6 +140,18 @@ export async function ensureMemberSession(): Promise<{
        ON CONFLICT ("memberId") DO UPDATE SET "dateOfBirth"='1990-07-04'`,
       [uid, PARISH_A_ID],
     );
+    // Work notes (staff/admin-visible) and a clergy-only private note — the
+    // per-role profile visibility test asserts exactly who sees these.
+    await c.query(
+      `UPDATE "Member" SET "workNotes"='E2E work note' WHERE id=$1`,
+      [uid],
+    );
+    await c.query(
+      `INSERT INTO "MemberPrivateNote"(id,"memberId","parishId",note,"createdAt","updatedAt")
+       VALUES (gen_random_uuid(),$1,$2,'E2E private pastoral note',now(),now())
+       ON CONFLICT ("memberId") DO UPDATE SET note='E2E private pastoral note'`,
+      [uid, PARISH_A_ID],
+    );
     // Ensure a peer member exists in Parish A so the directory shows >1 row.
     await c.query(
       `INSERT INTO "Member"(id,"dioceseId","parishId","memberIdentifier","firstName","lastName",email,status,"createdAt","updatedAt")
@@ -155,5 +169,120 @@ export async function ensureMemberSession(): Promise<{
   }
 
   const cookie = await mintCookie(email, password);
-  return { cookie };
+  return { cookie, memberId: uid };
+}
+
+/**
+ * Ensure a Parish-A user with the given AppUser role (and, for clergy, an
+ * active CLERGY ParishOfficer assignment on their own Member row — the Phase 7
+ * derivation the claims pipeline keys on). Returns the session cookie.
+ */
+async function ensureRoleSession(opts: {
+  email: string;
+  displayName: string;
+  role: 'PARISH_ADMIN' | 'PARISH_STAFF' | 'MEMBER';
+  memberIdentifier?: string;
+  clergyOfficer?: boolean;
+}): Promise<{ cookie: { name: string; value: string }; userId: string }> {
+  const password = 'E2ePassw0rd!';
+  const uid = await ensureAuthUser(opts.email, password);
+
+  const pool = new Pool({ connectionString: DATABASE_URL });
+  const c = await pool.connect();
+  try {
+    await c.query('BEGIN');
+    await c.query(
+      `INSERT INTO "AppUser"(id,email,"displayName",role,"dioceseId","parishId","isActive","createdAt","updatedAt")
+       VALUES ($1,$2,$3,$4,$5,$6,true,now(),now())
+       ON CONFLICT (id) DO UPDATE SET role=$4,"parishId"=$6,"isActive"=true`,
+      [uid, opts.email, opts.displayName, opts.role, DIOCESE_ID, PARISH_A_ID],
+    );
+    if (opts.memberIdentifier) {
+      await c.query(
+        `INSERT INTO "Member"(id,"dioceseId","parishId","userId","memberIdentifier","firstName","lastName",email,status,"createdAt","updatedAt")
+         VALUES ($1,$2,$3,$1,$4,$5,'E2E',$6,'ACTIVE',now(),now())
+         ON CONFLICT (id) DO UPDATE SET status='ACTIVE',"parishId"=$3`,
+        [
+          uid,
+          DIOCESE_ID,
+          PARISH_A_ID,
+          opts.memberIdentifier,
+          opts.displayName,
+          opts.email,
+        ],
+      );
+    }
+    if (opts.clergyOfficer) {
+      const existing = await c.query(
+        `SELECT id FROM "ParishOfficer" WHERE "memberId"=$1 AND "officerType"='CLERGY'`,
+        [uid],
+      );
+      if (existing.rowCount === 0) {
+        await c.query(
+          `INSERT INTO "ParishOfficer"(id,"parishId","memberId",title,"officerType","isActive","createdAt","updatedAt")
+           VALUES (gen_random_uuid(),$1,$2,'Vicar','CLERGY',true,now(),now())`,
+          [PARISH_A_ID, uid],
+        );
+      } else {
+        await c.query(
+          `UPDATE "ParishOfficer" SET "isActive"=true WHERE "memberId"=$1 AND "officerType"='CLERGY'`,
+          [uid],
+        );
+      }
+    }
+    await c.query('COMMIT');
+  } catch (e) {
+    await c.query('ROLLBACK');
+    throw e;
+  } finally {
+    c.release();
+    await pool.end();
+  }
+
+  const cookie = await mintCookie(opts.email, password);
+  return { cookie, userId: uid };
+}
+
+/** Parish-A PARISH_ADMIN session. */
+export function ensureAdminSession() {
+  return ensureRoleSession({
+    email: 'admin-e2e@cms.local',
+    displayName: 'E2E Admin',
+    role: 'PARISH_ADMIN',
+  });
+}
+
+/** Parish-A PARISH_STAFF session. */
+export function ensureStaffSession() {
+  return ensureRoleSession({
+    email: 'staff-e2e@cms.local',
+    displayName: 'E2E Staff',
+    role: 'PARISH_STAFF',
+  });
+}
+
+/** Name of Parish A (the parish every e2e session belongs to). */
+export async function parishAName(): Promise<string> {
+  const pool = new Pool({ connectionString: DATABASE_URL });
+  try {
+    const { rows } = await pool.query(
+      `SELECT name FROM "Parish" WHERE id=$1`,
+      [PARISH_A_ID],
+    );
+    if (!rows[0]) throw new Error('Parish A fixture missing');
+    return rows[0].name as string;
+  } finally {
+    await pool.end();
+  }
+}
+
+/** Parish-A clergy session: MEMBER role + active CLERGY officer assignment. */
+export function ensureClergySession() {
+  return ensureRoleSession({
+    email: 'clergy-e2e@cms.local',
+    displayName: 'E2E Clergy',
+    role: 'MEMBER',
+    memberIdentifier: '902.1',
+    clergyOfficer: true,
+  });
 }

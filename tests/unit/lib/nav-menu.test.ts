@@ -22,6 +22,7 @@ describe('visibleNavItems', () => {
     expect(visibleNavItems(['member']).map((item) => item.href)).toEqual([
       '/',
       '/directory',
+      '/self-service',
     ]);
   });
 
@@ -29,9 +30,13 @@ describe('visibleNavItems', () => {
     expect(visibleNavItems(['parish_admin']).map((item) => item.href)).toEqual([
       '/',
       '/directory',
+      '/registrations',
       '/members',
       '/families',
       '/sharing',
+      '/settings/parish',
+      '/settings/officers',
+      '/settings/users',
       '/settings/permissions',
       '/audit',
     ]);
@@ -60,7 +65,7 @@ describe('visibleNavItems', () => {
   it('merges derived clergy roles with the base user role', () => {
     expect(
       visibleNavItems(['member', 'clergy']).map((item) => item.href),
-    ).toEqual(['/', '/directory', '/members', '/families']);
+    ).toEqual(['/', '/directory', '/self-service', '/members', '/families', '/settings/officers']);
   });
 });
 
@@ -74,12 +79,18 @@ describe('navSectionsFromClaims', () => {
     ).toEqual([
       {
         title: 'People',
-        items: ['/', '/directory', '/members', '/families'],
+        items: ['/', '/directory', '/registrations', '/members', '/families'],
       },
       { title: 'Sharing', items: ['/sharing'] },
       {
         title: 'Administration',
-        items: ['/settings/permissions', '/audit'],
+        items: [
+          '/settings/parish',
+          '/settings/officers',
+          '/settings/users',
+          '/settings/permissions',
+          '/audit',
+        ],
       },
     ]);
   });

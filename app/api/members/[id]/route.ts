@@ -11,6 +11,35 @@ function requireParishId(parishId: string | null): string {
   return parishId;
 }
 
+export const GET = (
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) =>
+  handle(async () => {
+    const actor = await requireRole([
+      Role.DIOCESE_ADMIN,
+      Role.PARISH_ADMIN,
+      Role.PARISH_STAFF,
+      Role.CLERGY,
+      Role.MEMBER,
+    ]);
+    const parishId = requireParishId(actor.parishId);
+    const claims = await claimsFromUser(actor);
+    const roles = claims.app_metadata.roles;
+    const { id } = await context.params;
+
+    const member = await withTenant(claims, async (tx) => {
+      const existing = await tx.member.findFirst({
+        where: { id, parishId },
+        include: { family: true, privateNote: true, pastoralData: true },
+      });
+      if (!existing) throw new ApiError(404, 'Member not found');
+      return existing;
+    });
+
+    return Response.json({ ok: true, member: projectMember(member, roles) });
+  });
+
 export const PATCH = (
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -21,6 +50,7 @@ export const PATCH = (
       Role.DIOCESE_ADMIN,
       Role.PARISH_ADMIN,
       Role.PARISH_STAFF,
+      Role.MEMBER,
     ]);
     const parishId = requireParishId(actor.parishId);
     const claims = await claimsFromUser(actor);
@@ -43,6 +73,45 @@ export const PATCH = (
       skillsInterests?: string[] | null;
       status?: MemberStatus;
     };
+
+    // Self-service path (Phase 9): a bare member may update ONLY their own
+    // row and ONLY contact fields. The member_self_update RLS policy is the
+    // row-scope backstop; the field whitelist is enforced here.
+    const SELF_EDITABLE_FIELDS = ['email', 'phone'];
+    const isPrivileged = roles.some((role) =>
+      ['global_admin', 'diocese_admin', 'parish_admin', 'parish_staff'].includes(
+        role,
+      ),
+    );
+    if (!isPrivileged) {
+      const ownMemberId = claims.app_metadata.member_id;
+      const disallowed = Object.keys(body).filter(
+        (key) => !SELF_EDITABLE_FIELDS.includes(key),
+      );
+      if (id !== ownMemberId || disallowed.length > 0) {
+        await writeAuditEntry({
+          requestId,
+          actorUserId: actor.id,
+          actorLabel: actor.email,
+          action: 'membership.member.update',
+          entityType: 'member',
+          entityId: id,
+          outcome: AuditOutcome.DENIED,
+          dioceseId: actor.dioceseId,
+          parishId,
+          metadata:
+            id !== ownMemberId
+              ? { reason: 'self_service_other_member' }
+              : { reason: 'self_service_field_not_editable', fields: disallowed },
+        });
+        throw new ApiError(
+          403,
+          id !== ownMemberId
+            ? 'Members may only update their own profile'
+            : 'Members may only update their contact details (email, phone)',
+        );
+      }
+    }
 
     const member = await withTenant(claims, async (tx) => {
       const existing = await tx.member.findFirst({ where: { id, parishId } });

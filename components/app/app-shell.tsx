@@ -69,6 +69,8 @@ export type ShellUser = {
 const NAV_ICONS: Record<string, Icon> = {
   "/": HouseIcon,
   "/directory": UsersThreeIcon,
+  "/self-service": IdentificationCardIcon,
+  "/registrations": IdentificationCardIcon,
   "/members": IdentificationCardIcon,
   "/families": UsersThreeIcon,
   "/diocese/settings": GearIcon,
@@ -76,6 +78,9 @@ const NAV_ICONS: Record<string, Icon> = {
   "/diocese/users": UserCircleIcon,
   "/diocese/aggregate": BuildingsIcon,
   "/sharing": ShareNetworkIcon,
+  "/settings/parish": GearIcon,
+  "/settings/officers": IdentificationCardIcon,
+  "/settings/users": UserCircleIcon,
   "/settings/permissions": ShieldCheckIcon,
   "/audit": ClipboardTextIcon,
 };

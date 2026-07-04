@@ -1,8 +1,12 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { BuildingsIcon } from "@phosphor-icons/react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,65 +22,54 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 
+const loginSchema = z.object({
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(1, "Password is required"),
+});
+
+type LoginForm = z.infer<typeof loginSchema>;
+
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@cms.local");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const searchParams = useSearchParams();
+  const sessionExpired = searchParams.get("reason") === "session_expired";
+  const [resetSent, setResetSent] = useState(false);
 
-  async function handleLogin(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
+  const {
+    register,
+    handleSubmit,
+    getValues,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "admin@cms.local", password: "" },
+  });
 
+  async function onSubmit(data: LoginForm) {
+    setError("root", { message: "" });
     const supabase = getSupabaseBrowserClient();
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: data.email,
+      password: data.password,
     });
 
     if (authError) {
-      setError(authError.message);
-      setBusy(false);
+      setError("root", { message: authError.message });
     } else {
       router.push("/");
       router.refresh();
     }
   }
 
-  async function handleBootstrap() {
-    setBusy(true);
-    setError(null);
-    setInfo(null);
-
-    try {
-      const res = await fetch("/api/bootstrap", { method: "POST" });
-      const data = (await res.json()) as {
-        ok: boolean;
-        message?: string;
-        error?: string;
-        credentials?: { email: string; password: string };
-      };
-
-      if (data.ok) {
-        const creds = data.credentials;
-        if (creds) {
-          setInfo(
-            `Bootstrap complete! Email: ${creds.email} · Password: ${creds.password}`,
-          );
-          setEmail(creds.email);
-          setPassword(creds.password);
-        } else {
-          setInfo(data.message ?? "Bootstrap complete.");
-        }
-      } else {
-        setError(data.error ?? "Bootstrap failed");
-      }
-    } finally {
-      setBusy(false);
+  async function requestPasswordReset() {
+    const emailValue = getValues("email");
+    if (!emailValue || !loginSchema.shape.email.safeParse(emailValue).success) {
+      setError("root", { message: "Enter your email to reset your password." });
+      return;
     }
+    // Stub: password reset is managed by the diocese admin until SMTP is configured.
+    setResetSent(true);
   }
 
   return (
@@ -101,69 +94,91 @@ export default function LoginPage() {
               Enter your credentials to access your parish or diocese workspace.
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
+              {sessionExpired ? (
+                <Alert>
+                  <AlertDescription>
+                    Your session expired. Please sign in again.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  {...register("email")}
+                  aria-invalid={errors.email ? "true" : "false"}
                 />
+                {errors.email ? (
+                  <p className="text-xs text-destructive">
+                    {errors.email.message}
+                  </p>
+                ) : null}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={requestPasswordReset}
+                  >
+                    Forgot password?
+                  </Button>
+                </div>
                 <Input
                   id="password"
                   type="password"
                   autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  {...register("password")}
+                  aria-invalid={errors.password ? "true" : "false"}
                 />
+                {errors.password ? (
+                  <p className="text-xs text-destructive">
+                    {errors.password.message}
+                  </p>
+                ) : null}
               </div>
 
-              {error ? (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+              {resetSent ? (
+                <Alert>
+                  <AlertDescription>
+                    Password reset is managed by your diocese or parish admin.
+                    Please contact them to regain access.
+                  </AlertDescription>
                 </Alert>
               ) : null}
 
-              {info ? (
-                <Alert>
-                  <AlertDescription>{info}</AlertDescription>
+              {errors.root?.message ? (
+                <Alert variant="destructive">
+                  <AlertDescription>{errors.root.message}</AlertDescription>
                 </Alert>
               ) : null}
             </CardContent>
-            <CardFooter>
-              <Button type="submit" className="w-full" disabled={busy}>
-                {busy ? <Spinner /> : null}
+            <CardFooter className="flex-col gap-3">
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? <Spinner /> : null}
                 Sign in
               </Button>
+              <p className="text-xs text-muted-foreground">
+                First time?{" "}
+                <Link
+                  href="/bootstrap"
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  Provision your tenant
+                </Link>
+              </p>
             </CardFooter>
           </form>
         </Card>
-
-        <div className="rounded-lg border border-dashed bg-card px-4 py-3">
-          <p className="text-xs text-muted-foreground">
-            First time? Bootstrap the demo tenant, then sign in with the
-            generated credentials.
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-2 w-full"
-            onClick={handleBootstrap}
-            disabled={busy}
-          >
-            Bootstrap demo tenant
-          </Button>
-        </div>
       </div>
     </main>
   );

@@ -34,12 +34,16 @@ export async function proxy(request: NextRequest) {
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth/') ||
+    pathname === '/register' ||
+    pathname === '/bootstrap' ||
     pathname === '/api-docs' ||
     pathname.startsWith('/api-docs/') ||
     pathname === '/api/bootstrap' ||
     // Public member self-registration intake (MM-8) — validated + rate-limited
     // in the handler; pending members are invisible until approved.
     pathname === '/api/registrations' ||
+    // Public parish list for self-registration form.
+    pathname === '/api/public/parishes' ||
     // Cron worker — guarded by a shared secret header, not user auth.
     pathname === '/api/jobs/process-communications' ||
     pathname === '/api/jobs/expire-sharing-requests' ||
