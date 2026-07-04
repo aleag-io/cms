@@ -112,7 +112,8 @@ export async function POST(request: Request) {
         },
       });
     } else {
-      // Fallback path for unauthenticated first-run: ensure the default admin user exists.
+      // Fallback path for unauthenticated first-run: ensure the default admin
+      // auth user exists, then always bind that auth user ID to AppUser.
       const { data: authData, error: authError } =
         await admin.auth.admin.createUser({
           email: adminEmail,
@@ -130,28 +131,56 @@ export async function POST(request: Request) {
         );
       }
 
-      if (authData?.user) {
-        await prisma.appUser.upsert({
-          where: { id: authData.user.id },
-          update: {
-            email: adminEmail,
-            displayName: adminName,
-            role: Role.DIOCESE_ADMIN,
-            dioceseId: diocese.id,
-            parishId: parish.id,
-            isActive: true,
-          },
-          create: {
-            id: authData.user.id,
-            email: adminEmail,
-            displayName: adminName,
-            role: Role.DIOCESE_ADMIN,
-            dioceseId: diocese.id,
-            parishId: parish.id,
-            isActive: true,
-          },
-        });
+      let authUserId = authData?.user?.id ?? null;
+      if (!authUserId) {
+        const { data: usersData, error: usersError } =
+          await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        if (usersError) {
+          return Response.json(
+            {
+              ok: false,
+              error: usersError.message,
+            },
+            { status: 500 },
+          );
+        }
+
+        const existingAuthUser = usersData.users.find(
+          (user) => user.email?.toLowerCase() === adminEmail.toLowerCase(),
+        );
+        authUserId = existingAuthUser?.id ?? null;
       }
+
+      if (!authUserId) {
+        return Response.json(
+          {
+            ok: false,
+            error: 'Unable to resolve auth user for bootstrap admin',
+          },
+          { status: 500 },
+        );
+      }
+
+      await prisma.appUser.upsert({
+        where: { id: authUserId },
+        update: {
+          email: adminEmail,
+          displayName: adminName,
+          role: Role.DIOCESE_ADMIN,
+          dioceseId: diocese.id,
+          parishId: parish.id,
+          isActive: true,
+        },
+        create: {
+          id: authUserId,
+          email: adminEmail,
+          displayName: adminName,
+          role: Role.DIOCESE_ADMIN,
+          dioceseId: diocese.id,
+          parishId: parish.id,
+          isActive: true,
+        },
+      });
     }
 
     // Seed minimal visible data on first bootstrap for immediate UI feedback.

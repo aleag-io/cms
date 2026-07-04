@@ -21,6 +21,7 @@ help:
 	@echo "  make db-seed                Run npm script db:seed (when added)"
 	@echo "  make db-reset               Run npm script db:reset (when added)"
 	@echo "  make db-migrate             Run npm script db:migrate (when added)"
+	@echo "  make db-rebuild             Run Prisma deploy + Supabase SQL migrations"
 	@echo "  make supabase-init          Initialize Supabase local config"
 	@echo "  make supabase-start         Start Supabase local stack"
 	@echo "  make supabase-stop          Stop Supabase local stack"
@@ -77,6 +78,14 @@ db-migrate:
 		echo "Add one and this target will work without changing the Makefile."; \
 	fi
 
+db-rebuild:
+	@if $(NPM) run | grep -q "  db:rebuild"; then \
+		$(NPM) run db:rebuild; \
+	else \
+		echo "No db:rebuild script found in package.json yet."; \
+		echo "Add one and this target will work without changing the Makefile."; \
+	fi
+
 supabase:
 	@echo "Supabase commands:" \
 	&& echo "  make supabase-init" \
@@ -112,6 +121,7 @@ db-apply-ci-shims:
 
 db-apply-rls:
 	@echo "Applying Supabase SQL migrations (role, RLS, audit trigger, claims hook)"
+	@echo "Uses local supabase_admin via docker when Supabase local is running"
 	$(NPM) run db:apply-rls
 
 test-rls:
