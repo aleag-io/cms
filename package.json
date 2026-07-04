@@ -33,7 +33,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:migrate": "npm run prisma:migrate:dev",
-    "db:reset": "prisma migrate reset --skip-generate",
+    "db:reset": "prisma migrate reset --force && npm run prisma:generate",
     "db:seed": "echo 'Add prisma/seed.ts and wire prisma.seed when ready'",
     "supabase:init": "supabase init",
     "supabase:start": "supabase start",

@@ -2,6 +2,24 @@ const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
+// This CLI doesn't get Next.js's automatic .env.local loading, and
+// DATABASE_URL isn't normally exported to the shell — load it here so the
+// script works whether or not the caller remembered to `source .env.local`.
+// CI sets DATABASE_URL directly, so this is a no-op there.
+if (!process.env.DATABASE_URL) {
+  try {
+    for (const line of fs.readFileSync('.env.local', 'utf8').split('\n')) {
+      const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
+      if (match && !process.env[match[1]]) {
+        process.env[match[1]] = match[2].trim();
+      }
+    }
+  } catch {
+    // .env.local not present — fall through and let the connection fail with
+    // a clear error below instead of silently defaulting.
+  }
+}
+
 // Each arg is a .sql file or a directory. Directories expand to their *.sql
 // files in lexicographic (= timestamp) order, so passing the migrations folder
 // applies every migration in sequence and new ones are picked up automatically.
@@ -18,6 +36,13 @@ function expand(arg) {
 
 const files = process.argv.slice(2).flatMap(expand);
 const url = process.env.DATABASE_URL;
+if (!url) {
+  console.error(
+    'FAILED: DATABASE_URL is not set and .env.local was not found. ' +
+      'Set DATABASE_URL or run this from the project root with a .env.local present.',
+  );
+  process.exit(1);
+}
 
 async function run() {
   for (const f of files) {
