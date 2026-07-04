@@ -10,7 +10,12 @@ function escapeCsv(value: unknown): string {
   if (/^[=+\-@]/.test(str)) {
     str = `'${str}`;
   }
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+  if (
+    str.includes(',') ||
+    str.includes('"') ||
+    str.includes('\n') ||
+    str.includes('\r')
+  ) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
@@ -35,7 +40,10 @@ export const GET = () =>
     const claims = await claimsFromUser(actor);
     const parishId = claims.app_metadata.parish_id;
     if (!parishId) {
-      return new Response('', { status: 200, headers: { 'content-type': 'text/csv' } });
+      return new Response('', {
+        status: 200,
+        headers: { 'content-type': 'text/csv' },
+      });
     }
 
     const rows = await withTenant(claims, (tx) =>
@@ -69,7 +77,10 @@ export const GET = () =>
         baseColumns.push({ key: 'educationLevel', label: 'Education level' });
       }
       if (firstRow.skillsInterests !== undefined) {
-        baseColumns.push({ key: 'skillsInterests', label: 'Skills / interests' });
+        baseColumns.push({
+          key: 'skillsInterests',
+          label: 'Skills / interests',
+        });
       }
       if (firstRow.pastoralData !== undefined) {
         baseColumns.push({ key: 'dateOfBirth', label: 'Date of birth' });
@@ -81,7 +92,9 @@ export const GET = () =>
       }
     }
 
-    const lines: string[] = [baseColumns.map((c) => escapeCsv(c.label)).join(',')];
+    const lines: string[] = [
+      baseColumns.map((c) => escapeCsv(c.label)).join(','),
+    ];
 
     for (const projected of projectedRows) {
       const familyName =
@@ -114,7 +127,9 @@ export const GET = () =>
       if (projected.pastoralData !== undefined) {
         values.dateOfBirth = formatDate(projected.pastoralData?.dateOfBirth);
         values.baptismDate = formatDate(projected.pastoralData?.baptismDate);
-        values.chrismationDate = formatDate(projected.pastoralData?.chrismationDate);
+        values.chrismationDate = formatDate(
+          projected.pastoralData?.chrismationDate,
+        );
       }
       if (projected.privateNote !== undefined) {
         values.privateNote = projected.privateNote?.note ?? '';

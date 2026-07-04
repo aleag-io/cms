@@ -65,7 +65,14 @@ describe('visibleNavItems', () => {
   it('merges derived clergy roles with the base user role', () => {
     expect(
       visibleNavItems(['member', 'clergy']).map((item) => item.href),
-    ).toEqual(['/', '/directory', '/self-service', '/members', '/families', '/settings/officers']);
+    ).toEqual([
+      '/',
+      '/directory',
+      '/self-service',
+      '/members',
+      '/families',
+      '/settings/officers',
+    ]);
   });
 });
 

@@ -172,8 +172,8 @@ export default function MembersPage() {
                             cell: (row) => (
                                 <span
                                     className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.status === "ACTIVE"
-                                            ? "bg-green-100 text-green-800"
-                                            : "bg-amber-100 text-amber-800"
+                                        ? "bg-green-100 text-green-800"
+                                        : "bg-amber-100 text-amber-800"
                                         }`}
                                 >
                                     {row.status}
