@@ -151,6 +151,21 @@ never filters sensitive data client-side.
   (`tests/integration/api/r2-operations-ui.test.ts`), E2E
   (`tests/e2e/r2-parish-operations.test.ts`, `tests/e2e/r2-a11y.test.ts`). Plans:
   [docs/releases/r2-parish-operations/](docs/releases/r2-parish-operations/).
+- **Release R3 — Sovereignty & Sharing UI (phase 12) — complete.** UI over existing
+  Phase 4 **M4** APIs: role-aware sharing console (`/sharing` — requests create/
+  approve/reject, grants issue/revoke, emergency invoke/revoke, contextual
+  user/role/secure-link shares), public secure-link viewer (`/share/[token]`),
+  authenticated share view (`/shares/[id]`). Hardening: atomic maxViews consume,
+  `tokenHash` never returned from share APIs, lifecycle status badges, hard load
+  errors, diocese work-context elevation for share manage. Tests: unit
+  (`tests/unit/lib/sharing.test.ts`, `sharing-constants.test.ts`), integration
+  lifecycle+audit (`tests/integration/api/phase4-sharing.test.ts` incl. concurrent
+  maxViews), E2E (`tests/e2e/r3-sharing.test.ts` — auth, admin console, secure-link
+  create, axe, member/staff gates). Multi-actor request→approve→revoke journey is
+  proven at integration; E2E covers console/role smoke. **Deferred:** richer M3
+  diocese dashboards beyond Tier-2 `/diocese/aggregate` (→ R6 reporting); shell-wide
+  page-level Share menu (contextual create lives on `/sharing`). Plan:
+  [docs/releases/r3-sovereignty-sharing/1-data-sharing-ui.md](docs/releases/r3-sovereignty-sharing/1-data-sharing-ui.md).
 
 ## How to run
 

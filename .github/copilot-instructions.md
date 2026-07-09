@@ -109,6 +109,17 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   expect timeout (shared seeded DB + dev-server compile latency).
   Full suite green (unit/integration/rls/e2e). Plans:
   [docs/releases/r1-people-core/](docs/releases/r1-people-core/).
+- **Release R2 — Parish Operations UI (phases 10–11) — complete.** UI over existing
+  Phase 3 APIs for **M5 Programs/Ministries**, **M6 Events & Facilities**, and
+  **M7 Communications**. Surfaces: `/programs`, `/organizations`, `/events`,
+  `/facilities`, `/messages`. Plans:
+  [docs/releases/r2-parish-operations/](../docs/releases/r2-parish-operations/).
+- **Release R3 — Sovereignty & Sharing UI (phase 12) — complete.** UI over Phase 4
+  **M4** APIs: `/sharing` console (requests, grants, emergency, contextual shares),
+  `/share/[token]` public viewer, `/shares/[id]`. Token hashes never returned;
+  atomic maxViews consume; lifecycle+audit at integration; E2E console/role/axe
+  smoke. Richer M3 diocese dashboards deferred to R6. Plan:
+  [docs/releases/r3-sovereignty-sharing/1-data-sharing-ui.md](../docs/releases/r3-sovereignty-sharing/1-data-sharing-ui.md).
 
 ## How to run
 
