@@ -44,11 +44,32 @@ if (!url) {
   process.exit(1);
 }
 
+/** Supabase pooler/direct URLs often set sslmode=require; strip and use explicit SSL. */
+function clientConfig(connectionString) {
+  let clean = connectionString;
+  try {
+    const u = new URL(connectionString);
+    u.searchParams.delete('sslmode');
+    u.searchParams.delete('sslrootcert');
+    clean = u.toString();
+  } catch {
+    // keep original
+  }
+  const remote =
+    /supabase\.(co|com)|pooler\.supabase/i.test(clean) ||
+    process.env.PGSSL === '1' ||
+    process.env.DATABASE_SSL === '1';
+  return {
+    connectionString: clean,
+    ...(remote ? { ssl: { rejectUnauthorized: false } } : {}),
+  };
+}
+
 async function run() {
   for (const f of files) {
     console.log(`=== Applying ${f} ===`);
     const sql = fs.readFileSync(f, 'utf8');
-    const client = new Client({ connectionString: url });
+    const client = new Client(clientConfig(url));
     try {
       await client.connect();
       await client.query(sql);

@@ -28,6 +28,7 @@
     "test:coverage": "vitest run --coverage",
     "ci": "npm run typecheck && npm run lint && npm run test:unit && npm run test:integration && npm run test:rls && npm run test:e2e",
     "db:apply-rls": "node scripts/apply-sql-supabase-local.js supabase/migrations",
+    "db:apply-rls:remote": "node scripts/apply-sql.js supabase/migrations",
     "db:apply-ci-shims": "node scripts/apply-sql.js scripts/ci-auth-shims.sql",
     "db:rebuild": "npm run prisma:migrate:deploy && npm run db:apply-rls",
     "prisma:generate": "prisma generate",
