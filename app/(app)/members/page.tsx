@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { DownloadIcon, PlusIcon } from "@phosphor-icons/react";
+import { DownloadIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/patterns/page-header";
 import { DataTable } from "@/components/patterns/data-table";
+import { SelectionToolbar } from "@/components/patterns/selection-toolbar";
+import { ConfirmDialog } from "@/components/patterns/confirm-dialog";
 import { apiRequest, isApiClientError } from "@/lib/api-client";
 import { EmptyState, ErrorState, PageSkeleton } from "@/components/patterns/states";
 import { useSession } from "@/hooks/use-session";
@@ -29,16 +31,30 @@ async function fetchMembers(): Promise<MemberListItem[]> {
     return response.members;
 }
 
+async function deactivateMember(id: string): Promise<MemberListItem> {
+    const response = await apiRequest<{ ok: true; member: MemberListItem; }>(
+        `/api/members/${id}`,
+        { method: "DELETE" },
+    );
+    return response.member;
+}
+
 export default function MembersPage() {
     const { claims, isLoading: sessionLoading } = useSession();
     const [members, setMembers] = useState<MemberListItem[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(true);
+    const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+    const [acting, setActing] = useState(false);
 
-    const canManage =
-        claims?.app_metadata.roles.some((role) =>
-            ["parish_admin", "parish_staff"].includes(role),
-        ) ?? false;
+    const roles = claims?.app_metadata.roles ?? [];
+    const canManage = roles.some((role) =>
+        ["parish_admin", "parish_staff", "diocese_admin"].includes(role),
+    );
+    // Matches DELETE /api/members/[id] — parish_staff can create/edit, not deactivate.
+    const canDeactivate = roles.some((role) =>
+        ["parish_admin", "diocese_admin"].includes(role),
+    );
 
     async function exportCsv() {
         try {
@@ -63,6 +79,65 @@ export default function MembersPage() {
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Export failed");
         }
+    }
+
+    function markInactive(id: string) {
+        // DELETE returns the raw Member row without list joins (e.g. family).
+        // Only flip status so list projections stay intact.
+        setMembers((current) =>
+            current.map((row) =>
+                row.id === id ? { ...row, status: "INACTIVE" } : row,
+            ),
+        );
+        setSelectedKeys((current) => {
+            const next = new Set(current);
+            next.delete(id);
+            return next;
+        });
+    }
+
+    async function deactivateOne(id: string) {
+        setActing(true);
+        try {
+            await deactivateMember(id);
+            markInactive(id);
+            toast.success("Member deactivated");
+        } catch (err) {
+            toast.error(
+                isApiClientError(err)
+                    ? err.message
+                    : err instanceof Error
+                        ? err.message
+                        : "Unable to deactivate member",
+            );
+        } finally {
+            setActing(false);
+        }
+    }
+
+    async function deactivateSelected() {
+        const ids = [...selectedKeys].filter((id) => {
+            const row = members.find((m) => m.id === id);
+            return row && row.status !== "INACTIVE";
+        });
+        if (ids.length === 0) return;
+
+        setActing(true);
+        let ok = 0;
+        let failed = 0;
+        for (const id of ids) {
+            try {
+                await deactivateMember(id);
+                markInactive(id);
+                ok += 1;
+            } catch {
+                failed += 1;
+            }
+        }
+        setSelectedKeys(new Set());
+        setActing(false);
+        if (ok > 0) toast.success(`Deactivated ${ok} member${ok === 1 ? "" : "s"}`);
+        if (failed > 0) toast.error(`${failed} could not be deactivated`);
     }
 
     useEffect(() => {
@@ -119,7 +194,7 @@ export default function MembersPage() {
         <div className="flex min-h-full flex-col">
             <PageHeader
                 title="Members"
-                description="Parish member records. Sensitive fields are projected by the API based on your role."
+                description="Parish member records. Sensitive fields are projected by the API based on your role. Deactivate removes people from active rolls; history is retained."
                 actions={
                     <div className="flex items-center gap-2">
                         <Button variant="outline" onClick={exportCsv}>
@@ -139,8 +214,44 @@ export default function MembersPage() {
             />
 
             <div className="flex-1 p-4 sm:p-6">
+                {canDeactivate ? (
+                    <SelectionToolbar
+                        count={selectedKeys.size}
+                        onClear={() => setSelectedKeys(new Set())}
+                    >
+                        <ConfirmDialog
+                            trigger={
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    disabled={acting || selectedKeys.size === 0}
+                                >
+                                    <TrashIcon className="mr-2 size-4" />
+                                    Deactivate selected
+                                </Button>
+                            }
+                            title={`Deactivate ${selectedKeys.size} member${selectedKeys.size === 1 ? "" : "s"}?`}
+                            description="Selected members are set to Inactive. Records and history are kept; they no longer appear as active parish members."
+                            confirmLabel="Deactivate"
+                            onConfirm={() => {
+                                void deactivateSelected();
+                            }}
+                        />
+                    </SelectionToolbar>
+                ) : null}
+
                 <DataTable
                     rows={members}
+                    selection={
+                        canDeactivate
+                            ? {
+                                selectedKeys,
+                                onChange: setSelectedKeys,
+                                isRowSelectable: (row) => row.status !== "INACTIVE",
+                            }
+                            : undefined
+                    }
                     columns={[
                         {
                             key: "memberIdentifier",
@@ -180,6 +291,39 @@ export default function MembersPage() {
                                 </span>
                             ),
                         },
+                        ...(canDeactivate
+                            ? [
+                                {
+                                    key: "actions",
+                                    header: "Actions",
+                                    className: "w-[1%] whitespace-nowrap",
+                                    cell: (row: MemberListItem) =>
+                                        row.status === "INACTIVE" ? (
+                                            <span className="text-xs text-muted-foreground">—</span>
+                                        ) : (
+                                            <ConfirmDialog
+                                                trigger={
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        disabled={acting}
+                                                        className="text-destructive hover:text-destructive"
+                                                    >
+                                                        Deactivate
+                                                    </Button>
+                                                }
+                                                title="Deactivate member?"
+                                                description={`${row.firstName} ${row.lastName} will be set to Inactive. The record and audit history are retained.`}
+                                                confirmLabel="Deactivate"
+                                                onConfirm={() => {
+                                                    void deactivateOne(row.id);
+                                                }}
+                                            />
+                                        ),
+                                },
+                            ]
+                            : []),
                     ]}
                     getRowKey={(row) => row.id}
                     empty={

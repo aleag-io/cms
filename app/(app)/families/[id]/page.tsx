@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { PencilSimpleIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/patterns/page-header";
+import { ConfirmDialog } from "@/components/patterns/confirm-dialog";
 import { EmptyState, ErrorState, PageSkeleton } from "@/components/patterns/states";
 import { DataTable } from "@/components/patterns/data-table";
 import { apiRequest, isApiClientError } from "@/lib/api-client";
 import { useSession } from "@/hooks/use-session";
+import { toast } from "sonner";
 import { FamilyForm } from "./family-form";
 
 type MemberListItem = {
@@ -29,6 +31,7 @@ type FamilyDetail = {
     primaryContactEmail: string | null;
     primaryContactPhone: string | null;
     address: string | null;
+    isActive?: boolean;
     members?: MemberListItem[];
 };
 
@@ -41,16 +44,45 @@ async function fetchFamily(id: string): Promise<FamilyDetail> {
 
 export default function FamilyDetailPage() {
     const params = useParams<{ id: string; }>();
+    const router = useRouter();
     const { claims, isLoading: sessionLoading } = useSession();
     const [family, setFamily] = useState<FamilyDetail | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(true);
     const [editing, setEditing] = useState(false);
+    const [acting, setActing] = useState(false);
 
-    const canManage =
-        claims?.app_metadata.roles.some((role) =>
-            ["parish_admin", "parish_staff"].includes(role),
-        ) ?? false;
+    const roles = claims?.app_metadata.roles ?? [];
+    const canManage = roles.some((role) =>
+        ["parish_admin", "parish_staff", "diocese_admin"].includes(role),
+    );
+    const canDeactivate = roles.some((role) =>
+        ["parish_admin", "diocese_admin"].includes(role),
+    );
+
+    async function deactivateFamily() {
+        if (!family) return;
+        setActing(true);
+        try {
+            const response = await apiRequest<{ ok: true; family: FamilyDetail; }>(
+                `/api/families/${family.id}`,
+                { method: "DELETE" },
+            );
+            setFamily(response.family);
+            toast.success("Family deactivated");
+            router.push("/families");
+        } catch (err) {
+            toast.error(
+                isApiClientError(err)
+                    ? err.message
+                    : err instanceof Error
+                        ? err.message
+                        : "Unable to deactivate family",
+            );
+        } finally {
+            setActing(false);
+        }
+    }
 
     useEffect(() => {
         if (sessionLoading) return;
@@ -107,15 +139,40 @@ export default function FamilyDetailPage() {
                 title={family.familyName}
                 description={`Family ${family.familyNumber}`}
                 actions={
-                    canManage ? (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditing((current) => !current)}
-                        >
-                            <PencilSimpleIcon className="mr-2 size-4" />
-                            {editing ? "Cancel" : "Edit"}
-                        </Button>
+                    canManage || canDeactivate ? (
+                        <div className="flex flex-wrap gap-2">
+                            {canManage ? (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setEditing((current) => !current)}
+                                >
+                                    <PencilSimpleIcon className="mr-2 size-4" />
+                                    {editing ? "Cancel" : "Edit"}
+                                </Button>
+                            ) : null}
+                            {canDeactivate && family.isActive !== false ? (
+                                <ConfirmDialog
+                                    trigger={
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="sm"
+                                            disabled={acting}
+                                        >
+                                            <TrashIcon className="mr-2 size-4" />
+                                            Deactivate
+                                        </Button>
+                                    }
+                                    title="Deactivate family?"
+                                    description={`${family.familyName} (${family.familyNumber}) will be marked inactive. History is retained.`}
+                                    confirmLabel="Deactivate"
+                                    onConfirm={() => {
+                                        void deactivateFamily();
+                                    }}
+                                />
+                            ) : null}
+                        </div>
                     ) : null
                 }
             />
