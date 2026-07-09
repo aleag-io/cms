@@ -91,7 +91,9 @@ export default function MessagesPage() {
   }, []);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   function applyTemplate(id: string) {

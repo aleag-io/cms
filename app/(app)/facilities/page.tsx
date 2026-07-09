@@ -95,7 +95,9 @@ export default function FacilitiesPage() {
 
   useEffect(() => {
     if (sessionLoading) return;
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load, sessionLoading]);
 
   async function createFacility() {

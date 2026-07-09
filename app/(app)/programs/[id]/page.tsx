@@ -120,7 +120,10 @@ export default function ProgramDetailPage() {
   }, [programId]);
 
   useEffect(() => {
-    void load();
+    // Defer so load()'s setState is not treated as sync set-state-in-effect.
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   async function enrollMember() {

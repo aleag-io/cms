@@ -62,7 +62,9 @@ export function TenantContextSwitcher({
   }, [canSwitchParish]);
 
   useEffect(() => {
-    void loadParishes();
+    queueMicrotask(() => {
+      void loadParishes();
+    });
   }, [loadParishes]);
 
   async function enterParish(parishId: string) {

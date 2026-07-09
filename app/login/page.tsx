@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BuildingsIcon } from "@phosphor-icons/react";
@@ -29,7 +29,7 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionExpired = searchParams.get("reason") === "session_expired";
@@ -99,6 +99,115 @@ export default function LoginPage() {
   }
 
   return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Sign in</CardTitle>
+        <CardDescription>
+          Enter your credentials to access your parish or diocese workspace.
+        </CardDescription>
+      </CardHeader>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <CardContent className="space-y-4">
+          {sessionExpired ? (
+            <Alert>
+              <AlertDescription>
+                Your session expired. Please sign in again.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              {...register("email")}
+              aria-invalid={errors.email ? "true" : "false"}
+            />
+            {errors.email ? (
+              <p className="text-xs text-destructive">{errors.email.message}</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs"
+                onClick={requestPasswordReset}
+              >
+                Forgot password?
+              </Button>
+            </div>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              {...register("password")}
+              aria-invalid={errors.password ? "true" : "false"}
+            />
+            {errors.password ? (
+              <p className="text-xs text-destructive">
+                {errors.password.message}
+              </p>
+            ) : null}
+          </div>
+
+          {resetSent ? (
+            <Alert>
+              <AlertDescription>
+                Password reset is managed by your diocese or parish admin. Please
+                contact them to regain access.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {errors.root?.message ? (
+            <Alert variant="destructive">
+              <AlertDescription>{errors.root.message}</AlertDescription>
+            </Alert>
+          ) : null}
+        </CardContent>
+        <CardFooter className="flex-col gap-3">
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? <Spinner /> : null}
+            Sign in
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            First time?{" "}
+            <Link
+              href="/bootstrap"
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              Provision your tenant
+            </Link>
+          </p>
+        </CardFooter>
+      </form>
+    </Card>
+  );
+}
+
+function LoginFormFallback() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Sign in</CardTitle>
+        <CardDescription>Loading…</CardDescription>
+      </CardHeader>
+      <CardContent className="flex justify-center py-8">
+        <Spinner />
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <main className="flex min-h-svh items-center justify-center bg-muted/40 px-4 py-10">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-3 text-center">
@@ -113,98 +222,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign in</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your parish or diocese workspace.
-            </CardDescription>
-          </CardHeader>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <CardContent className="space-y-4">
-              {sessionExpired ? (
-                <Alert>
-                  <AlertDescription>
-                    Your session expired. Please sign in again.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  {...register("email")}
-                  aria-invalid={errors.email ? "true" : "false"}
-                />
-                {errors.email ? (
-                  <p className="text-xs text-destructive">
-                    {errors.email.message}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                    onClick={requestPasswordReset}
-                  >
-                    Forgot password?
-                  </Button>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  {...register("password")}
-                  aria-invalid={errors.password ? "true" : "false"}
-                />
-                {errors.password ? (
-                  <p className="text-xs text-destructive">
-                    {errors.password.message}
-                  </p>
-                ) : null}
-              </div>
-
-              {resetSent ? (
-                <Alert>
-                  <AlertDescription>
-                    Password reset is managed by your diocese or parish admin.
-                    Please contact them to regain access.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-
-              {errors.root?.message ? (
-                <Alert variant="destructive">
-                  <AlertDescription>{errors.root.message}</AlertDescription>
-                </Alert>
-              ) : null}
-            </CardContent>
-            <CardFooter className="flex-col gap-3">
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? <Spinner /> : null}
-                Sign in
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                First time?{" "}
-                <Link
-                  href="/bootstrap"
-                  className="text-primary underline-offset-2 hover:underline"
-                >
-                  Provision your tenant
-                </Link>
-              </p>
-            </CardFooter>
-          </form>
-        </Card>
+        <Suspense fallback={<LoginFormFallback />}>
+          <LoginForm />
+        </Suspense>
       </div>
     </main>
   );
