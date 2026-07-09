@@ -2,6 +2,12 @@ import { Role, type AppUser } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { ApiError } from '@/lib/api';
+import {
+  elevatedRolesForWorkContext,
+  isDioceseScopedRole,
+  resolveWorkingParishId,
+  withWorkingParishScope,
+} from '@/lib/context/working-parish';
 
 // ---------------------------------------------------------------------------
 // SessionClaims — the shape written into request.jwt.claims by withTenant()
@@ -14,6 +20,8 @@ export interface SessionClaims {
   app_metadata: {
     diocese_id: string;
     parish_id: string | null;
+    /** Set when a diocese-scoped user has entered parish work-context. */
+    working_parish_id: string | null;
     roles: string[];
     member_id: string | null;
     clergy_parish_ids: string[];
@@ -115,11 +123,27 @@ let _claimsResolver: ClaimsResolver = async (user) => {
     if (orgLeaderIds.length > 0) roles.add('organization_leader');
   }
 
+  // Parish work-context (shell §7): diocese-scoped actors may temporarily
+  // operate with parish_id set without mutating AppUser.role.
+  const workingParishId = isDioceseScopedRole(user.role)
+    ? await resolveWorkingParishId(user)
+    : null;
+  const effectiveParishId = workingParishId ?? user.parishId;
+
+  // When in parish work-context, surface parish-portal roles for nav (UX only).
+  // requireRole still uses elevatedRolesForWorkContext for API authorization.
+  if (workingParishId) {
+    for (const elevated of elevatedRolesForWorkContext(user.role)) {
+      roles.add(elevated.toLowerCase());
+    }
+  }
+
   return {
     sub: user.id,
     app_metadata: {
       diocese_id: user.dioceseId,
-      parish_id: user.parishId,
+      parish_id: effectiveParishId,
+      working_parish_id: workingParishId,
       roles: [...roles],
       member_id: member?.id ?? null,
       clergy_parish_ids: clergyParishIds,
@@ -141,20 +165,41 @@ export function _setClaimsResolver(fn: ClaimsResolver): () => void {
 // Public API (used by route handlers and server components)
 // ---------------------------------------------------------------------------
 
+/** Raw session user (AppUser row) without work-context parishId overlay. */
 export async function getSessionUser(): Promise<AppUser | null> {
   return _resolver();
+}
+
+/**
+ * Session user with diocese→parish work-context applied (parishId overlay).
+ * Prefer this (and requireSessionUser / requireRole) for all request paths.
+ */
+export async function withWorkingParishApplied(
+  user: AppUser,
+): Promise<AppUser> {
+  return withWorkingParishScope(user);
 }
 
 export async function requireSessionUser(): Promise<AppUser> {
   const user = await getSessionUser();
   if (!user) throw new ApiError(401, 'Unauthorized');
-  return user;
+  return withWorkingParishApplied(user);
 }
 
 export async function requireRole(roles: Role[]): Promise<AppUser> {
   const user = await requireSessionUser();
-  if (!roles.includes(user.role)) throw new ApiError(403, 'Forbidden');
-  return user;
+  if (roles.includes(user.role)) return user;
+
+  // Diocese-scoped actor in parish work-context may satisfy parish operator roles.
+  const workingId = await resolveWorkingParishId(user);
+  if (workingId) {
+    const elevated = elevatedRolesForWorkContext(user.role);
+    if (roles.some((r) => elevated.includes(r))) {
+      return user; // already has parishId overlay from requireSessionUser
+    }
+  }
+
+  throw new ApiError(403, 'Forbidden');
 }
 
 // ---------------------------------------------------------------------------
@@ -163,7 +208,9 @@ export async function requireRole(roles: Role[]): Promise<AppUser> {
 // ---------------------------------------------------------------------------
 
 export async function claimsFromUser(user: AppUser): Promise<SessionClaims> {
-  return _claimsResolver(user);
+  // Ensure work-context parish is reflected even if caller passed a raw AppUser.
+  const scoped = await withWorkingParishApplied(user);
+  return _claimsResolver(scoped);
 }
 
 export async function getSessionClaims(): Promise<SessionClaims | null> {

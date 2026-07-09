@@ -57,6 +57,7 @@ import type { NavSection } from "@/lib/nav/menu";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/api-client";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { TenantContextSwitcher } from "@/components/app/tenant-context-switcher";
 
 export type ShellUser = {
   id: string;
@@ -64,6 +65,13 @@ export type ShellUser = {
   displayName: string;
   role: string;
   parishId: string | null;
+};
+
+export type ShellContext = {
+  portal: "parish" | "diocese";
+  canSwitchParish: boolean;
+  parishName: string | null;
+  workingParishId: string | null;
 };
 
 const NAV_ICONS: Record<string, Icon> = {
@@ -83,6 +91,11 @@ const NAV_ICONS: Record<string, Icon> = {
   "/settings/users": UserCircleIcon,
   "/settings/permissions": ShieldCheckIcon,
   "/audit": ClipboardTextIcon,
+  "/programs": ClipboardTextIcon,
+  "/organizations": UsersThreeIcon,
+  "/events": BuildingsIcon,
+  "/facilities": BuildingsIcon,
+  "/messages": ShareNetworkIcon,
 };
 
 function navIconFor(href: string): Icon {
@@ -97,10 +110,12 @@ export function AppShell({
   children,
   user,
   sections,
+  context,
 }: {
   children: ReactNode;
   user: ShellUser;
   sections: NavSection[];
+  context: ShellContext;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -246,16 +261,12 @@ export function AppShell({
                     </BreadcrumbList>
                   </Breadcrumb>
                 </div>
-                <span
-                  className={cn(
-                    "hidden rounded-md border px-2 py-1 text-[0.6875rem] text-muted-foreground sm:inline-flex",
-                    user.parishId
-                      ? "border-border"
-                      : "border-amber-300 text-amber-700",
-                  )}
-                >
-                  {user.parishId ? "Parish context" : "Diocese context"}
-                </span>
+                <TenantContextSwitcher
+                  canSwitchParish={context.canSwitchParish}
+                  initialPortal={context.portal}
+                  initialParishName={context.parishName}
+                  initialWorkingParishId={context.workingParishId}
+                />
               </header>
               <main className="flex-1">{children}</main>
             </div>

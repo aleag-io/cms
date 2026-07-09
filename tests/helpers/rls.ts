@@ -56,6 +56,7 @@ export function makeClaims(opts: {
     app_metadata: {
       diocese_id: opts.dioceseId,
       parish_id: opts.parishId,
+      working_parish_id: null,
       roles: [opts.role],
       member_id: opts.memberId ?? null,
       clergy_parish_ids: opts.clergyParishIds ?? [],

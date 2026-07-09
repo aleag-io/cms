@@ -114,9 +114,14 @@ flowchart TD
   - Member self-service portal
   - **Fully responsive layout supporting desktop, tablet, and mobile browsers**
 - **Key Considerations:**
-  - Role-aware navigation (menus differ by user role and tenant level)
+  - Role-aware **and portal-aware** navigation (menus differ by user role **and** active
+    tenant portal: diocese vs parish work-context — see shell plan §7)
+  - Parish-scoped users never see diocese-only chrome; diocese users may **enter** a parish
+    work-context to see parish-and-below UI only (claims/session scoped; RLS remains the
+    security boundary; enter/exit audited)
   - A global **Share** entry in the top menu bar on every page where the user can share the current resource context
-  - Tenant context carried in Supabase session JWT claims
+  - Tenant context carried in Supabase session JWT claims (including optional
+    `working_parish_id` for diocese work-context when implemented)
   - Server Components for data-heavy views; Client Components for interactive UI
   - shadcn/ui components are customized per the diocese branding theme
 

@@ -50,13 +50,15 @@ server-side and must degrade gracefully on `401`/`403`.
 - **PR 5-1 — Data layer & patterns.** `lib/api-client.ts`, TanStack Query provider,
   `components/patterns/{Skeleton,EmptyState,ErrorState,ForbiddenState,ConfirmDialog,PageHeader,DataTable}.tsx`.
 - **PR 5-2 — App shell.** `app/(app)/layout.tsx` with responsive sidebar/topbar, breadcrumb,
-  user menu, sign-out (`DELETE /api/session`), and the parish/context switcher for multi-parish
-  users. `lib/nav/menu.ts` + tests.
+  user menu, sign-out (`DELETE /api/session`), and the **tenant context control** (see §7 —
+  multi-parish member switcher **and** diocese-admin “work in parish” mode). `lib/nav/menu.ts`
+  + tests.
 - **PR 5-3 — Auth & guards.** Polished `/login`, session-expiry re-auth, route guard helper
   (`requireSession` redirect for pages), password-reset stub. Redirect unauthenticated → `/login`,
   unauthorized → `ForbiddenState`.
 - **PR 5-4 — Role dashboards.** `/` routes each role to its landing surface (diocese, parish,
-  member, guest); placeholder cards linking to later-phase areas.
+  member, guest). Dashboard cards and empty destinations must respect **portal scope** (§7):
+  parish-scoped roles never see diocese destinations (even as disabled/placeholder cards).
 - **PR 5-5 — First-run provisioning wizard.** Multi-step form over `POST /api/bootstrap`
   (diocese + first admin), replacing the console bootstrap.
 - **PR 5-6 — Retire console.** Delete `app/mvp1-console.tsx`; `app/page.tsx` renders the
@@ -79,11 +81,125 @@ server-side and must degrade gracefully on `401`/`403`.
 2. No session → no protected route reachable (E2E).
 3. Nav shows only role-appropriate destinations (unit + E2E); hidden destinations still `403`.
 4. axe clean on shell/login/dashboard.
+5. **Portal scope (§7):** parish-scoped users never see Diocese section / diocese dashboard
+   cards; diocese-admin “work in parish X” mode shows parish-and-below nav only and is audited.
 
 ## 6. AGENTS.md update (on completion)
 
 Mark this R1 item complete: app shell, design system, auth foundation, data layer, role
 dashboards; `mvp1-console` retired.
+
+---
+
+## 7. Tenant context & portal scope *(product requirement — gap as of R2)*
+
+### 7.1 Intent
+
+The product has **two portal layers** that must not bleed into each other in the UI:
+
+| Portal | Who (default) | Sees |
+| ------ | ------------- | ---- |
+| **Diocese portal** | `GLOBAL_ADMIN`, `DIOCESE_ADMIN`, `DIOCESE_STAFF`, `DIOCESE_REPORT_VIEWER` with no active parish work-context | Diocese settings, parish portfolio, aggregate, diocese users/audit, sharing (diocese side) |
+| **Parish portal** | Anyone with an active `parish_id` (Parish Admin/Staff/Clergy/leaders/members) **or** a Diocese Admin who has **entered** a parish work-context | People, Parish ops (R2), parish administration, parish-scope sharing — **nothing diocese-only** |
+
+**UX-12** (requirements): nav is role-aware *and* tenant-scope-aware. Role alone is not enough
+once a diocese admin can “work inside” a parish.
+
+### 7.2 What is already accounted for
+
+| Behavior | Status | Where |
+| -------- | ------ | ----- |
+| Nav items filtered by **role** (`lib/nav/menu.ts`) | ✅ shipped | Parish Admin does **not** receive Diocese Settings / Parishes / Aggregate / Diocese Users links |
+| Header badge “Parish context” vs “Diocese context” | ⚠️ **display-only** | `components/app/app-shell.tsx` — derived from `user.parishId`; **not** a switcher |
+| Multi-parish **member** default/primary parish (MM-17) | ⚠️ planned, partial | Phase 5 PR 5-2 text (“context switcher for multi-parish users”); Phase 2 access-control plan; no full switcher UX yet |
+| Security: parish data isolation for diocese roles without grants | ✅ shipped | RLS — diocese claims without grants see **zero** raw member/family rows |
+
+### 7.3 What is **not** accounted for (gaps)
+
+1. **Parish Admin (and other parish-only roles) must not see diocese *chrome* at all.**  
+   Today the dashboard still renders a “Diocese” card with “Not available for this role” for
+   parish users — that is still diocese-facing UI and fails the “parish and below only” rule.
+   Fix: hide diocese destinations/cards entirely for parish-scoped sessions (not merely disable).
+
+2. **Diocese Admin “work in parish” context switch is not designed or built.**  
+   There is no way for a diocese admin to select Parish X and get a **parish-portal** nav
+   (people, programs, events, parish settings, …) while suppressing diocese-only nav. The header
+   badge is not interactive. Parish-scoped APIs generally require `parish_id` on the actor, which
+   diocese admins lack (`parishId = null`).
+
+3. **Session / claims model for temporary parish work-context is unspecified.**  
+   Need an explicit, auditable mechanism (below) — not silent role elevation to `PARISH_ADMIN`.
+
+### 7.4 Target design — tenant context control (header)
+
+Replace the static badge with a **context control** in the top bar (right side):
+
+#### A. Parish-scoped users (Parish Admin, Staff, Clergy, leaders, members)
+
+- Control shows **current parish name** (not “Diocese context”).
+- **No diocese destinations** in sidebar, dashboard, or breadcrumbs.
+- If the user has **multiple parish memberships** (MM-17): control is a **select/switcher** of
+  parishes they belong to; switching updates working parish context (primary default) and
+  refreshes nav/data. Members cannot switch into parishes they are not a member of.
+
+#### B. Diocese-scoped users (Diocese Admin / Staff / Report Viewer, Global Admin)
+
+- Default: **Diocese context** — diocese portal only (structural + aggregate; no raw parish ops
+  unless separately granted).
+- Control is a **dropdown**: “Diocese (all parishes)” + list of parishes (from
+  `GET /api/parishes` structural list).
+- Choosing a parish enters **parish work-context**:
+  - UI switches to **parish portal** nav only (People, Parish ops, parish Administration /
+    Sharing as permitted by **effective** role in that mode).
+  - Diocese-only items (Diocese Settings, Aggregate, Diocese Users, diocese-wide Parish
+    portfolio management) are **hidden** until the user returns to Diocese context.
+  - Breadcrumb or chip: `Working in: {Parish Name}` with clear **Exit parish context**.
+
+#### C. Security rules for diocese → parish work-context *(non-negotiable)*
+
+| Rule | Detail |
+| ---- | ------ |
+| UI is not the boundary | Entering parish work-context **never** bypasses RLS. Every API remains `withTenant` + role checks. |
+| No silent role minting | Do **not** rewrite `AppUser.role` to `PARISH_ADMIN`. Prefer one of: (1) **session work-context claim** `app_metadata.working_parish_id` set via a dedicated API + short-lived cookie/JWT refresh, with server maps that treat diocese admin + working parish as **read/write parish operator only where product policy allows**, or (2) **explicit “act as Parish Admin”** that creates a time-bounded, audited assignment — product must choose; default recommendation is (1) with **least privilege**: start as **read-only parish observer** unless product explicitly requires write. |
+| Audit | Every enter/exit of parish work-context writes an audit row (`context.parish.enter` / `context.parish.exit`) with actor, parish, correlation id. |
+| Report Viewer | May enter parish work-context for **read-only** aggregate/structural views only — never parish write surfaces. |
+| Emergency access remains separate | Emergency Access (M4) is not a substitute for work-context; it stays Tier-3 grant-scoped and time-limited. |
+
+### 7.5 Nav derivation (updated)
+
+`lib/nav/menu.ts` (or a successor) must take:
+
+```
+visibleNavItems(roles, { portal: 'diocese' | 'parish', parishId: string | null })
+```
+
+- `portal = 'parish'` → **exclude** all items with `section === 'Diocese'`.
+- `portal = 'diocese'` → **exclude** parish-only operational destinations that require a working
+  parish (programs, events, facilities, members, …) unless the product later allows diocese-wide
+  lists without parish scope.
+- Unit tests: parish_admin never lists diocese hrefs; diocese_admin in diocese mode never lists
+  `/programs`; diocese_admin in parish work-context lists parish portal hrefs and not
+  `/diocese/aggregate`.
+
+### 7.6 Implementation placement
+
+| Work | Suggested home |
+| ---- | -------------- |
+| Hide diocese chrome for parish users (dashboard cards, any residual links) | **Immediate R1 shell polish** (small PR; no schema) |
+| Multi-parish member switcher (MM-17) | R1 shell / People (Phase 5–8 gap) |
+| Diocese Admin parish work-context + claims/API + audit + nav portal mode | **New shell item** — track as **R1 follow-up** or early **R3** if bundling with diocese dashboards; must land before diocese users rely on parish ops UI |
+| E2E: parish admin never sees “Diocese”; diocese admin enter/exit parish context | Phase 5 exit gate item 5 + dedicated E2E |
+
+### 7.7 Acceptance criteria (for the gap close-out)
+
+1. Logged in as **Parish Admin**: sidebar and dashboard contain **no** Diocese section, no
+   “Diocese” card, no aggregate/parishes management routes (direct URL → 403/Forbidden).
+2. Logged in as **Diocese Admin**: default view is diocese portal only.
+3. Diocese Admin selects Parish X → nav becomes parish-and-below only; chip shows parish name;
+   exit returns to diocese portal.
+4. Enter/exit parish work-context produces audit rows; RLS still blocks unauthorized cross-parish
+   data.
+5. Unit tests encode the portal×role matrix in `nav-menu` (or equivalent).
 
 ---
 
@@ -104,8 +220,10 @@ API returns for the current role and hide what it does not; they degrade gracefu
    profiles) using the session from `lib/auth.ts`; client components for interactive forms and
    TanStack Query mutations. Read `node_modules/next/dist/docs/` before adding routes — this is
    **not** the Next.js in training data (see AGENTS.md).
-3. **Role-aware navigation.** `lib/nav/menu.ts` derives the visible nav tree from
-   `getSessionClaims()` roles. Nav hiding is UX only; every destination is independently guarded.
+3. **Role- and portal-aware navigation.** `lib/nav/menu.ts` derives the visible nav tree from
+   `getSessionClaims()` roles **and** active tenant portal (`diocese` vs `parish` work-context —
+   §7). Nav hiding is UX only; every destination is independently guarded. Parish-scoped
+   sessions never surface diocese-only destinations (including disabled dashboard cards).
 4. **Shared states.** Standard `Skeleton`, `EmptyState`, `ErrorState`, `ForbiddenState`,
    `ConfirmDialog`, and toast (`sonner`) in `components/patterns/**` — no bespoke spinners.
 5. **Forms.** `react-hook-form` + `zod` schemas mirroring the API's server-side validation (the

@@ -54,7 +54,9 @@ RLS shipped, UI mostly not.
 **M0 — Platform Foundation** *(cross-cutting substrate; hard dependency of all)*
 Multi-tenant RLS + `app_authenticated` role, the claims pipeline (`claimsFromUser`/
 `getSessionClaims`), append-only audit, `lib/db/withTenant.ts`, the Prisma↔Supabase migration
-split, and — on the UI side — the design system/app shell/auth/data layer (Phase 5).
+split, and — on the UI side — the design system/app shell/auth/data layer (Phase 5), including
+**portal-aware nav** and **tenant context switcher** (parish-only portal vs diocese portal +
+diocese-admin “work in parish” mode — shell plan §7; partially shipped: role nav only).
 
 **M1 — People & Membership** *(the core domain everything references)*
 Diocese→Parish→Family→Member hierarchy, member identifiers (`<family>.<index>`), status
@@ -184,8 +186,8 @@ same ledger, so it is one module, not two.
 
 ## 4. Module state summary
 
-- **Fully backed, UI pending:** M1, M2, M3, M4, M5, M6, M7 (MVP1 APIs exist; UI to build).
-- **Foundation:** M0 backend shipped; UI shell (Phase 5) is the gating UI dependency.
+- **Fully backed + UI shipped (R0–R2):** M0 (incl. shell), M1, M2, M3 (core UI), M5, M6, M7.
+- **Fully backed, UI pending:** M4 (data-sharing UI = R3); M3 advanced dashboards (R3).
 - **Greenfield:** M8 (full sacramental records — dates exist), M9 (liturgical calendar),
   M10 (finance & giving), M11 (reporting).
 - **Partial/continuous:** M12 (integrations), M13 (public), M14 (hardening).
@@ -211,12 +213,13 @@ tests + audit). Releases are additive and independently demoable to real parishe
 - **Outcome:** **a parish office runs membership end-to-end; a diocese oversees parishes.** First
   release worth deploying to a pilot parish.
 
-### R2 — Parish Operations
+### R2 — Parish Operations *(shipped)*
 - **Modules:** **M5** · **M6** · **M7**.
 - **Delivers:** programs/ministries (leader-scoped rosters + attendance), organizations
   (exclusive-membership conflicts), events (RSVP/attendance), facilities (booking-conflict UI),
   communications composer.
 - **Phases:** 10, 11.  **Outcome:** daily parish life runs in the system.
+- **State:** ✅ complete (UI + API extensions + exit-gate tests).
 
 ### R3 — Sovereignty & Sharing
 - **Modules:** **M4** · **M3 (advanced dashboards)**.
