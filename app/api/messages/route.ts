@@ -21,6 +21,41 @@ function requireParishId(parishId: string | null): string {
   return parishId;
 }
 
+export const GET = () =>
+  handle(async () => {
+    const actor = await requireRole([Role.PARISH_ADMIN, Role.PARISH_STAFF]);
+    const parishId = requireParishId(actor.parishId);
+    const claims = await claimsFromUser(actor);
+
+    const messages = await withTenant(claims, (tx) =>
+      tx.message.findMany({
+        where: { parishId },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: {
+          _count: { select: { recipients: true } },
+          recipients: {
+            select: { status: true },
+          },
+        },
+      }),
+    );
+
+    const projected = messages.map((message) => {
+      const statusCounts = message.recipients.reduce(
+        (acc, r) => {
+          acc[r.status] = (acc[r.status] ?? 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+      const { recipients: _recipients, ...rest } = message;
+      return { ...rest, statusCounts };
+    });
+
+    return Response.json({ ok: true, messages: projected });
+  });
+
 export const POST = (request: Request) =>
   handle(async () => {
     const requestId = randomUUID();

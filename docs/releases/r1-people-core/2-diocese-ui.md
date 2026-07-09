@@ -44,3 +44,15 @@ cross-parish dashboard, with a proven guarantee that the diocese UI cannot surfa
    schema assertion).
 2. Parish create/deactivate and Parish Admin assignment are audited (asserted).
 3. Report Viewer is read-only, summary-only (proven).
+
+---
+
+## 5. Cross-reference — tenant context switcher
+
+**Diocese Admin “work in parish X”** (enter a parish portal, hide diocese-only nav, exit back)
+is **not** fully specified or built in R1 diocese UI. Canonical product rules live in
+[1-design-system-shell.md §7](./1-design-system-shell.md) (Tenant context & portal scope).
+
+Phase 6 delivers **diocese portal** surfaces only (settings, parish portfolio, aggregate,
+diocese users). Opening a parish from the portfolio for **day-to-day parish operations** must
+use the shell work-context control (§7.4B), not by mixing diocese and parish nav in one view.

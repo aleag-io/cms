@@ -139,6 +139,18 @@ never filters sensitive data client-side.
   expect timeout (shared seeded DB + dev-server compile latency).
   Full suite green (unit/integration/rls/e2e). Plans:
   [docs/releases/r1-people-core/](docs/releases/r1-people-core/).
+- **Release R2 — Parish Operations UI (phases 10–11) — complete.** UI over existing
+  Phase 3 APIs for **M5 Programs/Ministries**, **M6 Events & Facilities**, and
+  **M7 Communications**. Surfaces: `/programs` (+ enrollments, sessions, attendance
+  grid), `/organizations` (+ roster, officers, exclusive-membership conflict dialog),
+  `/events` (+ RSVP + attendance), `/facilities` (booking + DB EXCLUDE conflict UI),
+  `/messages` (composer + delivery status). Nav **Parish** section is role-aware.
+  API extensions: program sessions/attendance, org membership leave + officers,
+  event attendance GET/PATCH, facility bookings GET, messages GET, message-templates.
+  Exit-gate tests: unit (attendance-grid, org display, nav), integration
+  (`tests/integration/api/r2-operations-ui.test.ts`), E2E
+  (`tests/e2e/r2-parish-operations.test.ts`, `tests/e2e/r2-a11y.test.ts`). Plans:
+  [docs/releases/r2-parish-operations/](docs/releases/r2-parish-operations/).
 
 ## How to run
 

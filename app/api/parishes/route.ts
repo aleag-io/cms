@@ -8,7 +8,14 @@ import { ApiError, handle } from '@/lib/api';
 
 export const GET = () =>
   handle(async () => {
-    const actor = await requireRole([Role.DIOCESE_ADMIN, Role.GLOBAL_ADMIN]);
+    // Diocese portal + context switcher: all diocese-scoped roles may list
+    // structural parish rows in their diocese (Tier-1). Writes stay admin-only.
+    const actor = await requireRole([
+      Role.DIOCESE_ADMIN,
+      Role.GLOBAL_ADMIN,
+      Role.DIOCESE_STAFF,
+      Role.DIOCESE_REPORT_VIEWER,
+    ]);
     const claims = await claimsFromUser(actor);
 
     const parishes = await withTenant(claims, (tx) =>

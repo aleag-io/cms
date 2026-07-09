@@ -57,8 +57,11 @@ max_client_conn = 100
 # secret_key = "env(SECRET_VALUE)"
 
 [db.migrations]
-# If disabled, migrations will be skipped during a db push or reset.
-enabled = true
+# Prisma owns schema (tables/enums/indexes). Supabase SQL owns RLS/grants/hooks.
+# Apply order: `npx prisma migrate deploy` → `npm run db:apply-rls`.
+# Keep auto-apply OFF so a fresh `supabase start` does not GRANT on tables
+# that Prisma has not created yet.
+enabled = false
 # Specifies an ordered list of schema files that describe your database.
 # Supports glob patterns relative to supabase directory: "./schemas/*.sql"
 schema_paths = []
@@ -414,7 +417,3 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # Set enabled = false to fall back to the legacy migra engine.
 [experimental.pgdelta]
 enabled = true
-# Directory under `supabase/` where declarative files are written.
-# declarative_schema_path = "./database"
-# JSON string passed through to pg-delta SQL formatting.
-# format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"

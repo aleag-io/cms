@@ -151,3 +151,61 @@ export const POST = (request: Request, ctx: Ctx) =>
       throw err;
     }
   });
+
+/** End an active membership (leftAt). Used by exclusive-conflict "move" flow. */
+export const PATCH = (request: Request, ctx: Ctx) =>
+  handle(async () => {
+    const requestId = randomUUID();
+    const { id: organizationId } = await ctx.params;
+    const actor = await requireRole([
+      Role.PARISH_ADMIN,
+      Role.PARISH_STAFF,
+      Role.ORGANIZATION_LEADER,
+    ]);
+    const parishId = requireParishId(actor.parishId);
+    const claims = await claimsFromUser(actor);
+
+    const body = (await request.json()) as {
+      membershipId?: string;
+      action?: 'leave';
+    };
+    if (!body.membershipId) throw new ApiError(400, 'membershipId is required');
+    if (body.action !== 'leave') {
+      throw new ApiError(400, 'action must be "leave"');
+    }
+
+    const membership = await withTenant(claims, async (tx) => {
+      const existing = await tx.organizationMembership.findFirst({
+        where: {
+          id: body.membershipId,
+          organizationId,
+          parishId,
+          leftAt: null,
+        },
+      });
+      if (!existing) throw new ApiError(404, 'Active membership not found');
+
+      return tx.organizationMembership.update({
+        where: { id: existing.id },
+        data: { leftAt: new Date() },
+      });
+    });
+
+    await writeAuditEntry({
+      requestId,
+      actorUserId: actor.id,
+      actorLabel: actor.email,
+      action: 'operations.organization_membership.leave',
+      entityType: 'organization_membership',
+      entityId: membership.id,
+      outcome: AuditOutcome.SUCCESS,
+      dioceseId: actor.dioceseId,
+      parishId,
+      metadata: {
+        organizationId,
+        memberId: membership.memberId,
+      },
+    });
+
+    return Response.json({ ok: true, membership });
+  });

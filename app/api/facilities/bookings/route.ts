@@ -11,6 +11,34 @@ function requireParishId(parishId: string | null): string {
   return parishId;
 }
 
+export const GET = (request: Request) =>
+  handle(async () => {
+    const actor = await requireRole([
+      Role.PARISH_ADMIN,
+      Role.PARISH_STAFF,
+      Role.MEMBER,
+    ]);
+    const parishId = requireParishId(actor.parishId);
+    const claims = await claimsFromUser(actor);
+    const facilityId = new URL(request.url).searchParams.get('facilityId');
+
+    const bookings = await withTenant(claims, (tx) =>
+      tx.facilityBooking.findMany({
+        where: {
+          parishId,
+          ...(facilityId ? { facilityId } : {}),
+          status: { not: FacilityBookingStatus.CANCELLED },
+        },
+        include: {
+          facility: { select: { id: true, name: true } },
+        },
+        orderBy: { startAt: 'asc' },
+      }),
+    );
+
+    return Response.json({ ok: true, bookings });
+  });
+
 export const POST = (request: Request) =>
   handle(async () => {
     const requestId = randomUUID();

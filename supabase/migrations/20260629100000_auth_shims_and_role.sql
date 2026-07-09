@@ -25,13 +25,28 @@ BEGIN
   END IF;
 END $$;
 
--- Allow the role running migrations to switch into app_authenticated
--- via SET LOCAL ROLE (needed inside withTenant() transactions).
+-- Allow SET LOCAL ROLE app_authenticated (needed inside withTenant()).
+-- On Supabase local, SQL is often applied as supabase_admin while the app
+-- connects as postgres (not a superuser) — both need membership.
 DO $$
+DECLARE
+  target text;
 BEGIN
-  EXECUTE format('GRANT app_authenticated TO %I', current_user);
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
+  FOREACH target IN ARRAY ARRAY[
+    current_user,
+    'postgres',
+    'supabase_admin'
+  ]
+  LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = target) THEN
+      BEGIN
+        EXECUTE format('GRANT app_authenticated TO %I', target);
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+        WHEN insufficient_privilege THEN NULL;
+      END;
+    END IF;
+  END LOOP;
 END $$;
 
 -- Schema usage

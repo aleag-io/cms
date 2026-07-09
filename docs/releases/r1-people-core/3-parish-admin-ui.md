@@ -8,6 +8,10 @@
 **Phase goal:** parish profile, member-ID scheme, officers/board (+ Clergy derivation), parish
 users/roles, the permission-override matrix, and the parish-scope audit log.
 
+**Portal rule:** Parish Admin / Staff sessions are **parish portal only**. They must not see
+diocese-only navigation, diocese dashboard cards, or diocese aggregate/settings routes (even as
+disabled placeholders). See [1-design-system-shell.md §7](./1-design-system-shell.md).
+
 ---
 
 ## 1. APIs consumed

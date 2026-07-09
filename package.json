@@ -36,6 +36,7 @@
     "db:migrate": "npm run prisma:migrate:dev",
     "db:reset": "prisma migrate reset --force && npm run prisma:generate",
     "db:seed": "echo 'Add prisma/seed.ts and wire prisma.seed when ready'",
+    "db:ensure-local-admin": "node scripts/ensure-local-admin.js",
     "supabase:init": "supabase init",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",

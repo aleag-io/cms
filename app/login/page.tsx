@@ -56,10 +56,36 @@ export default function LoginPage() {
 
     if (authError) {
       setError("root", { message: authError.message });
-    } else {
-      router.push("/");
-      router.refresh();
+      return;
     }
+
+    // Supabase Auth can succeed while CMS has no AppUser row (e.g. after a
+    // test DB reset that TRUNCATEs public tables but leaves auth.users).
+    // AuthenticatedLayout then treats the session as logged-out and bounces
+    // back to /login — surface that clearly instead of a silent loop.
+    try {
+      const sessionRes = await fetch("/api/session", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const sessionJson = (await sessionRes.json()) as {
+        ok?: boolean;
+        user?: { id: string } | null;
+      };
+      if (!sessionJson.user) {
+        await supabase.auth.signOut();
+        setError("root", {
+          message:
+            "Signed in to Auth, but this account is not provisioned in the CMS (no AppUser). Re-run bootstrap for a first-time install, or ask a diocese admin to create your user. Local tip: integration tests wipe AppUser — re-link admin@cms.local or re-bootstrap after a DB reset.",
+        });
+        return;
+      }
+    } catch {
+      // If the check fails, still attempt navigation; layout will re-validate.
+    }
+
+    router.push("/");
+    router.refresh();
   }
 
   async function requestPasswordReset() {
