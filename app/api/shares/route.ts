@@ -5,37 +5,40 @@ import { withTenant } from '@/lib/db/withTenant';
 import { writeAuditEntry } from '@/lib/audit';
 import { ApiError, handle } from '@/lib/api';
 import { generateToken } from '@/lib/sharing/tokens';
+import { publicShare } from '@/lib/sharing/public-share';
+import { elevatedRolesForWorkContext } from '@/lib/context/working-parish';
 
-function ensureCanCreateShare(roles: Role[]) {
-  const allowed = new Set<Role>([
-    Role.PARISH_ADMIN,
-    Role.PARISH_STAFF,
-    Role.PARISH_DATA_SHARING_MANAGER,
-    Role.CLERGY,
-    Role.ORGANIZATION_LEADER,
-    Role.MINISTRY_LEADER,
-  ]);
-  if (!roles.some((r) => allowed.has(r))) {
+const SHARE_CREATE_ROLES = new Set<Role>([
+  Role.PARISH_ADMIN,
+  Role.PARISH_STAFF,
+  Role.PARISH_DATA_SHARING_MANAGER,
+  Role.CLERGY,
+  Role.ORGANIZATION_LEADER,
+  Role.MINISTRY_LEADER,
+]);
+
+function effectiveShareRoles(role: Role): Role[] {
+  return [role, ...elevatedRolesForWorkContext(role)];
+}
+
+function ensureCanCreateShare(role: Role) {
+  if (!effectiveShareRoles(role).some((r) => SHARE_CREATE_ROLES.has(r))) {
     throw new ApiError(403, 'Forbidden');
   }
 }
 
 function canManageShares(role: Role): boolean {
-  return role === Role.PARISH_ADMIN || role === Role.PARISH_DATA_SHARING_MANAGER;
-}
-
-/** Strip token hashes — raw tokens are only returned once at create time. */
-function publicShare<T extends Record<string, unknown>>(share: T) {
-  const rest = { ...share };
-  delete rest.tokenHash;
-  return rest;
+  return effectiveShareRoles(role).some(
+    (r) =>
+      r === Role.PARISH_ADMIN || r === Role.PARISH_DATA_SHARING_MANAGER,
+  );
 }
 
 export const GET = () =>
   handle(async () => {
     const actor = await requireSessionUser();
     if (!actor.parishId) throw new ApiError(400, 'Parish scope required');
-    ensureCanCreateShare([actor.role]);
+    ensureCanCreateShare(actor.role);
     const claims = await claimsFromUser(actor);
 
     const shares = await withTenant(claims, (tx) =>
@@ -59,7 +62,7 @@ export const POST = (request: Request) =>
     const requestId = randomUUID();
     const actor = await requireSessionUser();
     if (!actor.parishId) throw new ApiError(400, 'Parish scope required');
-    ensureCanCreateShare([actor.role]);
+    ensureCanCreateShare(actor.role);
     const claims = await claimsFromUser(actor);
 
     const body = (await request.json().catch(() => null)) as

@@ -6,20 +6,9 @@ import { ApiError, handle } from '@/lib/api';
 import { hashToken } from '@/lib/sharing/tokens';
 import { anonymizeResource } from '@/lib/sharing/anonymize';
 import { resolveSharedResource } from '@/lib/sharing/resources';
+import { tryConsumeShareView } from '@/lib/sharing/consume-view';
 
 type Ctx = { params: Promise<{ token: string }> };
-
-function isShareAccessible(share: {
-  isActive: boolean;
-  expiresAt: Date | null;
-  maxViews: number | null;
-  viewCount: number;
-}) {
-  if (!share.isActive) return false;
-  if (share.expiresAt && share.expiresAt <= new Date()) return false;
-  if (share.maxViews !== null && share.viewCount >= share.maxViews) return false;
-  return true;
-}
 
 export const GET = (_request: Request, ctx: Ctx) =>
   handle(async () => {
@@ -31,27 +20,25 @@ export const GET = (_request: Request, ctx: Ctx) =>
       where: { tokenHash },
     });
 
-    if (!share || share.shareMode !== ShareMode.SECURE_LINK || !isShareAccessible(share)) {
-      if (share) {
-        await writeAuditEntry({
-          requestId,
-          actorLabel: 'secure-link',
-          action: 'sharing.share.denied',
-          entityType: 'contextual_share',
-          entityId: share.id,
-          outcome: AuditOutcome.DENIED,
-          dioceseId: share.dioceseId,
-          parishId: share.parishId,
-          metadata: { shareId: share.id },
-        });
-      }
+    if (!share || share.shareMode !== ShareMode.SECURE_LINK) {
       throw new ApiError(403, 'Share is no longer accessible');
     }
 
-    const updated = await prisma.contextualShare.update({
-      where: { id: share.id },
-      data: { viewCount: { increment: 1 } },
-    });
+    const updated = await tryConsumeShareView(share.id);
+    if (!updated) {
+      await writeAuditEntry({
+        requestId,
+        actorLabel: 'secure-link',
+        action: 'sharing.share.denied',
+        entityType: 'contextual_share',
+        entityId: share.id,
+        outcome: AuditOutcome.DENIED,
+        dioceseId: share.dioceseId,
+        parishId: share.parishId,
+        metadata: { shareId: share.id },
+      });
+      throw new ApiError(403, 'Share is no longer accessible');
+    }
 
     const payload = await resolveSharedResource({
       parishId: updated.parishId,

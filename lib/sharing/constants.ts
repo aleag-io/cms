@@ -55,3 +55,27 @@ export function isExpired(value: string | Date | null | undefined): boolean {
   const d = typeof value === 'string' ? new Date(value) : value;
   return d.getTime() <= Date.now();
 }
+
+/** Lifecycle status for contextual shares (UI + tests). */
+export type ShareLifecycleStatus =
+  | 'active'
+  | 'revoked'
+  | 'expired'
+  | 'exhausted';
+
+export function shareLifecycleStatus(share: {
+  isActive: boolean;
+  expiresAt?: string | Date | null;
+  maxViews?: number | null;
+  viewCount?: number;
+}): ShareLifecycleStatus {
+  if (!share.isActive) return 'revoked';
+  if (isExpired(share.expiresAt)) return 'expired';
+  if (
+    share.maxViews != null &&
+    (share.viewCount ?? 0) >= share.maxViews
+  ) {
+    return 'exhausted';
+  }
+  return 'active';
+}

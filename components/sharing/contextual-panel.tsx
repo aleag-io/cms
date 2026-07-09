@@ -29,6 +29,7 @@ import { apiRequest, isApiClientError } from "@/lib/api-client";
 import {
   SHARE_RESOURCE_TYPES,
   formatDateTime,
+  shareLifecycleStatus,
 } from "@/lib/sharing/constants";
 import { ActiveBadge } from "@/components/sharing/status-badge";
 import type { ContextualShare } from "@/components/sharing/types";
@@ -303,7 +304,10 @@ export function ContextualPanel({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {shares.map((s) => (
+                {shares.map((s) => {
+                  const lifecycle = shareLifecycleStatus(s);
+                  const isLive = lifecycle === "active";
+                  return (
                   <TableRow key={s.id}>
                     <TableCell>{s.shareMode}</TableCell>
                     <TableCell>
@@ -311,7 +315,12 @@ export function ContextualPanel({
                       {s.resourceId ? ` · ${s.resourceId.slice(0, 8)}…` : ""}
                     </TableCell>
                     <TableCell>
-                      <ActiveBadge isActive={s.isActive} expiresAt={s.expiresAt} />
+                      <ActiveBadge
+                        isActive={s.isActive}
+                        expiresAt={s.expiresAt}
+                        maxViews={s.maxViews}
+                        viewCount={s.viewCount}
+                      />
                     </TableCell>
                     <TableCell>
                       {s.viewCount}
@@ -324,7 +333,7 @@ export function ContextualPanel({
                       <div className="flex gap-2">
                         {(s.shareMode === "USER_SHARE" ||
                           s.shareMode === "ROLE_SHARE") &&
-                        s.isActive ? (
+                        isLive ? (
                           <Button type="button" size="sm" variant="outline" asChild>
                             <Link href={`/shares/${s.id}`}>Open</Link>
                           </Button>
@@ -355,7 +364,8 @@ export function ContextualPanel({
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}

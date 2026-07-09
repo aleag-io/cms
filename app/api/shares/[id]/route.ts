@@ -4,9 +4,17 @@ import { claimsFromUser, requireSessionUser } from '@/lib/auth';
 import { withTenant } from '@/lib/db/withTenant';
 import { writeAuditEntry } from '@/lib/audit';
 import { ApiError, handle } from '@/lib/api';
+import { publicShare } from '@/lib/sharing/public-share';
+import { elevatedRolesForWorkContext } from '@/lib/context/working-parish';
 
 function canManage(role: Role): boolean {
-  return role === Role.PARISH_ADMIN || role === Role.PARISH_DATA_SHARING_MANAGER;
+  const elevated = elevatedRolesForWorkContext(role);
+  return (
+    role === Role.PARISH_ADMIN ||
+    role === Role.PARISH_DATA_SHARING_MANAGER ||
+    elevated.includes(Role.PARISH_ADMIN) ||
+    elevated.includes(Role.PARISH_DATA_SHARING_MANAGER)
+  );
 }
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -22,14 +30,17 @@ export const GET = (_request: Request, ctx: Ctx) =>
         where: {
           id,
           OR: canManage(actor.role)
-            ? [{ parishId: actor.parishId ?? undefined }, { createdByUserId: actor.id }]
+            ? [
+                { parishId: actor.parishId ?? undefined },
+                { createdByUserId: actor.id },
+              ]
             : [{ createdByUserId: actor.id }],
         },
       }),
     );
 
     if (!share) throw new ApiError(404, 'Share not found');
-    return Response.json({ ok: true, share });
+    return Response.json({ ok: true, share: publicShare(share) });
   });
 
 export const DELETE = (_request: Request, ctx: Ctx) =>
@@ -44,7 +55,10 @@ export const DELETE = (_request: Request, ctx: Ctx) =>
         where: {
           id,
           OR: canManage(actor.role)
-            ? [{ parishId: actor.parishId ?? undefined }, { createdByUserId: actor.id }]
+            ? [
+                { parishId: actor.parishId ?? undefined },
+                { createdByUserId: actor.id },
+              ]
             : [{ createdByUserId: actor.id }],
         },
       });
@@ -73,5 +87,5 @@ export const DELETE = (_request: Request, ctx: Ctx) =>
       parishId: actor.parishId,
     });
 
-    return Response.json({ ok: true, share: updated });
+    return Response.json({ ok: true, share: publicShare(updated) });
   });

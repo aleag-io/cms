@@ -72,6 +72,47 @@ describe('Phase 4 sharing lifecycle', () => {
     for (const share of listed.shares) {
       expect(share.tokenHash).toBeUndefined();
     }
+
+    const detail = await shareRoute.GET(
+      new Request(`http://localhost/api/shares/${created.share.id}`),
+      ctx(created.share.id),
+    );
+    expect(detail.status).toBe(200);
+    const detailData = await detail.json();
+    expect(detailData.share.tokenHash).toBeUndefined();
+  });
+
+  it('atomic view consume enforces maxViews under concurrent access', async () => {
+    const parishAdmin = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAAdmin.id },
+    });
+    resetAuth = asUser(parishAdmin);
+
+    const create = await sharesRoute.POST(
+      jsonReq('http://localhost/api/shares', 'POST', {
+        resourceType: 'member_list',
+        shareMode: 'SECURE_LINK',
+        isAnonymized: true,
+        maxViews: 1,
+      }),
+    );
+    const created = await create.json();
+    const token = created.secureLinkToken as string;
+
+    resetAuth = asGuest();
+    const [a, b] = await Promise.all([
+      secureLinkRoute.GET(
+        new Request(`http://localhost/api/shares/link/${token}`),
+        tokenCtx(token),
+      ),
+      secureLinkRoute.GET(
+        new Request(`http://localhost/api/shares/link/${token}`),
+        tokenCtx(token),
+      ),
+    ]);
+    const statuses = [a.status, b.status].sort();
+    // Exactly one success under maxViews=1.
+    expect(statuses).toEqual([200, 403]);
   });
 
   it('request -> approve -> grant issued -> revoke writes audit trail', async () => {

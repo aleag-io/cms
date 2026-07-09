@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorState, PageSkeleton } from "@/components/patterns/states";
-import { apiRequest, isApiClientError } from "@/lib/api-client";
+import { ApiClientError, apiRequest, isApiClientError } from "@/lib/api-client";
 import { useSession } from "@/hooks/use-session";
 import { RequestsPanel } from "@/components/sharing/requests-panel";
 import { GrantsPanel } from "@/components/sharing/grants-panel";
@@ -18,9 +18,14 @@ import type {
   SharingRequest,
 } from "@/components/sharing/types";
 
+function isHardFailure(err: unknown): boolean {
+  if (!isApiClientError(err)) return true;
+  return err.status === 401 || err.status === 403 || err.status >= 500;
+}
+
 export default function SharingPage() {
   const { claims, isLoading: sessionLoading } = useSession();
-  const [tab, setTab] = useState("requests");
+  const [tab, setTab] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [requests, setRequests] = useState<SharingRequest[]>([]);
@@ -36,8 +41,6 @@ export default function SharingPage() {
   const canCreateRequest = roles.some((r) =>
     ["diocese_admin", "diocese_staff"].includes(r),
   );
-  // Review/grant manage need a parish scope (home parish or diocese work-context).
-  // Diocese admin work-context elevates to parish_admin in claims for UX.
   const canReviewRequest =
     Boolean(parishId) &&
     roles.some((r) =>
@@ -74,88 +77,119 @@ export default function SharingPage() {
         "ministry_leader",
       ].includes(r),
     );
+  const canListRequests = canCreateRequest || canReviewRequest || canViewGrants;
 
   const parishNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of parishes) map.set(p.id, p.name);
+    // Parish-scoped actors never hit /api/parishes (diocese-only).
+    if (parishId && !map.has(parishId)) {
+      map.set(parishId, "This parish");
+    }
     return map;
-  }, [parishes]);
+  }, [parishes, parishId]);
 
   const load = useCallback(async () => {
     setError(null);
+    const hardErrors: string[] = [];
+
+    async function safeLoad<T>(
+      label: string,
+      fn: () => Promise<T>,
+      onOk: (value: T) => void,
+      onSoftEmpty: () => void,
+    ) {
+      try {
+        onOk(await fn());
+      } catch (err) {
+        if (isHardFailure(err)) {
+          hardErrors.push(
+            err instanceof ApiClientError
+              ? `${label}: ${err.message}`
+              : err instanceof Error
+                ? `${label}: ${err.message}`
+                : `${label}: failed`,
+          );
+        }
+        onSoftEmpty();
+      }
+    }
+
     try {
       const tasks: Promise<void>[] = [];
 
-      tasks.push(
-        apiRequest<{ ok: true; requests: SharingRequest[] }>("/api/sharing/requests")
-          .then((r) => {
-            setRequests(r.requests);
-          })
-          .catch(() => {
-            setRequests([]);
-          }),
-      );
+      if (canListRequests) {
+        tasks.push(
+          safeLoad(
+            "Requests",
+            () =>
+              apiRequest<{ ok: true; requests: SharingRequest[] }>(
+                "/api/sharing/requests",
+              ),
+            (r) => setRequests(r.requests),
+            () => setRequests([]),
+          ),
+        );
+      }
 
       if (canViewGrants) {
         tasks.push(
-          apiRequest<{ ok: true; grants: SharingGrant[] }>("/api/sharing/grants")
-            .then((r) => {
-              setGrants(r.grants);
-            })
-            .catch(() => {
-              setGrants([]);
-            }),
+          safeLoad(
+            "Grants",
+            () =>
+              apiRequest<{ ok: true; grants: SharingGrant[] }>(
+                "/api/sharing/grants",
+              ),
+            (r) => setGrants(r.grants),
+            () => setGrants([]),
+          ),
         );
       }
 
       if (canViewEmergency) {
         tasks.push(
-          apiRequest<{ ok: true; grants: EmergencyGrant[] }>(
-            "/api/sharing/emergency",
-          )
-            .then((r) => {
-              setEmergency(r.grants);
-            })
-            .catch(() => {
-              setEmergency([]);
-            }),
+          safeLoad(
+            "Emergency",
+            () =>
+              apiRequest<{ ok: true; grants: EmergencyGrant[] }>(
+                "/api/sharing/emergency",
+              ),
+            (r) => setEmergency(r.grants),
+            () => setEmergency([]),
+          ),
         );
       }
 
       if (canCreateShares) {
         tasks.push(
-          apiRequest<{ ok: true; shares: ContextualShare[] }>("/api/shares")
-            .then((r) => {
-              setShares(r.shares);
-            })
-            .catch(() => {
-              setShares([]);
-            }),
+          safeLoad(
+            "Shares",
+            () =>
+              apiRequest<{ ok: true; shares: ContextualShare[] }>("/api/shares"),
+            (r) => setShares(r.shares),
+            () => setShares([]),
+          ),
         );
       }
 
-      // Diocese actors need the parish list for request/emergency forms.
       if (canCreateRequest || canInvokeEmergency) {
         tasks.push(
-          apiRequest<{ ok: true; parishes: ParishOption[] }>("/api/parishes")
-            .then((r) => {
-              setParishes(r.parishes);
-            })
-            .catch(() => {
-              setParishes([]);
-            }),
+          safeLoad(
+            "Parishes",
+            () =>
+              apiRequest<{ ok: true; parishes: ParishOption[] }>(
+                "/api/parishes",
+              ),
+            (r) => setParishes(r.parishes),
+            () => setParishes([]),
+          ),
         );
       }
 
       await Promise.all(tasks);
-    } catch (err) {
-      setError(
-        isApiClientError(err)
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : "Unable to load sharing console",
-      );
+      if (hardErrors.length > 0) {
+        setError(hardErrors.join(" · "));
+      }
     } finally {
       setBusy(false);
     }
@@ -163,17 +197,41 @@ export default function SharingPage() {
     canCreateRequest,
     canCreateShares,
     canInvokeEmergency,
+    canListRequests,
     canViewEmergency,
     canViewGrants,
   ]);
 
   useEffect(() => {
     if (sessionLoading) return;
-    // Defer so setState is not synchronous inside the effect body (eslint).
     queueMicrotask(() => {
       void load();
     });
   }, [sessionLoading, load]);
+
+  // Pick a default tab once roles are known.
+  useEffect(() => {
+    if (sessionLoading || tab) return;
+    const defaultTab = canListRequests
+      ? "requests"
+      : canViewGrants
+        ? "grants"
+        : canViewEmergency
+          ? "emergency"
+          : canCreateShares
+            ? "contextual"
+            : "";
+    if (defaultTab) {
+      queueMicrotask(() => setTab(defaultTab));
+    }
+  }, [
+    sessionLoading,
+    tab,
+    canListRequests,
+    canViewGrants,
+    canViewEmergency,
+    canCreateShares,
+  ]);
 
   if (sessionLoading || busy) {
     return (
@@ -189,7 +247,7 @@ export default function SharingPage() {
     );
   }
 
-  if (error) {
+  if (error && requests.length === 0 && grants.length === 0) {
     return (
       <div className="flex min-h-full flex-col">
         <PageHeader title="Data sharing" description="Could not load console." />
@@ -208,9 +266,16 @@ export default function SharingPage() {
       />
 
       <div className="flex-1 p-4 sm:p-6">
+        {error ? (
+          <p className="mb-4 text-sm text-destructive" role="alert">
+            Partial load issues: {error}
+          </p>
+        ) : null}
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="mb-4 flex h-auto flex-wrap">
-            <TabsTrigger value="requests">Requests</TabsTrigger>
+            {canListRequests ? (
+              <TabsTrigger value="requests">Requests</TabsTrigger>
+            ) : null}
             {canViewGrants ? (
               <TabsTrigger value="grants">Grants</TabsTrigger>
             ) : null}
@@ -222,16 +287,18 @@ export default function SharingPage() {
             ) : null}
           </TabsList>
 
-          <TabsContent value="requests">
-            <RequestsPanel
-              requests={requests}
-              parishes={parishes}
-              canCreate={canCreateRequest}
-              canReview={canReviewRequest}
-              parishNameById={parishNameById}
-              onChanged={load}
-            />
-          </TabsContent>
+          {canListRequests ? (
+            <TabsContent value="requests">
+              <RequestsPanel
+                requests={requests}
+                parishes={parishes}
+                canCreate={canCreateRequest}
+                canReview={canReviewRequest}
+                parishNameById={parishNameById}
+                onChanged={load}
+              />
+            </TabsContent>
+          ) : null}
 
           {canViewGrants ? (
             <TabsContent value="grants">
