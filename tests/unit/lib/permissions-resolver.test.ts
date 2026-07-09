@@ -51,4 +51,29 @@ describe('permissions resolver', () => {
       }),
     ).not.toThrow();
   });
+
+  it('defaults sacramental register like pastoral data for clergy/admin, not staff', () => {
+    expect(can(['clergy'], 'member_sacramental_record', 'write')).toBe(true);
+    expect(can(['parish_admin'], 'member_sacramental_record', 'export')).toBe(
+      true,
+    );
+    expect(can(['pastoral_data_accessor'], 'member_sacramental_record', 'read')).toBe(
+      true,
+    );
+    expect(can(['parish_staff'], 'member_sacramental_record', 'read')).toBe(
+      false,
+    );
+    expect(can(['member'], 'member_sacramental_record', 'read')).toBe(false);
+  });
+
+  it('allows parish admin to grant staff sacramental access via override', () => {
+    expect(() =>
+      assertCanGrant(['parish_admin'], {
+        role: 'parish_staff',
+        resource: 'member_sacramental_record',
+        action: 'write',
+        isAllowed: true,
+      }),
+    ).not.toThrow();
+  });
 });

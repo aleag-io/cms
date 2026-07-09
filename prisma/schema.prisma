@@ -98,10 +98,22 @@ enum PermissionResource {
   MEMBER_PROFILE
   MEMBER_PRIVATE_NOTE
   MEMBER_PASTORAL_DATA
+  MEMBER_SACRAMENTAL_RECORD
   PARISH_DIRECTORY
   MEMBER_EXPORT
   PARISH_OFFICER
   PARISH_PERMISSION_OVERRIDE
+}
+
+/// Seven sacramental record types of the Mar Thoma Church (PA-7).
+enum SacramentType {
+  BAPTISM
+  HOLY_COMMUNION
+  CONFIRMATION
+  CONFESSION
+  MARRIAGE
+  ORDINATION
+  ANOINTING_OF_THE_SICK
 }
 
 enum PermissionAction {
@@ -285,6 +297,7 @@ model Parish {
   privateNotes             MemberPrivateNote[]
   memberPastoralData       MemberPastoralData[]
   familyPastoralData       FamilyPastoralData[]
+  sacramentalRecords       SacramentalRecord[]
   permissionOverrides      ParishPermissionOverride[]
   memberRelationships      MemberRelationship[]
   programs                 Program[]
@@ -337,6 +350,7 @@ model AppUser {
   createdContextualShares    ContextualShare[]          @relation("ContextualShareCreatedBy")
   recipientContextualShares  ContextualShare[]          @relation("ContextualShareRecipient")
   revokedContextualShares    ContextualShare[]          @relation("ContextualShareRevokedBy")
+  createdSacramentalRecords  SacramentalRecord[]         @relation("SacramentalRecordCreatedBy")
 
   @@index([dioceseId, role])
   @@index([parishId, role])
@@ -390,6 +404,8 @@ model Member {
   officerAssignments       ParishOfficer[]
   privateNote              MemberPrivateNote?
   pastoralData             MemberPastoralData?
+  sacramentalRecords       SacramentalRecord[]        @relation("SacramentalRecordSubject")
+  spouseOfSacramental      SacramentalRecord[]        @relation("SacramentalRecordSpouse")
   memberParishes           MemberParish[]
   relatedTo                MemberRelationship[]       @relation("MemberRelationshipFrom")
   relatedFrom              MemberRelationship[]       @relation("MemberRelationshipTo")
@@ -466,6 +482,44 @@ model FamilyPastoralData {
   parish          Parish    @relation(fields: [parishId], references: [id], onDelete: Cascade)
 
   @@index([parishId])
+}
+
+/// Full sacramental register row (R4 / M8). Pastoral dates on MemberPastoralData
+/// remain summary fields; this table is the official register.
+model SacramentalRecord {
+  id               String        @id @default(uuid()) @db.Uuid
+  parishId         String        @db.Uuid
+  memberId         String        @db.Uuid
+  sacramentType    SacramentType
+  occurredOn       DateTime      @db.Date
+  officiantName    String?
+  locationText     String?
+  registerBook     String?
+  registerPage     String?
+  registerEntry    String?
+  notes            String?
+  /// Godparents / sponsors (baptism, confirmation).
+  sponsorNames     String?
+  /// In-parish spouse when known (marriage).
+  spouseMemberId   String?       @db.Uuid
+  /// Free-text spouse when not linked to a Member.
+  spouseName       String?
+  witnessNames     String?
+  ordainedOffice   String?
+  /// Confession: reference only — never confession content.
+  pastoralNoteRef  String?
+  isActive         Boolean       @default(true)
+  createdByUserId  String?       @db.Uuid
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  parish           Parish        @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  member           Member        @relation("SacramentalRecordSubject", fields: [memberId], references: [id], onDelete: Cascade)
+  spouseMember     Member?       @relation("SacramentalRecordSpouse", fields: [spouseMemberId], references: [id], onDelete: SetNull)
+  createdBy        AppUser?      @relation("SacramentalRecordCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([parishId, sacramentType, occurredOn])
+  @@index([memberId, sacramentType])
+  @@index([parishId, isActive])
 }
 
 model MemberRelationship {
