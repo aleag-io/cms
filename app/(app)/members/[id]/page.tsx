@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { MemberBasicForm } from "./member-basic-form";
 import { MemberPastoralForm } from "./member-pastoral-form";
 import { MemberPrivateNoteForm } from "./member-private-note-form";
+import { MemberSacramentalPanel } from "./member-sacramental-panel";
 import { MemberRelationships } from "./member-relationships";
 import { MemberParishes } from "./member-parishes";
 
@@ -73,6 +74,8 @@ export default function MemberDetailPage() {
         roles.some((role) =>
             ["parish_admin", "pastoral_data_accessor"].includes(role),
         );
+    const canSeeSacramental = canSeePastoral;
+    const canWriteSacramental = canSeePastoral;
 
     async function deactivateMember() {
         if (!member) return;
@@ -199,6 +202,9 @@ export default function MemberDetailPage() {
                         {canSeePastoral ? (
                             <TabsTrigger value="pastoral">Pastoral</TabsTrigger>
                         ) : null}
+                        {canSeeSacramental ? (
+                            <TabsTrigger value="sacramental">Sacramental</TabsTrigger>
+                        ) : null}
                         {isClergy ? (
                             <TabsTrigger value="private-note">Private note</TabsTrigger>
                         ) : null}
@@ -226,6 +232,16 @@ export default function MemberDetailPage() {
                                 memberId={member.id}
                                 initial={member.pastoralData ?? null}
                                 canEdit={canSeePastoral}
+                            />
+                        </TabsContent>
+                    ) : null}
+
+                    {canSeeSacramental ? (
+                        <TabsContent value="sacramental">
+                            <MemberSacramentalPanel
+                                memberId={member.id}
+                                memberName={`${member.firstName} ${member.lastName}`}
+                                canWrite={canWriteSacramental}
                             />
                         </TabsContent>
                     ) : null}

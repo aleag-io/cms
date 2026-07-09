@@ -166,6 +166,19 @@ never filters sensitive data client-side.
   diocese dashboards beyond Tier-2 `/diocese/aggregate` (→ R6 reporting); shell-wide
   page-level Share menu (contextual create lives on `/sharing`). Plan:
   [docs/releases/r3-sovereignty-sharing/1-data-sharing-ui.md](docs/releases/r3-sovereignty-sharing/1-data-sharing-ui.md).
+- **Release R4 — Sacramental Records & Liturgical Calendar — complete.** **M8:**
+  `SacramentalRecord` schema + RLS (privileged parish RW, member own-read,
+  `SACRAMENTAL_RECORDS` grant path); CRUD APIs under
+  `/api/members/[id]/sacramental-records` and parish search
+  `/api/sacramental-records`; dual-write baptism/chrismation to
+  `MemberPastoralData`; member profile Sacramental tab; register search UI;
+  print certificate MVP; permission resource `member_sacramental_record`.
+  **M9:** `LiturgicalObservance` (diocese-wide + parish-local) + RLS; APIs
+  `/api/liturgical`; diocese manage UI `/diocese/liturgical`; events calendar
+  liturgical overlay. Tests: `tests/rls/r4-sacramental.test.ts`,
+  `tests/rls/r4-liturgical.test.ts`, `tests/integration/api/r4-sacramental.test.ts`,
+  `tests/e2e/r4-sacramental.test.ts`. Plans:
+  [docs/releases/r4-sacramental-liturgical/](docs/releases/r4-sacramental-liturgical/).
 
 ## How to run
 

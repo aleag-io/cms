@@ -116,6 +116,15 @@ enum SacramentType {
   ANOINTING_OF_THE_SICK
 }
 
+enum ObservanceType {
+  FEAST
+  HOLY_DAY
+  SEASON_START
+  SEASON_END
+  DIOCESAN_EVENT
+  OTHER
+}
+
 enum PermissionAction {
   READ
   WRITE
@@ -266,6 +275,7 @@ model Diocese {
   sharingGrants         DataSharingGrant[]
   emergencyAccessGrants EmergencyAccessGrant[]
   contextualShares      ContextualShare[]
+  liturgicalObservances LiturgicalObservance[]
 }
 
 model Parish {
@@ -322,6 +332,7 @@ model Parish {
   sharingGrants            DataSharingGrant[]
   emergencyAccessGrants    EmergencyAccessGrant[]
   contextualShares         ContextualShare[]
+  liturgicalObservances    LiturgicalObservance[]
 
   @@index([dioceseId])
 }
@@ -520,6 +531,33 @@ model SacramentalRecord {
   @@index([parishId, sacramentType, occurredOn])
   @@index([memberId, sacramentType])
   @@index([parishId, isActive])
+}
+
+/// Diocese-published or parish-local liturgical observance (R4 / M9).
+/// parishId NULL = diocese-wide entry; non-null = parish-local only.
+model LiturgicalObservance {
+  id             String         @id @default(uuid()) @db.Uuid
+  dioceseId      String         @db.Uuid
+  parishId       String?        @db.Uuid
+  title          String
+  observanceType ObservanceType @default(FEAST)
+  /// Annual recurrence month (1–12). Prefer over RRULE for v1 feasts.
+  month          Int?
+  /// Annual recurrence day of month (1–31).
+  day            Int?
+  /// One-off or season date (optional when month/day set).
+  occursOn       DateTime?      @db.Date
+  endsOn         DateTime?      @db.Date
+  lectionaryRef  String?
+  isPublished    Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  diocese        Diocese        @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish         Parish?        @relation(fields: [parishId], references: [id], onDelete: Cascade)
+
+  @@index([dioceseId, isPublished])
+  @@index([parishId, occursOn])
+  @@index([dioceseId, month, day])
 }
 
 model MemberRelationship {

@@ -25,7 +25,7 @@ export async function resetTestDb() {
   // immutability trigger) and is faster than DELETE for bulk cleanup.
   // CASCADE handles FK dependencies in one shot.
   await testDb.$executeRawUnsafe(
-    `TRUNCATE "AuditEntry", "ContextualShare", "EmergencyAccessGrant", "DataSharingGrant", "DataSharingRequest", "MemberRegistration", "VolunteerAssignment", "CommunicationPreference", "MessageTemplate", "MessageRecipient", "Message", "FacilityBooking", "Facility", "EventAttendance", "Event", "OrganizationOfficer", "OrganizationMembership", "Organization", "ProgramSessionAttendance", "ProgramSession", "ProgramEnrollment", "Program", "ParishPermissionOverride", "MemberRelationship", "SacramentalRecord", "FamilyPastoralData", "MemberPastoralData", "MemberPrivateNote", "ParishOfficer", "MemberParish", "Member", "Family", "AppUser", "Parish", "Diocese" CASCADE`,
+    `TRUNCATE "AuditEntry", "ContextualShare", "EmergencyAccessGrant", "DataSharingGrant", "DataSharingRequest", "MemberRegistration", "VolunteerAssignment", "CommunicationPreference", "MessageTemplate", "MessageRecipient", "Message", "FacilityBooking", "Facility", "EventAttendance", "Event", "OrganizationOfficer", "OrganizationMembership", "Organization", "ProgramSessionAttendance", "ProgramSession", "ProgramEnrollment", "Program", "ParishPermissionOverride", "MemberRelationship", "SacramentalRecord", "LiturgicalObservance", "FamilyPastoralData", "MemberPastoralData", "MemberPrivateNote", "ParishOfficer", "MemberParish", "Member", "Family", "AppUser", "Parish", "Diocese" CASCADE`,
   );
 
   await seedFixtures();
