@@ -51,6 +51,15 @@ END $$;
 
 -- Schema usage
 GRANT USAGE ON SCHEMA public TO app_authenticated;
+-- RLS helpers live in auth (auth.jwt / auth.uid). Hosted Supabase grants
+-- EXECUTE to PUBLIC but not schema USAGE to custom roles — without this,
+-- SET LOCAL ROLE app_authenticated makes every auth.jwt() call fail.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') THEN
+    EXECUTE 'GRANT USAGE ON SCHEMA auth TO app_authenticated';
+  END IF;
+END $$;
 
 -- Table-level DML — RLS policies gate which rows are visible/mutable
 GRANT SELECT, INSERT, UPDATE, DELETE ON "Diocese"   TO app_authenticated;
