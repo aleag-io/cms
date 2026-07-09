@@ -54,7 +54,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import type { NavSection } from "@/lib/nav/menu";
-import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/api-client";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { TenantContextSwitcher } from "@/components/app/tenant-context-switcher";

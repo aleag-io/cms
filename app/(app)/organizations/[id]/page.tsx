@@ -133,7 +133,9 @@ export default function OrganizationDetailPage() {
   }, [organizationId]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   async function addMembership(targetMemberId: string) {

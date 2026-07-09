@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { AuditOutcome, Role } from '@prisma/client';
+import { AuditOutcome } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { handle, ApiError } from '@/lib/api';
 import { writeAuditEntry } from '@/lib/audit';

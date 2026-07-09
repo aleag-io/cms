@@ -96,7 +96,9 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (sessionLoading) return;
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load, sessionLoading]);
 
   async function submitRsvp(rsvpStatus: string) {

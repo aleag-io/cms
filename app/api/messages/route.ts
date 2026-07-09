@@ -49,8 +49,23 @@ export const GET = () =>
         },
         {} as Record<string, number>,
       );
-      const { recipients: _recipients, ...rest } = message;
-      return { ...rest, statusCounts };
+      // List payload: drop full recipient rows; surface statusCounts only.
+      return {
+        id: message.id,
+        dioceseId: message.dioceseId,
+        parishId: message.parishId,
+        channel: message.channel,
+        subject: message.subject,
+        body: message.body,
+        audienceType: message.audienceType,
+        audienceRefId: message.audienceRefId,
+        status: message.status,
+        createdByUserId: message.createdByUserId,
+        createdAt: message.createdAt,
+        updatedAt: message.updatedAt,
+        _count: message._count,
+        statusCounts,
+      };
     });
 
     return Response.json({ ok: true, messages: projected });
