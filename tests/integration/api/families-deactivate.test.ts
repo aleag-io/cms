@@ -104,4 +104,19 @@ describe('DELETE /api/families/[id]', () => {
     expect(res.status).toBe(401);
     expect(data.ok).toBe(false);
   });
+
+  it('returns 404 for a cross-parish family id', async () => {
+    const admin = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAAdmin.id },
+    });
+    resetAuth = asUser(admin);
+
+    const res = await DELETE(new Request('http://localhost/api/families/x'), {
+      params: Promise.resolve({ id: FX.families.jonesBId }),
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(data.ok).toBe(false);
+  });
 });

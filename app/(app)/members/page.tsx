@@ -234,6 +234,7 @@ export default function MembersPage() {
                             title={`Deactivate ${selectedKeys.size} member${selectedKeys.size === 1 ? "" : "s"}?`}
                             description="Selected members are set to Inactive. Records and history are kept; they no longer appear as active parish members."
                             confirmLabel="Deactivate"
+                            destructive
                             onConfirm={() => {
                                 void deactivateSelected();
                             }}
@@ -249,6 +250,8 @@ export default function MembersPage() {
                                 selectedKeys,
                                 onChange: setSelectedKeys,
                                 isRowSelectable: (row) => row.status !== "INACTIVE",
+                                getRowLabel: (row) =>
+                                    `${row.firstName} ${row.lastName} (${row.memberIdentifier})`,
                             }
                             : undefined
                     }
@@ -316,6 +319,7 @@ export default function MembersPage() {
                                                 title="Deactivate member?"
                                                 description={`${row.firstName} ${row.lastName} will be set to Inactive. The record and audit history are retained.`}
                                                 confirmLabel="Deactivate"
+                                                destructive
                                                 onConfirm={() => {
                                                     void deactivateOne(row.id);
                                                 }}

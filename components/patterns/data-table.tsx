@@ -24,6 +24,8 @@ export type DataTableSelection<T> = {
   onChange: (keys: Set<string>) => void;
   /** When false, row checkbox is disabled (e.g. already inactive). Default: all selectable. */
   isRowSelectable?: (row: T) => boolean;
+  /** Accessible name for the row checkbox (defaults to the row key). */
+  getRowLabel?: (row: T) => string;
 };
 
 export function DataTable<T>({
@@ -112,7 +114,7 @@ export function DataTable<T>({
               {selection ? (
                 <TableCell>
                   <Checkbox
-                    aria-label={`Select row ${key}`}
+                    aria-label={`Select ${selection.getRowLabel?.(row) ?? key}`}
                     checked={selected}
                     disabled={!selectable}
                     onCheckedChange={(value) =>

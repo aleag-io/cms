@@ -181,6 +181,7 @@ export default function MemberDetailPage() {
                                     title="Deactivate member?"
                                     description={`${member.firstName} ${member.lastName} will be set to Inactive. The record and audit history are retained.`}
                                     confirmLabel="Deactivate"
+                                    destructive
                                     onConfirm={() => {
                                         void deactivateMember();
                                     }}

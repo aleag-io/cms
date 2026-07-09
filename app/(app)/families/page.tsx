@@ -203,6 +203,7 @@ export default function FamiliesPage() {
                             title={`Deactivate ${selectedKeys.size} famil${selectedKeys.size === 1 ? "y" : "ies"}?`}
                             description="Selected families are marked inactive. Member history stays linked; the family is no longer treated as active."
                             confirmLabel="Deactivate"
+                            destructive
                             onConfirm={() => {
                                 void deactivateSelected();
                             }}
@@ -218,6 +219,8 @@ export default function FamiliesPage() {
                                 selectedKeys,
                                 onChange: setSelectedKeys,
                                 isRowSelectable: isActiveFamily,
+                                getRowLabel: (row) =>
+                                    `${row.familyName} (${row.familyNumber})`,
                             }
                             : undefined
                     }
@@ -277,6 +280,7 @@ export default function FamiliesPage() {
                                                 title="Deactivate family?"
                                                 description={`${row.familyName} (${row.familyNumber}) will be marked inactive. History is retained.`}
                                                 confirmLabel="Deactivate"
+                                                destructive
                                                 onConfirm={() => {
                                                     void deactivateOne(row.id);
                                                 }}

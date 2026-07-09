@@ -167,6 +167,7 @@ export default function FamilyDetailPage() {
                                     title="Deactivate family?"
                                     description={`${family.familyName} (${family.familyNumber}) will be marked inactive. History is retained.`}
                                     confirmLabel="Deactivate"
+                                    destructive
                                     onConfirm={() => {
                                         void deactivateFamily();
                                     }}

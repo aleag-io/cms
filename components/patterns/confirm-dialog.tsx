@@ -19,12 +19,15 @@ export function ConfirmDialog({
   description,
   confirmLabel = "Confirm",
   onConfirm,
+  destructive = false,
 }: {
   trigger: ReactNode;
   title: string;
   description: string;
   confirmLabel?: string;
   onConfirm: () => void;
+  /** Styles the confirm action as a destructive operation. */
+  destructive?: boolean;
 }) {
   return (
     <AlertDialog>
@@ -36,7 +39,14 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>
+          <AlertDialogAction
+            onClick={onConfirm}
+            className={
+              destructive
+                ? "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20"
+                : undefined
+            }
+          >
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
