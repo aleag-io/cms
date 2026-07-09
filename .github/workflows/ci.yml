@@ -134,7 +134,13 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cms_e2e
-      PLAYWRIGHT_BASE_URL: http://localhost:3000
+      # Prefer IPv4 — wait-on + Next can disagree on localhost (::1 vs 127.0.0.1).
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      # Placeholder Auth env so the proxy does not hang on missing URL/key.
+      # No Supabase stack in this job; authenticated e2e suites skip via helpers.
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:9
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: e2e-placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: e2e-placeholder-service-role-key
 
     steps:
       - uses: actions/checkout@v4
@@ -165,13 +171,28 @@ jobs:
       - name: Build Next.js app
         run: npm run build
 
-      - name: Start Next.js server
-        run: npm run start &
-        env:
-          PORT: 3000
-
-      - name: Wait for server
-        run: npx wait-on http://localhost:3000 --timeout 30000
+      # Start + wait in one step so the process stays in the job's process group,
+      # bind IPv4 explicitly, and surface logs if the server dies.
+      - name: Start Next.js server and wait
+        run: |
+          set -euo pipefail
+          npm run start -- --hostname 127.0.0.1 --port 3000 > /tmp/next-e2e.log 2>&1 &
+          echo $! > /tmp/next-e2e.pid
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://127.0.0.1:3000/login; then
+              echo "Server ready after ${i}s"
+              exit 0
+            fi
+            if ! kill -0 "$(cat /tmp/next-e2e.pid)" 2>/dev/null; then
+              echo "Next.js process exited early. Log:"
+              cat /tmp/next-e2e.log || true
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "Timed out waiting for server. Log:"
+          cat /tmp/next-e2e.log || true
+          exit 1
 
       - name: Run E2E smoke tests
         run: npm run test:e2e
