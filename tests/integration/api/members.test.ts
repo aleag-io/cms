@@ -11,14 +11,23 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { testDb, FX } from '../../helpers/db';
 import { asUser, asGuest } from '../../helpers/auth';
 
-// Route handler under test — imported after the auth seam is in place
+// Route handlers under test — imported after the auth seam is in place
 // so that top-level module execution picks up our injectable resolver.
 let POST: (req: Request) => Promise<Response>;
+let DELETE: (
+  req: Request,
+  context: { params: Promise<{ id: string }> },
+) => Promise<Response>;
 
 async function loadRoute() {
   // Dynamic import avoids hoisting issues with the resolver override.
   const mod = await import('@/app/api/members/route');
   POST = mod.POST;
+}
+
+async function loadMemberIdRoute() {
+  const mod = await import('@/app/api/members/[id]/route');
+  DELETE = mod.DELETE;
 }
 
 describe('POST /api/members', () => {
@@ -108,5 +117,98 @@ describe('POST /api/members', () => {
     expect(res.status).toBe(401);
     expect(data.ok).toBe(false);
     expect(data.error).toMatch(/unauthorized/i);
+  });
+});
+
+describe('DELETE /api/members/[id]', () => {
+  let resetAuth: () => void;
+
+  beforeEach(async () => {
+    await loadMemberIdRoute();
+  });
+
+  afterEach(() => {
+    resetAuth?.();
+  });
+
+  it('deactivates a member and writes an audit row as Parish Admin', async () => {
+    const admin = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAAdmin.id },
+    });
+    resetAuth = asUser(admin);
+
+    const res = await DELETE(new Request('http://localhost/api/members/x'), {
+      params: Promise.resolve({ id: FX.members.aliceSmithId }),
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(data.member.status).toBe('INACTIVE');
+
+    const row = await testDb.member.findUniqueOrThrow({
+      where: { id: FX.members.aliceSmithId },
+    });
+    expect(row.status).toBe('INACTIVE');
+
+    const audit = await testDb.auditEntry.findFirst({
+      where: {
+        entityId: FX.members.aliceSmithId,
+        action: 'membership.member.deactivate',
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+    expect(audit).not.toBeNull();
+    expect(audit!.outcome).toBe('SUCCESS');
+  });
+
+  it('returns 409 when the member is already inactive', async () => {
+    const admin = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAAdmin.id },
+    });
+    resetAuth = asUser(admin);
+
+    await testDb.member.update({
+      where: { id: FX.members.aliceSmithId },
+      data: { status: 'INACTIVE' },
+    });
+
+    const res = await DELETE(new Request('http://localhost/api/members/x'), {
+      params: Promise.resolve({ id: FX.members.aliceSmithId }),
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(data.ok).toBe(false);
+  });
+
+  it('returns 403 when called as Parish Staff', async () => {
+    const staff = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAStaff.id },
+    });
+    resetAuth = asUser(staff);
+
+    const res = await DELETE(new Request('http://localhost/api/members/x'), {
+      params: Promise.resolve({ id: FX.members.aliceSmithId }),
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(data.ok).toBe(false);
+  });
+
+  it('returns 404 for a cross-parish member id', async () => {
+    const admin = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAAdmin.id },
+    });
+    resetAuth = asUser(admin);
+
+    const res = await DELETE(new Request('http://localhost/api/members/x'), {
+      params: Promise.resolve({ id: FX.members.bobJonesBId }),
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(data.ok).toBe(false);
   });
 });
