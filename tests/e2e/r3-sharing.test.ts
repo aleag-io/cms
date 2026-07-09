@@ -17,9 +17,11 @@ test.describe('R3 — sharing surfaces', () => {
     page,
   }) => {
     await page.goto('/share/not-a-real-token');
-    await expect(page.getByText(/unavailable|no longer accessible/i)).toBeVisible({
+    // Title + body both match a broad regex; assert the card title specifically.
+    await expect(page.getByText('Unavailable', { exact: true })).toBeVisible({
       timeout: 15_000,
     });
+    await expect(page.getByText(/no longer accessible/i)).toBeVisible();
   });
 
   test('authenticated sharing console is axe-clean for a member-level session', async ({
