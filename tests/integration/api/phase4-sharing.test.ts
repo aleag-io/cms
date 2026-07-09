@@ -46,6 +46,34 @@ describe('Phase 4 sharing lifecycle', () => {
     resetAuth?.();
   });
 
+  it('lists contextual shares without token hashes', async () => {
+    const parishAdmin = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAAdmin.id },
+    });
+    resetAuth = asUser(parishAdmin);
+
+    const create = await sharesRoute.POST(
+      jsonReq('http://localhost/api/shares', 'POST', {
+        resourceType: 'member_list',
+        shareMode: 'SECURE_LINK',
+        isAnonymized: true,
+        maxViews: 2,
+      }),
+    );
+    expect(create.status).toBe(200);
+    const created = await create.json();
+    expect(created.secureLinkToken).toBeTruthy();
+    expect(created.share.tokenHash).toBeUndefined();
+
+    const list = await sharesRoute.GET();
+    expect(list.status).toBe(200);
+    const listed = await list.json();
+    expect(listed.shares.length).toBeGreaterThanOrEqual(1);
+    for (const share of listed.shares) {
+      expect(share.tokenHash).toBeUndefined();
+    }
+  });
+
   it('request -> approve -> grant issued -> revoke writes audit trail', async () => {
     const dioceseAdmin = await testDb.appUser.findUniqueOrThrow({
       where: { id: FX.users.dioceseAdmin.id },

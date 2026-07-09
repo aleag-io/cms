@@ -20,6 +20,40 @@ function ensureCanCreateShare(roles: Role[]) {
   }
 }
 
+function canManageShares(role: Role): boolean {
+  return role === Role.PARISH_ADMIN || role === Role.PARISH_DATA_SHARING_MANAGER;
+}
+
+/** Strip token hashes — raw tokens are only returned once at create time. */
+function publicShare<T extends Record<string, unknown>>(share: T) {
+  const rest = { ...share };
+  delete rest.tokenHash;
+  return rest;
+}
+
+export const GET = () =>
+  handle(async () => {
+    const actor = await requireSessionUser();
+    if (!actor.parishId) throw new ApiError(400, 'Parish scope required');
+    ensureCanCreateShare([actor.role]);
+    const claims = await claimsFromUser(actor);
+
+    const shares = await withTenant(claims, (tx) =>
+      tx.contextualShare.findMany({
+        where: canManageShares(actor.role)
+          ? { parishId: actor.parishId! }
+          : { parishId: actor.parishId!, createdByUserId: actor.id },
+        orderBy: [{ createdAt: 'desc' }],
+        take: 200,
+      }),
+    );
+
+    return Response.json({
+      ok: true,
+      shares: shares.map((s) => publicShare(s)),
+    });
+  });
+
 export const POST = (request: Request) =>
   handle(async () => {
     const requestId = randomUUID();
@@ -99,7 +133,8 @@ export const POST = (request: Request) =>
 
     return Response.json({
       ok: true,
-      share,
+      share: publicShare(share),
+      // One-time raw token for SECURE_LINK — never stored or re-fetched.
       secureLinkToken: token?.raw ?? null,
     });
   });

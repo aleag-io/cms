@@ -19,7 +19,9 @@ function isPublicPath(pathname: string): boolean {
     pathname === '/api/jobs/process-communications' ||
     pathname === '/api/jobs/expire-sharing-requests' ||
     pathname === '/api/jobs/expire-emergency-access' ||
-    pathname.startsWith('/api/shares/link/')
+    pathname.startsWith('/api/shares/link/') ||
+    // Public secure-link viewer page (token in path; no session required).
+    pathname.startsWith('/share/')
   );
 }
 
