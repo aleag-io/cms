@@ -22,6 +22,7 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['member_profile', ['read', 'write', 'delete', 'export']],
     ['member_private_note', ['read', 'write']],
     ['member_pastoral_data', ['read', 'write']],
+    ['member_sacramental_record', ['read', 'write', 'export']],
     ['parish_directory', ['read', 'export']],
     ['member_export', ['read', 'export']],
     ['parish_officer', ['read', 'write', 'delete']],
@@ -38,6 +39,7 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
   parish_admin: allow([
     ['member_profile', ['read', 'write', 'delete', 'export']],
     ['member_pastoral_data', ['read', 'write']],
+    ['member_sacramental_record', ['read', 'write', 'export']],
     ['parish_directory', ['read', 'export']],
     ['member_export', ['read', 'export']],
     ['parish_officer', ['read', 'write', 'delete']],
@@ -52,11 +54,13 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['member_profile', ['read']],
     ['member_private_note', ['read', 'write']],
     ['member_pastoral_data', ['read', 'write']],
+    ['member_sacramental_record', ['read', 'write', 'export']],
     ['parish_directory', ['read']],
   ]),
   pastoral_data_accessor: allow([
     ['member_profile', ['read']],
     ['member_pastoral_data', ['read', 'write']],
+    ['member_sacramental_record', ['read', 'write', 'export']],
     ['parish_directory', ['read']],
   ]),
   ministry_leader: allow([
