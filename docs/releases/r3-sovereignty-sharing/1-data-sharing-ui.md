@@ -35,17 +35,31 @@ shares (user/role/secure-link) with anonymized preview, and the public secure-li
 
 ## 3. Tests
 
-- **E2E (centerpiece):** Diocese requests → Parish approves → Diocese reads shared category →
-  Parish revokes → Diocese sees "no longer available" on next load. Secure link denies when
-  expired/exhausted/revoked.
-- **Integration:** every lifecycle action writes the audit entries from access-control §7; the
-  contextual-share preview shows the anonymized projection (no direct identifiers / private notes).
-- **Unit:** share-scope/expiry validation; token-state → viewer-state mapping.
-- **a11y:** axe on sharing console + secure-link viewer.
+- **Integration (centerpiece lifecycle):** Diocese requests → Parish approves → grant issued →
+  Parish revokes + audit trail; reject path; emergency create/revoke + 7-day cap; secure link
+  denies when exhausted/expired/revoked; tokens never logged or returned as `tokenHash`;
+  concurrent maxViews consume. Suite: `tests/integration/api/phase4-sharing.test.ts`.
+- **E2E (console / role smoke):** unauthenticated `/sharing` → login; secure-link unavailable +
+  axe; parish admin console tabs + create secure link (one-time token UI); console axe; member
+  and staff role gates. Suite: `tests/e2e/r3-sharing.test.ts`. Multi-actor UI journey is
+  intentionally covered at integration (shared seeded DB + multi-session Playwright cost).
+- **Unit:** token hash/verify; anonymize strips PII; `shareLifecycleStatus`; `publicShare`
+  strips `tokenHash` (`tests/unit/lib/sharing*.test.ts`).
+- **a11y:** axe on sharing console + secure-link unavailable viewer.
 
 ## 4. Exit gate
 
-1. Revocation reflects immediately in the diocese UI (no stale shared data).
-2. Secure links never expose raw identifiers; anonymized preview matches recipient view; tokens
-   never rendered/logged in plaintext.
-3. Emergency access is view-only, time-boxed, and audited.
+1. Revocation is audited and grant becomes inactive immediately (integration); UI shows revoked /
+   inactive grants on next load of the sharing console.
+2. Secure links never expose raw identifiers; anonymized projection strips PII; tokens never
+   returned/logged in plaintext (`tokenHash` stripped on all share responses).
+3. Emergency access is view-only, time-boxed (≤7 days), and audited.
+
+## 5. Shipped state (2026-07-09)
+
+- Surfaces: `/sharing`, `/share/[token]`, `/shares/[id]`; panels for requests, grants, emergency,
+  contextual shares.
+- Hardening: atomic view consume, hard API error surfacing, lifecycle badges, parish name
+  fallback, diocese work-context for share manage.
+- **Deferred:** shell-wide page-level Share menu (features.md global UX rule); richer M3 diocese
+  dashboards beyond Tier-2 aggregate (→ R6).

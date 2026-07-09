@@ -37,12 +37,12 @@ RLS shipped, UI mostly not.
 | M1 | **People & Membership** | ✅ shipped | ❌ | Diocese, Parish, Family, Member, MemberParish, MemberRelationship, MemberPrivateNote, MemberPastoralData, MemberRegistration |
 | M2 | **Parish Administration & Governance** | ✅ shipped | ⚠️ partial | ParishOfficer, AppUser, ParishPermissionOverride, VolunteerAssignment |
 | M3 | **Diocese Management & Aggregate** | ✅ shipped | ❌ | Diocese, `diocese_*_summary` views |
-| M4 | **Data Sharing & Sovereignty** | ✅ shipped | ❌ | DataSharingRequest, DataSharingGrant, EmergencyAccessGrant, ContextualShare |
+| M4 | **Data Sharing & Sovereignty** | ✅ shipped | ✅ (R3) | DataSharingRequest, DataSharingGrant, EmergencyAccessGrant, ContextualShare |
 | M5 | **Organizations & Ministries** | ✅ shipped | ❌ | Program*, Organization*, enrollment/attendance, officers |
 | M6 | **Events & Facilities** | ✅ shipped | ❌ | Event, EventAttendance, Facility, FacilityBooking |
 | M7 | **Communications** | ✅ shipped | ❌ | Message*, MessageTemplate, CommunicationPreference |
-| M8 | **Sacramental Records** *(new module)* | ⚠️ dates only | ❌ | MemberPastoralData (dates); full records greenfield — features §2.3 |
-| M9 | **Liturgical Calendar** *(new module)* | ❌ not built | ❌ | feasts/seasons/lectionary — features §1.6 |
+| M8 | **Sacramental Records** *(new module)* | ⚠️ dates only | ❌ | MemberPastoralData (dates); full records greenfield — [R4 plan](releases/r4-sacramental-liturgical/1-sacramental-records.md) |
+| M9 | **Liturgical Calendar** *(new module)* | ❌ not built | ❌ | feasts/seasons/lectionary — [R4 plan](releases/r4-sacramental-liturgical/2-liturgical-calendar.md) |
 | M10 | **Finance & Giving** *(giving + ledger, one module)* | ❌ not built | ❌ | Donation, Campaign, Pledge, ChartOfAccounts, JournalEntry, Period, Budget, VendorBill, ApprovalRequest (planned) |
 | M11 | **Reporting & Analytics** | ❌ not built | ❌ | report/query/statement primitives (planned) |
 | M12 | **Integrations & API** | ⚠️ partial | n/a | cron jobs, Resend/Twilio/Stripe, CSV, webhooks |
@@ -186,8 +186,10 @@ same ledger, so it is one module, not two.
 
 ## 4. Module state summary
 
-- **Fully backed + UI shipped (R0–R2):** M0 (incl. shell), M1, M2, M3 (core UI), M5, M6, M7.
-- **Fully backed, UI pending:** M4 (data-sharing UI = R3); M3 advanced dashboards (R3).
+- **Fully backed + UI shipped (R0–R3):** M0 (incl. shell), M1, M2, M3 (core Tier-2 UI),
+  M4 (sharing console + secure-link viewer), M5, M6, M7.
+- **Deferred from R3:** richer M3 advanced diocese dashboards (beyond `/diocese/aggregate`)
+  → **R6 Reporting**.
 - **Greenfield:** M8 (full sacramental records — dates exist), M9 (liturgical calendar),
   M10 (finance & giving), M11 (reporting).
 - **Partial/continuous:** M12 (integrations), M13 (public), M14 (hardening).
@@ -221,19 +223,25 @@ tests + audit). Releases are additive and independently demoable to real parishe
 - **Phases:** 10, 11.  **Outcome:** daily parish life runs in the system.
 - **State:** ✅ complete (UI + API extensions + exit-gate tests).
 
-### R3 — Sovereignty & Sharing
-- **Modules:** **M4** · **M3 (advanced dashboards)**.
+### R3 — Sovereignty & Sharing *(shipped)*
+- **Modules:** **M4** (UI); M3 core Tier-2 aggregate retained from R1.
 - **Delivers:** request→approve→grant→revoke lifecycle UI, emergency access, contextual sharing +
-  secure-link viewer, richer diocese aggregate dashboards.
+  secure-link viewer. Richer diocese dashboards deferred to R6.
 - **Phases:** 12.  **Outcome:** the data-sovereignty model is operable, not just DB-enforced.
+- **State:** ✅ complete (UI + peer-review hardening + unit/integration/E2E). Plan:
+  [`releases/r3-sovereignty-sharing/1-data-sharing-ui.md`](releases/r3-sovereignty-sharing/1-data-sharing-ui.md).
 - *(UI-only — all backend exists. Completes the MVP2 UI train, phases 5–12.)*
 
 ### R4 — Sacramental Records & Liturgical Calendar
-- **Modules:** **M8** · **M9** (greenfield backend + UI).
-- **Delivers:** full sacramental register management (baptism→funeral), certificates/reports; the
-  diocese/parish liturgical calendar overlaid on parish events.
-- **Outcome:** church-specific record-keeping and the liturgical year. *(M8 can pull forward into
-  R1 if sacramental records are a pilot must-have; M9 is the lighter of the two.)*
+- **Modules:** **M8** · **M9** (greenfield backend + UI). **Build order: M8 first, then M9.**
+- **Delivers:** full sacramental register management (seven sacraments per PA-7), certificates;
+  the diocese/parish liturgical calendar overlaid on parish events.
+- **Outcome:** church-specific record-keeping and the liturgical year.
+- **Plans:**
+  [`releases/r4-sacramental-liturgical/1-sacramental-records.md`](releases/r4-sacramental-liturgical/1-sacramental-records.md)
+  (M8) ·
+  [`releases/r4-sacramental-liturgical/2-liturgical-calendar.md`](releases/r4-sacramental-liturgical/2-liturgical-calendar.md)
+  (M9).
 
 ### R5 — Finance & Giving
 - **Modules:** **M10** (backend + UI), plus M12 Stripe wiring.
@@ -262,8 +270,8 @@ tests + audit). Releases are additive and independently demoable to real parishe
 | R0 | M0 + M1–M7/M4 backend | ✅ (done) | Secure platform | 0–4 |
 | R1 | M0 UI, M1, M2, M3 | — (UI only) | **Usable membership product** | 5–9 |
 | R2 | M5, M6, M7 | — (UI only) | Parish operations | 10, 11 |
-| R3 | M4, M3+ | — (UI only) | Data sovereignty operable | 12 |
-| R4 | M8, M9 | ✅ | Sacramental records + liturgical calendar | new |
+| R3 | M4 | — (UI only) | Data sovereignty operable | 12 (done) |
+| R4 | M8, M9 | ✅ | Sacramental records + liturgical calendar | R4 plans |
 | R5 | M10 | ✅ | Finance & giving (accounting + stewardship) | 20 |
 | R6 | M11, M12 | ✅ | Reports + integrations | 21 |
 | R7 | M13, M14 | ✅ | Public site + hardening | 13, 22 |
