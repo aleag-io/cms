@@ -6,20 +6,9 @@ import { writeAuditEntry } from '@/lib/audit';
 import { ApiError, handle } from '@/lib/api';
 import { anonymizeResource } from '@/lib/sharing/anonymize';
 import { resolveSharedResource } from '@/lib/sharing/resources';
+import { tryConsumeShareView } from '@/lib/sharing/consume-view';
 
 type Ctx = { params: Promise<{ id: string }> };
-
-function isShareAccessible(share: {
-  isActive: boolean;
-  expiresAt: Date | null;
-  maxViews: number | null;
-  viewCount: number;
-}) {
-  if (!share.isActive) return false;
-  if (share.expiresAt && share.expiresAt <= new Date()) return false;
-  if (share.maxViews !== null && share.viewCount >= share.maxViews) return false;
-  return true;
-}
 
 export const GET = (_request: Request, ctx: Ctx) =>
   handle(async () => {
@@ -27,44 +16,36 @@ export const GET = (_request: Request, ctx: Ctx) =>
     const { id } = await ctx.params;
     const actor = await requireSessionUser();
     const claims = await claimsFromUser(actor);
-    const roleSet = new Set(claims.app_metadata.roles.map((r) => r.toLowerCase()));
+    const roleSet = new Set(
+      claims.app_metadata.roles.map((r) => r.toLowerCase()),
+    );
 
-    const result = await withTenant(claims, async (tx) => {
-      const share = await tx.contextualShare.findFirst({ where: { id } });
-      if (!share) throw new ApiError(404, 'Share not found');
-      if (
-        share.shareMode !== ShareMode.USER_SHARE &&
-        share.shareMode !== ShareMode.ROLE_SHARE
-      ) {
-        throw new ApiError(400, 'Invalid share mode for authenticated view');
-      }
+    const existing = await withTenant(claims, (tx) =>
+      tx.contextualShare.findFirst({ where: { id } }),
+    );
+    if (!existing) throw new ApiError(404, 'Share not found');
+    if (
+      existing.shareMode !== ShareMode.USER_SHARE &&
+      existing.shareMode !== ShareMode.ROLE_SHARE
+    ) {
+      throw new ApiError(400, 'Invalid share mode for authenticated view');
+    }
 
-      const allowedByTarget =
-        (share.shareMode === ShareMode.USER_SHARE &&
-          share.recipientUserId === actor.id) ||
-        (share.shareMode === ShareMode.ROLE_SHARE &&
-          share.recipientRole &&
-          roleSet.has(share.recipientRole.toLowerCase()));
+    const allowedByTarget =
+      (existing.shareMode === ShareMode.USER_SHARE &&
+        existing.recipientUserId === actor.id) ||
+      (existing.shareMode === ShareMode.ROLE_SHARE &&
+        existing.recipientRole &&
+        roleSet.has(existing.recipientRole.toLowerCase()));
 
-      if (!allowedByTarget || !isShareAccessible(share)) {
-        return { share, denied: true as const };
-      }
-
-      const updated = await tx.contextualShare.update({
-        where: { id: share.id },
-        data: { viewCount: { increment: 1 } },
-      });
-      return { share: updated, denied: false as const };
-    });
-
-    if (result.denied) {
+    if (!allowedByTarget) {
       await writeAuditEntry({
         requestId,
         actorUserId: actor.id,
         actorLabel: actor.email,
         action: 'sharing.share.denied',
         entityType: 'contextual_share',
-        entityId: result.share.id,
+        entityId: existing.id,
         outcome: AuditOutcome.DENIED,
         dioceseId: actor.dioceseId,
         parishId: actor.parishId,
@@ -72,17 +53,30 @@ export const GET = (_request: Request, ctx: Ctx) =>
       throw new ApiError(403, 'Share is no longer accessible');
     }
 
-    // The validated share is the authorization grant: recipients may be in a
-    // different parish/diocese-level than the shared resource, so the payload
-    // is read with the privileged client (RLS would deny a cross-parish
-    // recipient). Isolation is enforced by the trusted share.parishId filter.
+    // Atomic view consume (privileged client — same isolation model as resource resolve).
+    const updated = await tryConsumeShareView(existing.id);
+    if (!updated) {
+      await writeAuditEntry({
+        requestId,
+        actorUserId: actor.id,
+        actorLabel: actor.email,
+        action: 'sharing.share.denied',
+        entityType: 'contextual_share',
+        entityId: existing.id,
+        outcome: AuditOutcome.DENIED,
+        dioceseId: actor.dioceseId,
+        parishId: actor.parishId,
+      });
+      throw new ApiError(403, 'Share is no longer accessible');
+    }
+
     const payload = await resolveSharedResource({
-      parishId: result.share.parishId,
-      resourceType: result.share.resourceType,
-      resourceId: result.share.resourceId,
+      parishId: updated.parishId,
+      resourceType: updated.resourceType,
+      resourceId: updated.resourceId,
     });
 
-    const responsePayload = result.share.isAnonymized
+    const responsePayload = updated.isAnonymized
       ? anonymizeResource(payload as Record<string, unknown>)
       : payload;
 
@@ -92,13 +86,13 @@ export const GET = (_request: Request, ctx: Ctx) =>
       actorLabel: actor.email,
       action: 'sharing.share.view',
       entityType: 'contextual_share',
-      entityId: result.share.id,
+      entityId: updated.id,
       outcome: AuditOutcome.SUCCESS,
       dioceseId: actor.dioceseId,
       parishId: actor.parishId,
       metadata: {
-        shareId: result.share.id,
-        viewCount: result.share.viewCount,
+        shareId: updated.id,
+        viewCount: updated.viewCount,
       },
     });
 

@@ -114,10 +114,12 @@ test.describe('R2 — parish operations (admin)', () => {
     await page.getByLabel(/^body$/i).fill('R2 E2E announcement body');
     await page.getByRole('button', { name: /queue send/i }).click();
 
-    await expect(page.getByTestId('message-status-list')).toBeVisible();
-    await expect(page.getByText(/R2 E2E announcement/i)).toBeVisible({
-      timeout: 15000,
-    });
+    const statusList = page.getByTestId('message-status-list');
+    await expect(statusList).toBeVisible();
+    // Scope to the status list so the composer textarea body does not match.
+    await expect(
+      statusList.getByText(/R2 E2E announcement body/i),
+    ).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId('message-status').first()).toBeVisible();
   });
 });
