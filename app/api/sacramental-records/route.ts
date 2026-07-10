@@ -39,10 +39,20 @@ export const GET = (request: Request) =>
       }
       where.sacramentType = type;
     }
-    if (from || to) {
+    const parseDate = (value: string | null, name: string): Date | null => {
+      if (!value) return null;
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) {
+        throw new ApiError(400, `${name} must be a valid date`);
+      }
+      return d;
+    };
+    const fromDate = parseDate(from, 'from');
+    const toDate = parseDate(to, 'to');
+    if (fromDate || toDate) {
       where.occurredOn = {
-        ...(from ? { gte: new Date(from) } : {}),
-        ...(to ? { lte: new Date(to) } : {}),
+        ...(fromDate ? { gte: fromDate } : {}),
+        ...(toDate ? { lte: toDate } : {}),
       };
     }
     if (q) {

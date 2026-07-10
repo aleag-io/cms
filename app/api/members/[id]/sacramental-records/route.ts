@@ -93,6 +93,19 @@ export const POST = (
       });
       if (!member) throw new ApiError(404, 'Member not found');
 
+      if (body.spouseMemberId) {
+        const spouse = await tx.member.findFirst({
+          where: { id: body.spouseMemberId, parishId },
+          select: { id: true },
+        });
+        if (!spouse) {
+          throw new ApiError(
+            400,
+            'spouseMemberId must reference a member of this parish',
+          );
+        }
+      }
+
       const created = await tx.sacramentalRecord.create({
         data: {
           parishId: member.parishId,

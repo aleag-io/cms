@@ -271,3 +271,16 @@ Prefer stacking PRs; each merges only when its tests pass.
 Code + tests merged; all five exit gates green in CI; AGENTS / copilot status notes M8
 (or full R4 when M9 also lands); this plan’s decisions unchanged or amended with a short
 changelog at the bottom of this file.
+
+---
+
+## Changelog
+
+- **2026-07-10 (peer-review hardening):** §2.5/§2.6 — PA-12 overrides are now
+  enforced in RLS via `public.permission_decision()` (deny > allow > role
+  default) on both `SacramentalRecord` and `MemberPastoralData`. Decision:
+  register **write implies select at the DB floor** (a writer must see rows to
+  maintain them); API projection still gates reads via `can(…, 'read')`. The
+  §2.4 dual-write additionally requires `member_pastoral_data` read+write for
+  staff-override writers (clear 403 otherwise). Exit-gate 3 read audits added
+  for privileged single-record reads; member own-read now active-only per §2.5.

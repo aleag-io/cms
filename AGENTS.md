@@ -179,6 +179,26 @@ never filters sensitive data client-side.
   `tests/rls/r4-liturgical.test.ts`, `tests/integration/api/r4-sacramental.test.ts`,
   `tests/e2e/r4-sacramental.test.ts`. Plans:
   [docs/releases/r4-sacramental-liturgical/](docs/releases/r4-sacramental-liturgical/).
+  **Peer-review hardening (2026-07-10):** PA-12 overrides are now enforced at
+  the DB layer — SECURITY DEFINER `public.permission_decision()` consults
+  `ParishPermissionOverride` (deny > allow > role default) and backs
+  override-aware read/write policies on `SacramentalRecord` **and**
+  `MemberPastoralData` (whose `WITH CHECK` was previously parish-match only);
+  register WRITE implies SELECT at the DB floor so staff-override writers can
+  maintain rows (API projection still gates reads; the baptism/confirmation
+  dual-write additionally needs `member_pastoral_data` read+write overrides,
+  surfaced as a clear 403 otherwise). Parish-local liturgical drafts are no
+  longer readable by plain members (general SELECT branch now requires
+  `isPublished`; writers see drafts via the write policy). API hardening:
+  privileged single-record reads audited (`membership.sacramental_record.read`),
+  member own-read limited to active records, `spouseMemberId` validated (UUID +
+  same parish), register-search date params validated, liturgical POST/PATCH
+  validated via `lib/liturgical/validate.ts` (enum/month/day/date bounds),
+  liturgical DELETE role guard now matches PATCH, duplicated POST branches
+  collapsed. Migration `supabase/migrations/20260710100000_r4_hardening_rls.sql`;
+  new tests in `tests/rls/r4-*.test.ts`,
+  `tests/integration/api/r4-liturgical.test.ts`,
+  `tests/unit/lib/liturgical-validate.test.ts`.
 
 ## How to run
 

@@ -210,12 +210,12 @@ export function MemberSacramentalPanel({
           {showForm ? (
             <div className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Sacrament</Label>
+                <Label htmlFor="sacramentType">Sacrament</Label>
                 <Select
                   value={sacramentType}
                   onValueChange={(v) => setSacramentType(v as SacramentType)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="sacramentType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

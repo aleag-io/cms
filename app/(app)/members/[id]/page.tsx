@@ -74,8 +74,8 @@ export default function MemberDetailPage() {
         roles.some((role) =>
             ["parish_admin", "pastoral_data_accessor"].includes(role),
         );
+    // Sacramental register shares the pastoral role matrix (R4 M8 §2.5).
     const canSeeSacramental = canSeePastoral;
-    const canWriteSacramental = canSeePastoral;
 
     async function deactivateMember() {
         if (!member) return;
@@ -241,7 +241,7 @@ export default function MemberDetailPage() {
                             <MemberSacramentalPanel
                                 memberId={member.id}
                                 memberName={`${member.firstName} ${member.lastName}`}
-                                canWrite={canWriteSacramental}
+                                canWrite={canSeeSacramental}
                             />
                         </TabsContent>
                     ) : null}

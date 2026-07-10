@@ -164,12 +164,12 @@ export default function DioceseLiturgicalPage() {
             />
           </div>
           <div className="space-y-1">
-            <Label>Type</Label>
+            <Label htmlFor="observanceType">Type</Label>
             <Select
               value={observanceType}
               onValueChange={(v) => setObservanceType(v as ObservanceType)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="observanceType">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

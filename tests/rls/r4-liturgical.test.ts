@@ -31,6 +31,14 @@ const parishAdminB = makeClaims({
   role: 'parish_admin',
 });
 
+const memberA = makeClaims({
+  userId: FX.users.parishAMember.id,
+  dioceseId: FX.dioceseId,
+  parishId: FX.parishAId,
+  role: 'member',
+  memberId: FX.members.aliceSmithId,
+});
+
 beforeAll(async () => {
   await resetTestDb();
 });
@@ -122,6 +130,29 @@ describe('R4 LiturgicalObservance RLS', () => {
       return rowCount ?? 0;
     });
     expect(n).toBe(1);
+  });
+
+  it('unpublished parish-local draft is hidden from plain members but visible to parish admin', async () => {
+    await testDb.liturgicalObservance.update({
+      where: { id: PARISH_A_ROW },
+      data: { isPublished: false },
+    });
+
+    const memberIds = await withTenantSession(memberA, async (c) => {
+      const { rows } = await c.query(
+        'SELECT id FROM "LiturgicalObservance" WHERE "parishId" IS NOT NULL',
+      );
+      return rows.map((r) => r.id as string);
+    });
+    expect(memberIds).toHaveLength(0);
+
+    const adminIds = await withTenantSession(parishAdminA, async (c) => {
+      const { rows } = await c.query(
+        'SELECT id FROM "LiturgicalObservance" WHERE "parishId" IS NOT NULL',
+      );
+      return rows.map((r) => r.id as string);
+    });
+    expect(adminIds).toEqual([PARISH_A_ROW]);
   });
 
   it('unpublished diocese draft is hidden from parish admin', async () => {
