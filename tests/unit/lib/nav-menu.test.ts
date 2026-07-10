@@ -51,6 +51,7 @@ describe('visibleNavItems', () => {
       '/registrations',
       '/members',
       '/families',
+      '/sacramental-records',
       '/programs',
       '/organizations',
       '/events',
@@ -85,6 +86,7 @@ describe('visibleNavItems', () => {
       '/parishes',
       '/diocese/users',
       '/diocese/aggregate',
+      '/diocese/liturgical',
       '/sharing',
       '/audit',
     ]);
@@ -99,6 +101,7 @@ describe('visibleNavItems', () => {
     ).map((item) => item.href);
     expect(hrefs).toContain('/programs');
     expect(hrefs).toContain('/members');
+    expect(hrefs).toContain('/sacramental-records');
     expect(hrefs).not.toContain('/diocese/aggregate');
     expect(hrefs).not.toContain('/parishes');
   });
@@ -114,6 +117,7 @@ describe('visibleNavItems', () => {
       '/self-service',
       '/members',
       '/families',
+      '/sacramental-records',
       '/programs',
       '/organizations',
       '/events',
@@ -166,7 +170,14 @@ describe('navSectionsFromClaims', () => {
     ).toEqual([
       {
         title: 'People',
-        items: ['/', '/directory', '/registrations', '/members', '/families'],
+        items: [
+          '/',
+          '/directory',
+          '/registrations',
+          '/members',
+          '/families',
+          '/sacramental-records',
+        ],
       },
       {
         title: 'Parish',
@@ -207,6 +218,7 @@ describe('navSectionsFromClaims', () => {
           '/parishes',
           '/diocese/users',
           '/diocese/aggregate',
+          '/diocese/liturgical',
         ],
       },
       { title: 'Sharing', items: ['/sharing'] },

@@ -89,6 +89,13 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['parish_admin', 'parish_staff', 'clergy'],
   },
   {
+    title: 'Sacramental register',
+    href: '/sacramental-records',
+    section: 'People',
+    portals: ['parish'],
+    roles: ['parish_admin', 'clergy', 'pastoral_data_accessor'],
+  },
+  {
     title: 'Programs',
     href: '/programs',
     section: 'Parish',
@@ -166,6 +173,13 @@ export const NAV_ITEMS: NavItem[] = [
       'diocese_staff',
       'diocese_report_viewer',
     ],
+  },
+  {
+    title: 'Liturgical calendar',
+    href: '/diocese/liturgical',
+    section: 'Diocese',
+    portals: ['diocese'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff'],
   },
   {
     title: 'Sharing',

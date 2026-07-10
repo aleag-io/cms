@@ -166,15 +166,36 @@ never filters sensitive data client-side.
   diocese dashboards beyond Tier-2 `/diocese/aggregate` (→ R6 reporting); shell-wide
   page-level Share menu (contextual create lives on `/sharing`). Plan:
   [docs/releases/r3-sovereignty-sharing/1-data-sharing-ui.md](docs/releases/r3-sovereignty-sharing/1-data-sharing-ui.md).
+- **Release R4 — Sacramental Records & Liturgical Calendar — complete.** **M8:**
+  `SacramentalRecord` schema + RLS (privileged parish RW, member own-read,
+  `SACRAMENTAL_RECORDS` grant path); CRUD APIs under
+  `/api/members/[id]/sacramental-records` and parish search
+  `/api/sacramental-records`; dual-write baptism/chrismation to
+  `MemberPastoralData`; member profile Sacramental tab; register search UI;
+  print certificate MVP; permission resource `member_sacramental_record`.
+  **M9:** `LiturgicalObservance` (diocese-wide + parish-local) + RLS; APIs
+  `/api/liturgical`; diocese manage UI `/diocese/liturgical`; events calendar
+  liturgical overlay. Tests: `tests/rls/r4-sacramental.test.ts`,
+  `tests/rls/r4-liturgical.test.ts`, `tests/integration/api/r4-sacramental.test.ts`,
+  `tests/e2e/r4-sacramental.test.ts`. Plans:
+  [docs/releases/r4-sacramental-liturgical/](docs/releases/r4-sacramental-liturgical/).
 
 ## How to run
 
 - Tests: `npm run test:unit` · `test:integration` · `test:rls` · `test:e2e` · `ci` (full
   local pipeline). Coverage: `npm run test:coverage`.
-- Apply RLS / Supabase SQL locally: `node scripts/apply-sql.js supabase/migrations/*.sql`
-  (or `make db-apply-rls`).
+- **Database migrations (both tracks):**
+  - **Local:** `npm run db:migrate:all` (or `db:rebuild`) — `prisma migrate deploy` then
+    all `supabase/migrations/*.sql` against `DATABASE_URL` (local Supabase on :54322).
+  - After authoring a new Prisma migration: `npm run db:migrate` (= `prisma migrate dev`
+    + local RLS apply).
+  - **Production:** Vercel `npm run build` runs `db:migrate:all` against
+    `DATABASE_URL` / `POSTGRES_URL_NON_POOLING` so schema **and** RLS land on deploy.
+    Preview deploys skip DB migrate unless `MIGRATE_ON_PREVIEW=1`.
+  - Supabase SQL is tracked in `_app_sql_migrations` (skip already-applied files;
+    force with `APPLY_SQL_FORCE=1`). Prefer idempotent SQL (`DROP POLICY IF EXISTS`, etc.).
 - Local DB: Supabase local stack (`supabase start`); `DATABASE_URL` points at port 54322.
-  Prisma migrate: `npx prisma migrate deploy` (reads `prisma.config.ts`).
+  Prisma config: `prisma.config.ts`.
 
 ## Working agreement
 

@@ -113,7 +113,7 @@ supabase-reset:
 
 # ─── RLS / SQL policy targets ─────────────────────────────────────────────────
 
-.PHONY: db-apply-rls db-apply-ci-shims test-rls
+.PHONY: db-apply-rls db-apply-ci-shims db-migrate-all test-rls
 
 db-apply-ci-shims:
 	@echo "Applying CI auth shims (plain Postgres only — skip on Supabase)"
@@ -123,6 +123,10 @@ db-apply-rls:
 	@echo "Applying Supabase SQL migrations (role, RLS, audit trigger, claims hook)"
 	@echo "Uses local supabase_admin via docker when Supabase local is running"
 	$(NPM) run db:apply-rls
+
+db-migrate-all:
+	@echo "Prisma migrate deploy + Supabase SQL against DATABASE_URL"
+	$(NPM) run db:migrate:all
 
 test-rls:
 	@echo "Running RLS cross-tenant exit-gate suite"

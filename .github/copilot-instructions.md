@@ -120,6 +120,10 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   atomic maxViews consume; lifecycle+audit at integration; E2E console/role/axe
   smoke. Richer M3 diocese dashboards deferred to R6. Plan:
   [docs/releases/r3-sovereignty-sharing/1-data-sharing-ui.md](../docs/releases/r3-sovereignty-sharing/1-data-sharing-ui.md).
+- **Release R4 — Sacramental Records & Liturgical Calendar — complete.** M8 full
+  register (schema/RLS/API/UI/certificates) + M9 liturgical calendar (diocese
+  publish + events overlay). Plans under
+  [docs/releases/r4-sacramental-liturgical/](../docs/releases/r4-sacramental-liturgical/).
 
 ## How to run
 

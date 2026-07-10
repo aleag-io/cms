@@ -22,9 +22,21 @@ type EventRow = {
   recurrenceRule: string | null;
 };
 
+type LiturgicalRow = {
+  id: string;
+  title: string;
+  observanceType: string;
+  month: number | null;
+  day: number | null;
+  occursOn: string | null;
+  parishId: string | null;
+};
+
 export default function EventsPage() {
   const { claims, isLoading: sessionLoading } = useSession();
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [liturgical, setLiturgical] = useState<LiturgicalRow[]>([]);
+  const [showLiturgical, setShowLiturgical] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
 
@@ -36,10 +48,16 @@ export default function EventsPage() {
   useEffect(() => {
     if (sessionLoading) return;
     let cancelled = false;
-    apiRequest<{ ok: true; events: EventRow[] }>("/api/events")
-      .then((res) => {
+    Promise.all([
+      apiRequest<{ ok: true; events: EventRow[] }>("/api/events"),
+      apiRequest<{ ok: true; observances: LiturgicalRow[] }>(
+        "/api/liturgical?scope=all",
+      ).catch(() => ({ ok: true as const, observances: [] as LiturgicalRow[] })),
+    ])
+      .then(([eventsRes, litRes]) => {
         if (!cancelled) {
-          setEvents(res.events);
+          setEvents(eventsRes.events);
+          setLiturgical(litRes.observances);
           setBusy(false);
         }
       })
@@ -96,7 +114,45 @@ export default function EventsPage() {
           ) : null
         }
       />
-      <div className="flex-1 p-4 sm:p-6" data-testid="events-calendar">
+      <div className="flex-1 space-y-6 p-4 sm:p-6" data-testid="events-calendar">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-medium">Parish events</h2>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showLiturgical}
+              onChange={(e) => setShowLiturgical(e.target.checked)}
+              className="size-4 rounded border"
+            />
+            Show liturgical layer
+          </label>
+        </div>
+        {showLiturgical && liturgical.length > 0 ? (
+          <div
+            className="rounded-lg border border-dashed p-4"
+            data-testid="liturgical-overlay"
+          >
+            <h3 className="mb-2 text-sm font-medium">Liturgical calendar</h3>
+            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {liturgical.map((o) => (
+                <li
+                  key={o.id}
+                  className="rounded-md bg-muted/40 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium">{o.title}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {o.parishId ? "Parish" : "Diocese"}
+                    {o.month && o.day
+                      ? ` · ${o.month}/${o.day}`
+                      : o.occursOn
+                        ? ` · ${o.occursOn.slice(0, 10)}`
+                        : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <DataTable
           rows={events}
           columns={[
