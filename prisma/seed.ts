@@ -83,6 +83,18 @@ if (!connectionString) {
   throw new Error('DATABASE_URL (or POSTGRES_URL_NON_POOLING) must be set');
 }
 
+// This seed TRUNCATEs every table (audit trail included). Refuse anything
+// that is not the local Supabase stack — `vercel env pull` drops the
+// production POSTGRES_URL_NON_POOLING into .env.local, which we fall back to.
+const dbHost = new URL(connectionString).hostname;
+const isLocalDb = ['localhost', '127.0.0.1', '::1'].includes(dbHost);
+if (!isLocalDb && process.env.SEED_ALLOW_REMOTE !== '1') {
+  throw new Error(
+    `Refusing to seed non-local database host "${dbHost}" — this script wipes all data. ` +
+      'Set SEED_ALLOW_REMOTE=1 only if you really mean to reseed a remote database.',
+  );
+}
+
 const pool = new Pool({ connectionString });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
