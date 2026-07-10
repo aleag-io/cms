@@ -66,7 +66,8 @@ import {
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { assertSeedTargetSafe } from '../lib/seed-guard';
+// Node ESM + --experimental-strip-types requires an explicit .ts extension.
+import { assertSeedTargetSafe } from '../lib/seed-guard.ts';
 
 // ── env ──────────────────────────────────────────────────────────────────────
 

@@ -74,7 +74,7 @@ export type ShellContext = {
 };
 
 const NAV_ICONS: Record<string, Icon> = {
-  "/": HouseIcon,
+  "/app": HouseIcon,
   "/directory": UsersThreeIcon,
   "/self-service": IdentificationCardIcon,
   "/registrations": IdentificationCardIcon,
@@ -102,7 +102,9 @@ function navIconFor(href: string): Icon {
 }
 
 function isActiveHref(href: string, pathname: string): boolean {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+  return href === "/app"
+    ? pathname === "/app"
+    : pathname.startsWith(href);
 }
 
 export function AppShell({
@@ -244,10 +246,10 @@ export function AppShell({
                     <BreadcrumbList>
                       <BreadcrumbItem className="hidden sm:inline-flex">
                         <BreadcrumbLink asChild>
-                          <Link href="/">Home</Link>
+                          <Link href="/app">Home</Link>
                         </BreadcrumbLink>
                       </BreadcrumbItem>
-                      {pathname !== "/" ? (
+                      {pathname !== "/app" ? (
                         <>
                           <BreadcrumbSeparator className="hidden sm:block" />
                           <BreadcrumbItem>
@@ -280,7 +282,9 @@ export function AppShell({
 function currentPageTitle(sections: NavSection[], pathname: string): string {
   for (const section of sections) {
     const match = section.items.find((item) =>
-      item.href === "/" ? pathname === "/" : pathname.startsWith(item.href),
+      item.href === "/app"
+        ? pathname === "/app"
+        : pathname.startsWith(item.href),
     );
     if (match) return match.title;
   }

@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 import { ensureMemberSession, isSupabaseAuthUp } from './helpers/auth';
 
 const PROTECTED_ROUTES = [
-  '/',
+  '/app',
   '/directory',
   '/self-service',
   '/members',
@@ -51,8 +51,8 @@ test.describe('R1 — app shell & dashboard', () => {
   });
 
   test('authenticated member lands on the role dashboard', async ({ page }) => {
-    await page.goto('/');
-    await expect(page).toHaveURL('/');
+    await page.goto('/app');
+    await expect(page).toHaveURL('/app');
     await expect(page.getByText('Member portal')).toBeVisible();
     // Member mode: safe links (directory / self-service) and/or quick links.
     await expect(
@@ -62,8 +62,16 @@ test.describe('R1 — app shell & dashboard', () => {
     ).toBeVisible();
   });
 
-  test('sign out returns to the login page', async ({ page }) => {
+  test('signed-in user visiting home is redirected into the app', async ({
+    page,
+  }) => {
     await page.goto('/');
+    await expect(page).toHaveURL('/app');
+    await expect(page.getByText('Member portal')).toBeVisible();
+  });
+
+  test('sign out returns to the login page', async ({ page }) => {
+    await page.goto('/app');
     // The user menu trigger shows the display name and role.
     await page.getByRole('button', { name: /e2e member/i }).click();
     await page.getByRole('menuitem', { name: /sign out/i }).click();

@@ -1,5 +1,5 @@
 /**
- * Operational dashboard smoke — stats + a11y on `/`.
+ * Operational dashboard smoke — stats + a11y on `/app`.
  */
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -20,8 +20,8 @@ test.describe('Operational dashboard', () => {
   test('parish admin sees KPI stats and work queue sections', async ({
     page,
   }) => {
-    await page.goto('/');
-    await expect(page).toHaveURL('/');
+    await page.goto('/app');
+    await expect(page).toHaveURL('/app');
     await expect(page.getByText(/active members/i).first()).toBeVisible({
       timeout: 30000,
     });
@@ -30,7 +30,7 @@ test.describe('Operational dashboard', () => {
   });
 
   test('dashboard has no critical a11y violations', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/app');
     await expect(page.getByText(/active members/i).first()).toBeVisible({
       timeout: 30000,
     });

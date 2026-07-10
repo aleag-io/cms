@@ -84,7 +84,7 @@ function LoginForm() {
       // If the check fails, still attempt navigation; layout will re-validate.
     }
 
-    router.push("/");
+    router.push("/app");
     router.refresh();
   }
 
@@ -184,6 +184,14 @@ function LoginForm() {
               className="text-primary underline-offset-2 hover:underline"
             >
               Provision your tenant
+            </Link>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <Link
+              href="/"
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              ← Back to home
             </Link>
           </p>
         </CardFooter>

@@ -147,7 +147,7 @@ test.describe('R2 — member surfaces', () => {
 
   test('member does not see messages nav destination', async ({ page }) => {
     test.setTimeout(60000);
-    await page.goto('/');
+    await page.goto('/app');
     await expect(page.getByText(/member portal/i)).toBeVisible({
       timeout: 15000,
     });
