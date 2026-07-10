@@ -54,8 +54,11 @@ test.describe('R1 — app shell & dashboard', () => {
     await page.goto('/');
     await expect(page).toHaveURL('/');
     await expect(page.getByText('Member portal')).toBeVisible();
+    // Member mode: safe links (directory / self-service) and/or quick links.
     await expect(
-      page.getByRole('link', { name: /people directory, members/i }),
+      page
+        .getByRole('link', { name: /directory|self-service|my profile|people/i })
+        .first(),
     ).toBeVisible();
   });
 

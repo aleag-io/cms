@@ -38,6 +38,14 @@ enum EducationLevel {
   OTHER
 }
 
+/// Directory-safe demographic gender (not pastoral-sensitive by itself).
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNSPECIFIED
+}
+
 enum RelationshipType {
   SPOUSE
   PARENT
@@ -400,6 +408,7 @@ model Member {
   lastName                 String
   email                    String?
   phone                    String?
+  gender                   Gender?
   workNotes                String?
   educationLevel           EducationLevel?
   skillsInterests          String[]                   @default([])
