@@ -5,6 +5,12 @@
  *   npm run db:seed
  *   npm run db:seed -- --keep   # skip truncate (append fails on unique constraints)
  *
+ * Safety (this script TRUNCATEs tenant tables, including audit):
+ *   - Default: only local DB hosts (`localhost`, `127.0.0.1`, `::1`).
+ *   - Non-local / cloud hosts require `SEED_ALLOW_REMOTE=1` (or `ALLOW_DEMO_SEED=1`).
+ *   - Never point DATABASE_URL at production and run seed without the flag —
+ *     `vercel env pull` can put remote URLs in `.env.local`.
+ *
  * Creates:
  *   - 1 diocese + diocese-level admins/staff/report viewers
  *   - 10 parishes × ≥20 families × ≥60 members each
@@ -60,6 +66,7 @@ import {
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { assertSeedTargetSafe } from '../lib/seed-guard';
 
 // ── env ──────────────────────────────────────────────────────────────────────
 
@@ -84,16 +91,8 @@ if (!connectionString) {
 }
 
 // This seed TRUNCATEs every table (audit trail included). Refuse anything
-// that is not the local Supabase stack — `vercel env pull` drops the
-// production POSTGRES_URL_NON_POOLING into .env.local, which we fall back to.
-const dbHost = new URL(connectionString).hostname;
-const isLocalDb = ['localhost', '127.0.0.1', '::1'].includes(dbHost);
-if (!isLocalDb && process.env.SEED_ALLOW_REMOTE !== '1') {
-  throw new Error(
-    `Refusing to seed non-local database host "${dbHost}" — this script wipes all data. ` +
-      'Set SEED_ALLOW_REMOTE=1 only if you really mean to reseed a remote database.',
-  );
-}
+// that is not the local Supabase stack unless SEED_ALLOW_REMOTE / ALLOW_DEMO_SEED.
+assertSeedTargetSafe(connectionString);
 
 const pool = new Pool({ connectionString });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
@@ -602,6 +601,9 @@ const FAMILY_TEMPLATES: FamilyTemplate[] = [
 // ── truncate ─────────────────────────────────────────────────────────────────
 
 async function truncateAll() {
+  // Defense in depth: re-check even if module-level guard was bypassed.
+  assertSeedTargetSafe(connectionString);
+
   await prisma.$executeRawUnsafe(`
     TRUNCATE
       "AuditEntry",

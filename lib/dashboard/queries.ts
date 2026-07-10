@@ -37,6 +37,31 @@ type Tx = Prisma.TransactionClient | PrismaClient;
 const LIST_LIMIT = 12;
 const NEW_MEMBER_DAYS = 30;
 
+/** Parish "new members" list + KPI: active and pending only. */
+export const PARISH_NEW_MEMBER_STATUSES: MemberStatus[] = [
+  MemberStatus.ACTIVE,
+  MemberStatus.PENDING,
+];
+
+/** Diocese "new members" list + KPI: active only (matches list query). */
+export const DIOCESE_NEW_MEMBER_STATUSES: MemberStatus[] = [MemberStatus.ACTIVE];
+
+/**
+ * Gender census for members that already have a date of birth.
+ * Must not pad with no-DOB members — legend totals must equal stacked bars.
+ */
+export function genderTotalsFromDobMembers(
+  members: Array<{ gender: Gender | null }>,
+): GenderTotals {
+  const totals: GenderTotals = { male: 0, female: 0, unassigned: 0 };
+  for (const m of members) {
+    if (m.gender === Gender.MALE) totals.male += 1;
+    else if (m.gender === Gender.FEMALE) totals.female += 1;
+    else totals.unassigned += 1;
+  }
+  return totals;
+}
+
 function emptyStatusCounts(): StatusCounts {
   return {
     ACTIVE: 0,
@@ -95,7 +120,7 @@ export async function loadParishDashboardRaw(
       where: {
         parishId,
         createdAt: { gte: newSince },
-        status: { in: [MemberStatus.ACTIVE, MemberStatus.PENDING] },
+        status: { in: PARISH_NEW_MEMBER_STATUSES },
       },
       orderBy: { createdAt: 'desc' },
       take: LIST_LIMIT,
@@ -200,8 +225,6 @@ export async function loadParishDashboardRaw(
   for (const b of AGE_BANDS) {
     bandGender.set(b.key, { male: 0, female: 0, unassigned: 0 });
   }
-  const genderTotals: GenderTotals = { male: 0, female: 0, unassigned: 0 };
-
   const birthdaysThisWeek: BirthdayRow[] = [];
   for (const m of pastoralRows) {
     const dob = m.pastoralData?.dateOfBirth;
@@ -218,13 +241,10 @@ export async function loadParishDashboardRaw(
 
     if (m.gender === Gender.MALE) {
       bucket.male += 1;
-      genderTotals.male += 1;
     } else if (m.gender === Gender.FEMALE) {
       bucket.female += 1;
-      genderTotals.female += 1;
     } else {
       bucket.unassigned += 1;
-      genderTotals.unassigned += 1;
     }
 
     const parts = partsFromDate(dob);
@@ -240,10 +260,8 @@ export async function loadParishDashboardRaw(
     }
   }
 
-  // Active members without DOB contribute to unassigned totals only (no age bar)
-  const withDob = pastoralRows.length;
-  const noDob = Math.max(0, membersActive - withDob);
-  genderTotals.unassigned += noDob;
+  // Only DOB-bearing rows (pastoralRows query filter) — never pad no-DOB actives.
+  const genderTotals = genderTotalsFromDobMembers(pastoralRows);
 
   const ageGenderBands: AgeGenderBand[] = AGE_BANDS.map((b) => {
     const g = bandGender.get(b.key) ?? { male: 0, female: 0, unassigned: 0 };
@@ -382,6 +400,7 @@ export async function loadParishDashboardRaw(
         where: {
           parishId,
           createdAt: { gte: newSince },
+          status: { in: PARISH_NEW_MEMBER_STATUSES },
         },
       }),
       pendingRegistrations: pendingRegCount,
@@ -440,7 +459,7 @@ export async function loadDioceseDashboardRaw(
         where: {
           dioceseId,
           createdAt: { gte: newSince },
-          status: MemberStatus.ACTIVE,
+          status: { in: DIOCESE_NEW_MEMBER_STATUSES },
         },
         orderBy: { createdAt: 'desc' },
         take: LIST_LIMIT,
@@ -503,7 +522,11 @@ export async function loadDioceseDashboardRaw(
       familiesActive,
       familiesTotal,
       newMembersLast30Days: await tx.member.count({
-        where: { dioceseId, createdAt: { gte: newSince } },
+        where: {
+          dioceseId,
+          createdAt: { gte: newSince },
+          status: { in: DIOCESE_NEW_MEMBER_STATUSES },
+        },
       }),
       pendingRegistrations: pendingRegs,
       pendingWorkItemCount: 0,
