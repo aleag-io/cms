@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   const claims = await claimsFromUser(user);
   const portal = portalFromClaims(claims);
   const navItems = visibleNavItems(claims.app_metadata.roles, { portal }).filter(
-    (item) => item.href !== "/",
+    (item) => item.href !== "/app",
   );
 
   const landing =

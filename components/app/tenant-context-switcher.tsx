@@ -80,7 +80,7 @@ export function TenantContextSwitcher({
       setPortal("parish");
       setWorking(res.workingParish);
       toast.success(`Working in ${res.workingParish.name}`);
-      router.push("/");
+      router.push("/app");
       router.refresh();
     } catch (err) {
       toast.error(
@@ -102,7 +102,7 @@ export function TenantContextSwitcher({
       setPortal("diocese");
       setWorking(null);
       toast.success("Back to diocese context");
-      router.push("/");
+      router.push("/app");
       router.refresh();
     } catch (err) {
       toast.error(

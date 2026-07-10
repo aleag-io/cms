@@ -31,7 +31,7 @@ describe('visibleNavItems', () => {
     expect(
       visibleNavItems(['member'], { portal: 'parish' }).map((item) => item.href),
     ).toEqual([
-      '/',
+      '/app',
       '/directory',
       '/self-service',
       '/programs',
@@ -46,7 +46,7 @@ describe('visibleNavItems', () => {
       (item) => item.href,
     );
     expect(hrefs).toEqual([
-      '/',
+      '/app',
       '/directory',
       '/registrations',
       '/members',
@@ -73,7 +73,7 @@ describe('visibleNavItems', () => {
       visibleNavItems(['diocese_report_viewer'], { portal: 'diocese' }).map(
         (item) => item.href,
       ),
-    ).toEqual(['/', '/diocese/aggregate']);
+    ).toEqual(['/app', '/diocese/aggregate']);
   });
 
   it('hides parish ops from diocese admin in diocese portal', () => {
@@ -81,7 +81,7 @@ describe('visibleNavItems', () => {
       (item) => item.href,
     );
     expect(hrefs).toEqual([
-      '/',
+      '/app',
       '/diocese/settings',
       '/parishes',
       '/diocese/users',
@@ -112,7 +112,7 @@ describe('visibleNavItems', () => {
         (item) => item.href,
       ),
     ).toEqual([
-      '/',
+      '/app',
       '/directory',
       '/self-service',
       '/members',
@@ -131,7 +131,7 @@ describe('visibleNavItems', () => {
       visibleNavItems(['ministry_leader'], { portal: 'parish' }).map(
         (item) => item.href,
       ),
-    ).toEqual(['/', '/directory', '/programs', '/events']);
+    ).toEqual(['/app', '/directory', '/programs', '/events']);
   });
 });
 
@@ -171,7 +171,7 @@ describe('navSectionsFromClaims', () => {
       {
         title: 'People',
         items: [
-          '/',
+          '/app',
           '/directory',
           '/registrations',
           '/members',
@@ -210,7 +210,7 @@ describe('navSectionsFromClaims', () => {
         items: section.items.map((item) => item.href),
       })),
     ).toEqual([
-      { title: 'People', items: ['/'] },
+      { title: 'People', items: ['/app'] },
       {
         title: 'Diocese',
         items: [

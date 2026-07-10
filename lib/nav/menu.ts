@@ -27,7 +27,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   {
     title: 'Dashboard',
-    href: '/',
+    href: '/app',
     section: 'People',
     roles: [
       'global_admin',
@@ -256,7 +256,7 @@ export function visibleNavItems(
     if (
       scope.portal === 'diocese' &&
       (item.section === 'Parish' ||
-        (item.section === 'People' && item.href !== '/') ||
+        (item.section === 'People' && item.href !== '/app') ||
         (item.section === 'Administration' &&
           item.href.startsWith('/settings')))
     ) {

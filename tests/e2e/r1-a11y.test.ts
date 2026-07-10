@@ -35,7 +35,7 @@ test.describe('authenticated surfaces', () => {
   test('dashboard (app shell) has no serious axe violations', async ({
     page,
   }) => {
-    await page.goto('/');
+    await page.goto('/app');
     await expect(page.getByText('Member portal')).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
   });

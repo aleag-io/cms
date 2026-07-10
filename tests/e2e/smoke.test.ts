@@ -7,10 +7,23 @@
 
 import { test, expect } from '@playwright/test';
 
-test('home page loads without a server error', async ({ page }) => {
+test('home page loads marketing landing without a server error', async ({
+  page,
+}) => {
   const response = await page.goto('/');
-  // Accept 200 or 307 (redirect to login — valid when auth is wired).
-  expect([200, 307, 302]).toContain(response?.status());
+  expect(response?.status()).toBe(200);
+  await expect(
+    page.getByRole('heading', {
+      name: /church management built for parish sovereignty/i,
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: /^log in$/i }).first()).toBeVisible();
+});
+
+test('landing page login link navigates to login', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: /^log in$/i }).first().click();
+  await expect(page).toHaveURL(/\/login/);
 });
 
 test('non-existent route returns 404', async ({ page }) => {

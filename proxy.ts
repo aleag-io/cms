@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 function isPublicPath(pathname: string): boolean {
   return (
+    // Product marketing homepage (unauthenticated).
+    pathname === '/' ||
+    pathname.startsWith('/marketing/') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth/') ||
     pathname === '/register' ||
