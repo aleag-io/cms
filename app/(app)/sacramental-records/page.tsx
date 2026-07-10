@@ -101,9 +101,11 @@ export default function SacramentalRegisterPage() {
             />
           </div>
           <div className="w-full space-y-1 sm:w-56">
-            <label className="text-sm font-medium">Type</label>
+            <label className="text-sm font-medium" htmlFor="type-filter">
+              Type
+            </label>
             <Select value={type} onValueChange={setType}>
-              <SelectTrigger>
+              <SelectTrigger id="type-filter">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

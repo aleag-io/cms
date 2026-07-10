@@ -111,3 +111,13 @@ calendar — optional v1).
 Do **not** start R4-M9-1 until M8 exit gates are green (or explicit dual-track with
 frozen M8 schema). R5 Finance remains after R4 product sequence unless leadership
 reprioritizes.
+
+---
+
+## Changelog
+
+- **2026-07-10 (peer-review hardening):** §2.2 — parish-local rows in the
+  general SELECT policy now require `isPublished = true`; parish admin/staff
+  see their drafts via the write policy's USING clause. API validation moved
+  to `lib/liturgical/validate.ts` (observance type, month/day bounds, dates);
+  DELETE now applies the same parish-writer role guard as PATCH.

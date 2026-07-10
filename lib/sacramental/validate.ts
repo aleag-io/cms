@@ -2,6 +2,18 @@ import type { SacramentType } from '@prisma/client';
 import { ApiError } from '@/lib/api';
 import { isSacramentType } from '@/lib/sacramental/constants';
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function assertUuidOrNull(
+  key: string,
+  value: string | null | undefined,
+): void {
+  if (value != null && !UUID_RE.test(value)) {
+    throw new ApiError(400, `${key} must be a UUID`);
+  }
+}
+
 export type SacramentalInput = {
   sacramentType: SacramentType;
   occurredOn: Date;
@@ -41,6 +53,9 @@ export function parseSacramentalBody(body: Record<string, unknown>): Sacramental
     return v.trim() || null;
   };
 
+  const spouseMemberId = str('spouseMemberId');
+  assertUuidOrNull('spouseMemberId', spouseMemberId);
+
   return {
     sacramentType: typeRaw,
     occurredOn,
@@ -51,7 +66,7 @@ export function parseSacramentalBody(body: Record<string, unknown>): Sacramental
     registerEntry: str('registerEntry'),
     notes: str('notes'),
     sponsorNames: str('sponsorNames'),
-    spouseMemberId: str('spouseMemberId'),
+    spouseMemberId,
     spouseName: str('spouseName'),
     witnessNames: str('witnessNames'),
     ordainedOffice: str('ordainedOffice'),
@@ -112,6 +127,7 @@ export function parseSacramentalPatch(
       throw new ApiError(400, `${key} must be a string or null`);
     }
   }
+  assertUuidOrNull('spouseMemberId', out.spouseMemberId);
 
   return out;
 }

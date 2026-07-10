@@ -17,6 +17,7 @@ export const GET = (
   context: { params: Promise<{ id: string; recordId: string }> },
 ) =>
   handle(async () => {
+    const requestId = randomUUID();
     const claims = await requireSessionClaims();
     const { id: memberId, recordId } = await context.params;
     const parishId = claims.app_metadata.parish_id;
@@ -32,12 +33,34 @@ export const GET = (
       throw new ApiError(404, 'Record not found');
     }
 
+    // Non-privileged (member own-read) sees active records only.
+    const privileged = canAccessSacramental(claims, 'read', mapped);
     const record = await withTenant(claims, (tx) =>
       tx.sacramentalRecord.findFirst({
-        where: { id: recordId, memberId },
+        where: {
+          id: recordId,
+          memberId,
+          ...(privileged ? {} : { isActive: true }),
+        },
       }),
     );
     if (!record) throw new ApiError(404, 'Record not found');
+
+    // Export-like read (certificate print) — audit privileged access (SE-4).
+    if (privileged) {
+      await writeAuditEntry({
+        requestId,
+        actorUserId: claims.sub,
+        actorLabel: claims.sub,
+        action: 'membership.sacramental_record.read',
+        entityType: 'sacramental_record',
+        entityId: record.id,
+        outcome: AuditOutcome.SUCCESS,
+        dioceseId: claims.app_metadata.diocese_id,
+        parishId: record.parishId,
+        metadata: { memberId },
+      });
+    }
 
     return Response.json({ ok: true, record });
   });
@@ -81,6 +104,19 @@ export const PATCH = (
         where: { id: recordId, memberId, parishId },
       });
       if (!existing) throw new ApiError(404, 'Record not found');
+
+      if (patch.spouseMemberId) {
+        const spouse = await tx.member.findFirst({
+          where: { id: patch.spouseMemberId, parishId },
+          select: { id: true },
+        });
+        if (!spouse) {
+          throw new ApiError(
+            400,
+            'spouseMemberId must reference a member of this parish',
+          );
+        }
+      }
 
       const updated = await tx.sacramentalRecord.update({
         where: { id: recordId },

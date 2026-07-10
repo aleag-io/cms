@@ -106,6 +106,7 @@ beforeEach(async () => {
   await testDb.sacramentalRecord.deleteMany({});
   await testDb.dataSharingGrant.deleteMany({});
   await testDb.emergencyAccessGrant.deleteMany({});
+  await testDb.parishPermissionOverride.deleteMany({});
   await seedRecords();
 });
 
@@ -164,6 +165,138 @@ describe('R4 SacramentalRecord RLS', () => {
         );
       }),
     ).rejects.toThrow();
+  });
+
+  it('parish staff with WRITE override can insert and read register rows (PA-12)', async () => {
+    await testDb.parishPermissionOverride.create({
+      data: {
+        parishId: FX.parishAId,
+        role: 'PARISH_STAFF',
+        resource: 'MEMBER_SACRAMENTAL_RECORD',
+        action: 'WRITE',
+        isAllowed: true,
+        grantedByUserId: FX.users.parishAAdmin.id,
+      },
+    });
+
+    const inserted = await withTenantSession(staffA, async (c) => {
+      const id = '00000000-0000-0000-0000-000000000513';
+      await c.query(
+        `INSERT INTO "SacramentalRecord" (
+          id, "parishId", "memberId", "sacramentType", "occurredOn", "isActive", "createdAt", "updatedAt"
+        ) VALUES ($1::uuid, $2::uuid, $3::uuid, 'HOLY_COMMUNION', '2013-05-01', true, now(), now())`,
+        [id, FX.parishAId, FX.members.aliceSmithId],
+      );
+      const { rows } = await c.query(
+        'SELECT id FROM "SacramentalRecord" WHERE id = $1::uuid',
+        [id],
+      );
+      return rows.length;
+    });
+    expect(inserted).toBe(1);
+  });
+
+  it('parish staff with READ-only override can select but not insert', async () => {
+    await testDb.parishPermissionOverride.create({
+      data: {
+        parishId: FX.parishAId,
+        role: 'PARISH_STAFF',
+        resource: 'MEMBER_SACRAMENTAL_RECORD',
+        action: 'READ',
+        isAllowed: true,
+        grantedByUserId: FX.users.parishAAdmin.id,
+      },
+    });
+
+    const ids = await selectIds(staffA);
+    expect(ids.sort()).toEqual([RECORD_A_ID, RECORD_PEER_ID].sort());
+
+    await expect(
+      withTenantSession(staffA, async (c) => {
+        await c.query(
+          `INSERT INTO "SacramentalRecord" (
+            id, "parishId", "memberId", "sacramentType", "occurredOn", "isActive", "createdAt", "updatedAt"
+          ) VALUES (
+            '00000000-0000-0000-0000-000000000514'::uuid,
+            $1::uuid, $2::uuid, 'BAPTISM', '2014-01-01', true, now(), now()
+          )`,
+          [FX.parishAId, FX.members.aliceSmithId],
+        );
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('deny override blocks clergy writes at the DB layer', async () => {
+    await testDb.parishPermissionOverride.create({
+      data: {
+        parishId: FX.parishAId,
+        role: 'CLERGY',
+        resource: 'MEMBER_SACRAMENTAL_RECORD',
+        action: 'WRITE',
+        isAllowed: false,
+        grantedByUserId: FX.users.parishAAdmin.id,
+      },
+    });
+
+    await expect(
+      withTenantSession(clergyA, async (c) => {
+        await c.query(
+          `INSERT INTO "SacramentalRecord" (
+            id, "parishId", "memberId", "sacramentType", "occurredOn", "isActive", "createdAt", "updatedAt"
+          ) VALUES (
+            '00000000-0000-0000-0000-000000000515'::uuid,
+            $1::uuid, $2::uuid, 'BAPTISM', '2015-01-01', true, now(), now()
+          )`,
+          [FX.parishAId, FX.members.aliceSmithId],
+        );
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('override in Parish B does not leak into Parish A', async () => {
+    await testDb.parishPermissionOverride.create({
+      data: {
+        parishId: FX.parishBId,
+        role: 'PARISH_STAFF',
+        resource: 'MEMBER_SACRAMENTAL_RECORD',
+        action: 'READ',
+        isAllowed: true,
+        grantedByUserId: FX.users.parishBAdmin.id,
+      },
+    });
+
+    const ids = await selectIds(staffA);
+    expect(ids).toHaveLength(0);
+  });
+
+  it('parish staff cannot insert pastoral data by default; write override enables it', async () => {
+    const insertPastoral = () =>
+      withTenantSession(staffA, async (c) => {
+        await c.query(
+          `INSERT INTO "MemberPastoralData" (
+            id, "memberId", "parishId", "createdAt", "updatedAt"
+          ) VALUES (
+            '00000000-0000-0000-0000-000000000516'::uuid,
+            $1::uuid, $2::uuid, now(), now()
+          )`,
+          [FX.members.clergyAId, FX.parishAId],
+        );
+      });
+
+    await expect(insertPastoral()).rejects.toThrow();
+
+    await testDb.parishPermissionOverride.create({
+      data: {
+        parishId: FX.parishAId,
+        role: 'PARISH_STAFF',
+        resource: 'MEMBER_PASTORAL_DATA',
+        action: 'WRITE',
+        isAllowed: true,
+        grantedByUserId: FX.users.parishAAdmin.id,
+      },
+    });
+
+    await expect(insertPastoral()).resolves.toBeUndefined();
   });
 
   it('member can read own records but not peer records', async () => {

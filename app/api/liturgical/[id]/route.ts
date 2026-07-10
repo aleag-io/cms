@@ -1,9 +1,39 @@
 import { randomUUID } from 'node:crypto';
-import { AuditOutcome, ObservanceType, Role } from '@prisma/client';
+import { AuditOutcome, Role, type LiturgicalObservance } from '@prisma/client';
 import { claimsFromUser, requireRole } from '@/lib/auth';
 import { withTenant } from '@/lib/db/withTenant';
 import { writeAuditEntry } from '@/lib/audit';
 import { ApiError, handle } from '@/lib/api';
+import { parseLiturgicalPatch } from '@/lib/liturgical/validate';
+
+const PARISH_WRITERS: Role[] = [
+  Role.PARISH_ADMIN,
+  Role.PARISH_STAFF,
+  Role.GLOBAL_ADMIN,
+];
+const DIOCESE_WRITERS: Role[] = [
+  Role.DIOCESE_ADMIN,
+  Role.DIOCESE_STAFF,
+  Role.GLOBAL_ADMIN,
+];
+
+/** Parish actors may only mutate parish-local rows in their parish;
+ *  diocese-wide rows are writable by diocese roles only. */
+function assertCanMutate(
+  existing: Pick<LiturgicalObservance, 'parishId'>,
+  actor: { role: Role; parishId: string | null },
+): void {
+  if (existing.parishId) {
+    if (existing.parishId !== actor.parishId) {
+      throw new ApiError(403, 'Forbidden');
+    }
+    if (!PARISH_WRITERS.includes(actor.role)) {
+      throw new ApiError(403, 'Forbidden');
+    }
+  } else if (!DIOCESE_WRITERS.includes(actor.role)) {
+    throw new ApiError(403, 'Forbidden');
+  }
+}
 
 export const PATCH = (
   request: Request,
@@ -12,25 +42,11 @@ export const PATCH = (
   handle(async () => {
     const requestId = randomUUID();
     const { id } = await context.params;
-    const body = (await request.json()) as {
-      title?: string;
-      observanceType?: ObservanceType;
-      month?: number | null;
-      day?: number | null;
-      occursOn?: string | null;
-      endsOn?: string | null;
-      lectionaryRef?: string | null;
-      isPublished?: boolean;
-    };
+    const patch = parseLiturgicalPatch(
+      (await request.json()) as Record<string, unknown>,
+    );
 
-    // Load with elevated path: try diocese first, then parish roles.
-    const actor = await requireRole([
-      Role.DIOCESE_ADMIN,
-      Role.DIOCESE_STAFF,
-      Role.GLOBAL_ADMIN,
-      Role.PARISH_ADMIN,
-      Role.PARISH_STAFF,
-    ]);
+    const actor = await requireRole([...DIOCESE_WRITERS, ...PARISH_WRITERS]);
     const claims = await claimsFromUser(actor);
 
     const updated = await withTenant(claims, async (tx) => {
@@ -38,53 +54,11 @@ export const PATCH = (
         where: { id },
       });
       if (!existing) throw new ApiError(404, 'Observance not found');
-
-      // Parish actors may only mutate parish-local rows in their parish.
-      if (existing.parishId) {
-        if (existing.parishId !== actor.parishId) {
-          throw new ApiError(403, 'Forbidden');
-        }
-        const parishWriters: Role[] = [
-          Role.PARISH_ADMIN,
-          Role.PARISH_STAFF,
-          Role.GLOBAL_ADMIN,
-        ];
-        if (!parishWriters.includes(actor.role)) {
-          throw new ApiError(403, 'Forbidden');
-        }
-      } else {
-        const dioceseWriters: Role[] = [
-          Role.DIOCESE_ADMIN,
-          Role.DIOCESE_STAFF,
-          Role.GLOBAL_ADMIN,
-        ];
-        if (!dioceseWriters.includes(actor.role)) {
-          throw new ApiError(403, 'Forbidden');
-        }
-      }
+      assertCanMutate(existing, actor);
 
       return tx.liturgicalObservance.update({
         where: { id },
-        data: {
-          ...(body.title !== undefined && { title: body.title.trim() }),
-          ...(body.observanceType !== undefined && {
-            observanceType: body.observanceType,
-          }),
-          ...(body.month !== undefined && { month: body.month }),
-          ...(body.day !== undefined && { day: body.day }),
-          ...(body.occursOn !== undefined && {
-            occursOn: body.occursOn ? new Date(body.occursOn) : null,
-          }),
-          ...(body.endsOn !== undefined && {
-            endsOn: body.endsOn ? new Date(body.endsOn) : null,
-          }),
-          ...(body.lectionaryRef !== undefined && {
-            lectionaryRef: body.lectionaryRef,
-          }),
-          ...(body.isPublished !== undefined && {
-            isPublished: body.isPublished,
-          }),
-        },
+        data: patch,
       });
     });
 
@@ -110,37 +84,18 @@ export const DELETE = (
   handle(async () => {
     const requestId = randomUUID();
     const { id } = await context.params;
-    const actor = await requireRole([
-      Role.DIOCESE_ADMIN,
-      Role.DIOCESE_STAFF,
-      Role.GLOBAL_ADMIN,
-      Role.PARISH_ADMIN,
-      Role.PARISH_STAFF,
-    ]);
+    const actor = await requireRole([...DIOCESE_WRITERS, ...PARISH_WRITERS]);
     const claims = await claimsFromUser(actor);
 
-    await withTenant(claims, async (tx) => {
+    const deleted = await withTenant(claims, async (tx) => {
       const existing = await tx.liturgicalObservance.findFirst({
         where: { id },
       });
       if (!existing) throw new ApiError(404, 'Observance not found');
-
-      if (existing.parishId) {
-        if (existing.parishId !== actor.parishId) {
-          throw new ApiError(403, 'Forbidden');
-        }
-      } else {
-        const dioceseWriters: Role[] = [
-          Role.DIOCESE_ADMIN,
-          Role.DIOCESE_STAFF,
-          Role.GLOBAL_ADMIN,
-        ];
-        if (!dioceseWriters.includes(actor.role)) {
-          throw new ApiError(403, 'Forbidden');
-        }
-      }
+      assertCanMutate(existing, actor);
 
       await tx.liturgicalObservance.delete({ where: { id } });
+      return existing;
     });
 
     await writeAuditEntry({
@@ -152,7 +107,7 @@ export const DELETE = (
       entityId: id,
       outcome: AuditOutcome.SUCCESS,
       dioceseId: actor.dioceseId,
-      parishId: actor.parishId,
+      parishId: deleted.parishId,
     });
 
     return Response.json({ ok: true });

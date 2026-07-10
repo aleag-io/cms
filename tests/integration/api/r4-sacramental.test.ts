@@ -189,6 +189,140 @@ describe('R4 sacramental API', () => {
     expect(audit?.outcome).toBe('SUCCESS');
   });
 
+  it('staff with PA-12 overrides can create records end-to-end (incl. dual-write)', async () => {
+    // Register write + the pastoral read/write the baptism dual-write needs.
+    await testDb.parishPermissionOverride.createMany({
+      data: (
+        [
+          ['MEMBER_SACRAMENTAL_RECORD', 'READ'],
+          ['MEMBER_SACRAMENTAL_RECORD', 'WRITE'],
+          ['MEMBER_PASTORAL_DATA', 'READ'],
+          ['MEMBER_PASTORAL_DATA', 'WRITE'],
+        ] as const
+      ).map(([resource, action]) => ({
+        parishId: FX.parishAId,
+        role: 'PARISH_STAFF' as const,
+        resource,
+        action,
+        isAllowed: true,
+        grantedByUserId: FX.users.parishAAdmin.id,
+      })),
+    });
+
+    const staff = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAStaff.id },
+    });
+    resetAuth = asUser(staff);
+
+    const res = await listPost.POST(
+      new Request(
+        `http://localhost/api/members/${FX.members.aliceSmithId}/sacramental-records`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sacramentType: 'BAPTISM',
+            occurredOn: '2003-03-03',
+          }),
+        },
+      ),
+      { params: Promise.resolve({ id: FX.members.aliceSmithId }) },
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.record.sacramentType).toBe('BAPTISM');
+
+    const pastoral = await testDb.memberPastoralData.findUnique({
+      where: { memberId: FX.members.aliceSmithId },
+    });
+    expect(pastoral?.baptismDate?.toISOString().slice(0, 10)).toBe('2003-03-03');
+  });
+
+  it('rejects a spouseMemberId that is not a member of the parish', async () => {
+    const admin = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAAdmin.id },
+    });
+    resetAuth = asUser(admin);
+
+    const post = (spouseMemberId: string) =>
+      listPost.POST(
+        new Request(
+          `http://localhost/api/members/${FX.members.aliceSmithId}/sacramental-records`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sacramentType: 'MARRIAGE',
+              occurredOn: '2020-06-20',
+              spouseMemberId,
+            }),
+          },
+        ),
+        { params: Promise.resolve({ id: FX.members.aliceSmithId }) },
+      );
+
+    expect((await post('not-a-uuid')).status).toBe(400);
+    // Parish B member is invisible / out of scope for Parish A registers.
+    expect((await post(FX.members.bobJonesBId)).status).toBe(400);
+  });
+
+  it('privileged record read is audited; members cannot read own inactive records', async () => {
+    const inactive = await testDb.sacramentalRecord.create({
+      data: {
+        parishId: FX.parishAId,
+        memberId: FX.members.aliceSmithId,
+        sacramentType: 'BAPTISM',
+        occurredOn: new Date('2000-01-01'),
+        isActive: false,
+      },
+    });
+
+    const admin = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAAdmin.id },
+    });
+    resetAuth = asUser(admin);
+
+    const adminRes = await recordMut.GET(
+      new Request(
+        `http://localhost/api/members/${FX.members.aliceSmithId}/sacramental-records/${inactive.id}`,
+      ),
+      {
+        params: Promise.resolve({
+          id: FX.members.aliceSmithId,
+          recordId: inactive.id,
+        }),
+      },
+    );
+    expect(adminRes.status).toBe(200);
+
+    const readAudit = await testDb.auditEntry.findFirst({
+      where: {
+        action: 'membership.sacramental_record.read',
+        entityId: inactive.id,
+      },
+    });
+    expect(readAudit?.outcome).toBe('SUCCESS');
+
+    resetAuth();
+    const member = await testDb.appUser.findUniqueOrThrow({
+      where: { id: FX.users.parishAMember.id },
+    });
+    resetAuth = asUser(member);
+
+    const memberRes = await recordMut.GET(
+      new Request(
+        `http://localhost/api/members/${FX.members.aliceSmithId}/sacramental-records/${inactive.id}`,
+      ),
+      {
+        params: Promise.resolve({
+          id: FX.members.aliceSmithId,
+          recordId: inactive.id,
+        }),
+      },
+    );
+    expect(memberRes.status).toBe(404);
+  });
+
   it('parish register search returns matching rows for admin', async () => {
     const admin = await testDb.appUser.findUniqueOrThrow({
       where: { id: FX.users.parishAAdmin.id },
