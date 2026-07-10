@@ -14,15 +14,18 @@ This document provides a detailed description of each feature area of the Mar Th
 
 **Summary:** A high-level overview of the entire diocese with at-a-glance statistics.
 
+**Implementation:** Home `/` in diocese portal mode (no working parish). Payload from
+`loadDashboard` / `GET /api/dashboard` using Tier-2 aggregate views; role-projected
+work items (e.g. pending sharing requests). Drill-down remains on `/diocese/aggregate`.
+
 **Key Information Displayed:**
 
 - Total parishes, active families, and registered members
-- Recent registrations and membership changes
-- Upcoming diocese-wide events
-- Aggregate giving summary for current period
-- Alerts (pending tasks, parishes with incomplete data)
+- Recent registrations and membership changes (30-day new members)
+- Alerts (pending sharing requests, pending registrations across parishes)
+- *(Deferred to R5/R6: aggregate giving, advanced parish health)*
 
-**User:** Diocese Admin, Diocese Staff
+**User:** Diocese Admin, Diocese Staff, Diocese Report Viewer
 
 ---
 
@@ -117,16 +120,24 @@ This document provides a detailed description of each feature area of the Mar Th
 
 **Summary:** A parish-specific overview for daily operations.
 
+**Implementation:** Home `/` (Server Component, `force-dynamic`) loads
+`lib/dashboard/load-dashboard.ts` via `withTenant`. Same DTO as `GET /api/dashboard`.
+Pastoral birthdays/anniversaries/age bands only for clergy, parish admin, and pastoral
+data accessors (aligned with `lib/projection.ts`).
+
 **Key Information Displayed:**
 
-- Total families and members
-- New registrations this month
-- Upcoming events this week
-- Recent donations and giving totals
-- Pending tasks (incomplete sacramental records, pending RSVPs)
-- Communications sent/received
+- Active/total families and members; status demographics
+- Age bands (pastoral-privileged)
+- Birthdays and family anniversaries in the next 7 days (pastoral-privileged)
+- New members (last 30 days)
+- Work items: pending self-registrations, pending members, sharing requests, failed/stuck
+  messages, expiring emergency access, upcoming events (role-filtered)
+- Quick links to people, operations, sharing, admin
 
-**User:** Parish Admin, Parish Staff
+**User:** Parish Admin, Parish Staff, Clergy, and other parish operators (member role gets a reduced safe portal)
+
+**Deferred:** giving totals (R5), full reporting charts (R6)
 
 ---
 
