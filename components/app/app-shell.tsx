@@ -137,7 +137,7 @@ export function AppShell({
     try {
       await apiRequest("/api/session", { method: "DELETE" });
       await getSupabaseBrowserClient().auth.signOut();
-      router.push("/login");
+      router.push("/");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign out failed");
