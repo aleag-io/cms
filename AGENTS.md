@@ -184,10 +184,18 @@ never filters sensitive data client-side.
 
 - Tests: `npm run test:unit` · `test:integration` · `test:rls` · `test:e2e` · `ci` (full
   local pipeline). Coverage: `npm run test:coverage`.
-- Apply RLS / Supabase SQL locally: `node scripts/apply-sql.js supabase/migrations/*.sql`
-  (or `make db-apply-rls`).
+- **Database migrations (both tracks):**
+  - **Local:** `npm run db:migrate:all` (or `db:rebuild`) — `prisma migrate deploy` then
+    all `supabase/migrations/*.sql` against `DATABASE_URL` (local Supabase on :54322).
+  - After authoring a new Prisma migration: `npm run db:migrate` (= `prisma migrate dev`
+    + local RLS apply).
+  - **Production:** Vercel `npm run build` runs `db:migrate:all` against
+    `DATABASE_URL` / `POSTGRES_URL_NON_POOLING` so schema **and** RLS land on deploy.
+    Preview deploys skip DB migrate unless `MIGRATE_ON_PREVIEW=1`.
+  - Supabase SQL is tracked in `_app_sql_migrations` (skip already-applied files;
+    force with `APPLY_SQL_FORCE=1`). Prefer idempotent SQL (`DROP POLICY IF EXISTS`, etc.).
 - Local DB: Supabase local stack (`supabase start`); `DATABASE_URL` points at port 54322.
-  Prisma migrate: `npx prisma migrate deploy` (reads `prisma.config.ts`).
+  Prisma config: `prisma.config.ts`.
 
 ## Working agreement
 

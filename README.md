@@ -53,11 +53,38 @@ When Supabase Local is running, use this database URL for Prisma:
 
 `DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public`
 
+### Keeping schema + RLS in sync
+
+This project has **two** migration folders:
+
+| Track | Path | What it owns |
+| ----- | ---- | ------------ |
+| Prisma | `prisma/migrations/` | Tables, enums, indexes, FKs |
+| Supabase SQL | `supabase/migrations/` | RLS, grants, roles, hooks |
+
+**One command applies both** to whatever DB `DATABASE_URL` (or Vercel
+`POSTGRES_URL_NON_POOLING`) points at:
+
+```bash
+npm run db:migrate:all
+```
+
+| Environment | How it runs |
+| ----------- | ----------- |
+| **Local** | You run `npm run db:migrate:all` after pull / after adding migrations. `npm run db:migrate` = create Prisma migration + apply local RLS. |
+| **Production (Vercel)** | Automatic on deploy: `npm run build` → `db:migrate:all` → `next build`. Requires `DATABASE_URL` or `POSTGRES_URL_NON_POOLING` on the Vercel project. |
+| **Vercel Preview** | Skips DB migrate by default (set env `MIGRATE_ON_PREVIEW=1` to enable). |
+
+Supabase SQL files are recorded in `_app_sql_migrations` so re-deploys skip
+already-applied files. Re-run everything with `APPLY_SQL_FORCE=1 npm run db:apply-rls:remote`.
+
 Notes:
 
 1. Supabase local uses Docker containers on your machine.
 2. Supabase ports include API `54321`, DB `54322`, Studio `54323`, and Inbucket `54324`.
 3. Existing local PostgreSQL service on `5432` is still available if you are not using Supabase Local.
+4. Do **not** point local `DATABASE_URL` at production — local and prod stay in sync
+   via git + deploy, not by dual-writing from your laptop.
 
 ## Key Design Principles
 
