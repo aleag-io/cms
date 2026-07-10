@@ -30,5 +30,10 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    // Demo seed is a Node/tsx CLI script, not part of the Next.js app graph.
+    // Keep it out of `next build` / `tsc` so seed-only tooling cannot fail deploys.
+    "prisma/seed.ts"
+  ]
 }
