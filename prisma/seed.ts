@@ -84,11 +84,16 @@ function loadEnvLocal() {
 
 loadEnvLocal();
 
-const connectionString =
-  process.env.DATABASE_URL ?? process.env.POSTGRES_URL_NON_POOLING;
-if (!connectionString) {
-  throw new Error('DATABASE_URL (or POSTGRES_URL_NON_POOLING) must be set');
+function requireConnectionString(): string {
+  const url =
+    process.env.DATABASE_URL ?? process.env.POSTGRES_URL_NON_POOLING;
+  if (!url) {
+    throw new Error('DATABASE_URL (or POSTGRES_URL_NON_POOLING) must be set');
+  }
+  return url;
 }
+
+const connectionString: string = requireConnectionString();
 
 // This seed TRUNCATEs every table (audit trail included). Refuse anything
 // that is not the local Supabase stack unless SEED_ALLOW_REMOTE / ALLOW_DEMO_SEED.

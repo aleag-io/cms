@@ -20,7 +20,7 @@ function parseDbHost(connectionUrl: string): string {
  */
 export function assertSeedTargetSafe(
   connectionUrl: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): void {
   const dbHost = parseDbHost(connectionUrl);
   if (!dbHost) {
