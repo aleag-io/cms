@@ -70,12 +70,17 @@ test.describe('R1 — app shell & dashboard', () => {
     await expect(page.getByText('Member portal')).toBeVisible();
   });
 
-  test('sign out returns to the login page', async ({ page }) => {
+  test('sign out returns to the marketing landing page', async ({ page }) => {
     await page.goto('/app');
     // The user menu trigger shows the display name and role.
     await page.getByRole('button', { name: /e2e member/i }).click();
     await page.getByRole('menuitem', { name: /sign out/i }).click();
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL('/');
+    await expect(
+      page.getByRole('heading', {
+        name: /church management built for parish sovereignty/i,
+      }),
+    ).toBeVisible();
   });
 });
 
