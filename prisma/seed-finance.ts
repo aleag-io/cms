@@ -177,6 +177,29 @@ async function createPostedJournal(
       },
     },
   });
+
+  // DB trigger assert_journal_approved: MANUAL journals cannot reach POSTED
+  // without an APPROVED/AUTO_APPROVED ApprovalRequest (system sources exempt).
+  if (data.source === 'MANUAL') {
+    const amountCents = data.lines
+      .filter((l) => l.direction === 'DEBIT')
+      .reduce((sum, l) => sum + l.amountCents, BigInt(0));
+    await prisma.approvalRequest.create({
+      data: {
+        dioceseId: data.dioceseId,
+        parishId: data.parishId,
+        ownerType: data.ownerType,
+        ownerId: data.ownerId,
+        entityKind: 'JOURNAL',
+        entityId: data.id,
+        makerUserId: data.actorUserId,
+        amountCents,
+        status: 'AUTO_APPROVED',
+        requiredApprovals: 0,
+      },
+    });
+  }
+
   await prisma.journalEntry.update({
     where: { id: data.id },
     data: {
