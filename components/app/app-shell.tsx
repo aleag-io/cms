@@ -3,11 +3,16 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  BankIcon,
   BuildingsIcon,
+  CalendarDotsIcon,
   CaretDownIcon,
+  ChartDonutIcon,
+  CheckCircleIcon,
   ClipboardTextIcon,
   HouseIcon,
   IdentificationCardIcon,
+  ListDashesIcon,
   GearIcon,
   ShareNetworkIcon,
   ShieldCheckIcon,
@@ -95,16 +100,28 @@ const NAV_ICONS: Record<string, Icon> = {
   "/events": BuildingsIcon,
   "/facilities": BuildingsIcon,
   "/messages": ShareNetworkIcon,
+  "/finance": BankIcon,
+  "/finance/accounts": ChartDonutIcon,
+  "/finance/journal": ListDashesIcon,
+  "/finance/periods": CalendarDotsIcon,
+  "/finance/donations": BankIcon,
+  "/finance/approvals": CheckCircleIcon,
+  "/diocese/finance": BankIcon,
 };
 
 function navIconFor(href: string): Icon {
   return NAV_ICONS[href] ?? ClipboardTextIcon;
 }
 
-function isActiveHref(href: string, pathname: string): boolean {
-  return href === "/app"
-    ? pathname === "/app"
-    : pathname.startsWith(href);
+function activeNavItem(sections: NavSection[], pathname: string) {
+  return sections
+    .flatMap((section) => section.items)
+    .filter((item) =>
+      item.href === "/app"
+        ? pathname === "/app"
+        : pathname === item.href || pathname.startsWith(`${item.href}/`),
+    )
+    .sort((left, right) => right.href.length - left.href.length)[0];
 }
 
 export function AppShell({
@@ -121,6 +138,10 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const activeItem = useMemo(
+    () => activeNavItem(sections, pathname),
+    [pathname, sections],
+  );
   const initials = useMemo(
     () =>
       user.displayName
@@ -177,7 +198,7 @@ export function AppShell({
                           <SidebarMenuItem key={item.href}>
                             <SidebarMenuButton
                               asChild
-                              isActive={isActiveHref(item.href, pathname)}
+                              isActive={activeItem?.href === item.href}
                               tooltip={item.title}
                             >
                               <Link href={item.href}>
@@ -254,7 +275,7 @@ export function AppShell({
                           <BreadcrumbSeparator className="hidden sm:block" />
                           <BreadcrumbItem>
                             <BreadcrumbPage className="truncate">
-                              {currentPageTitle(sections, pathname)}
+                              {activeItem?.title ?? "CMS"}
                             </BreadcrumbPage>
                           </BreadcrumbItem>
                         </>
@@ -277,17 +298,4 @@ export function AppShell({
       <Toaster />
     </>
   );
-}
-
-function currentPageTitle(sections: NavSection[], pathname: string): string {
-  for (const section of sections) {
-    const match = section.items.find((item) =>
-      item.href === "/app"
-        ? pathname === "/app"
-        : pathname.startsWith(item.href),
-    );
-    if (match) return match.title;
-  }
-
-  return "CMS";
 }

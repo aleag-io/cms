@@ -111,6 +111,174 @@ enum PermissionResource {
   MEMBER_EXPORT
   PARISH_OFFICER
   PARISH_PERMISSION_OVERRIDE
+  FINANCE_LEDGER
+  FINANCE_APPROVAL
+  FINANCE_GIVING
+}
+
+// ── R5 / M10: Finance & Giving ───────────────────────────────────────────────
+
+/// Ledger books can be owned at four operational levels:
+/// - DIOCESE: diocese general ledger (ownerId = dioceseId)
+/// - PARISH: parish/church general ledger (ownerId = parishId)
+/// - ORGANIZATION: org ledger (ownerId = organizationId); org may be
+///   diocese-scoped (Organization.parishId null) or parish-scoped
+enum LedgerOwnerType {
+  DIOCESE
+  PARISH
+  ORGANIZATION
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum JournalDirection {
+  DEBIT
+  CREDIT
+}
+
+enum JournalStatus {
+  DRAFT
+  PENDING_APPROVAL
+  POSTED
+  VOID
+}
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+}
+
+enum JournalSource {
+  MANUAL
+  DONATION
+  STRIPE
+  VENDOR_BILL
+  PAYMENT
+  REVERSAL
+  BATCH_ADJUSTMENT
+}
+
+enum ApprovalMode {
+  STRICT
+  THRESHOLD_BASED
+  HYBRID
+}
+
+enum ApprovalEntityKind {
+  JOURNAL
+  VENDOR_BILL
+  PAYMENT
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  AUTO_APPROVED
+}
+
+enum ApprovalDecisionType {
+  APPROVE
+  REJECT
+}
+
+enum DonationMethod {
+  CASH
+  CHECK
+  ZELLE
+  ACH
+  CARD
+  STOCK
+  OTHER
+}
+
+enum DonationStatus {
+  ACTIVE
+  VOID
+}
+
+enum DonationBatchStatus {
+  OPEN
+  POSTED
+  VOID
+}
+
+enum CampaignStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PledgeStatus {
+  ACTIVE
+  FULFILLED
+  LAPSED
+  CANCELLED
+}
+
+enum PledgeFrequency {
+  ONE_TIME
+  WEEKLY
+  MONTHLY
+  ANNUAL
+}
+
+enum VendorBillStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  POSTED
+  PAID
+  VOID
+}
+
+enum PaymentMethod {
+  CASH
+  CHECK
+  ACH
+  ONLINE
+  OTHER
+}
+
+enum BudgetStatus {
+  DRAFT
+  APPROVED
+  LOCKED
+  ARCHIVED
+}
+
+enum BankLineStatus {
+  UNMATCHED
+  MATCHED
+  IGNORED
+}
+
+enum ReconciliationRunStatus {
+  OPEN
+  COMPLETED
+}
+
+enum GivingStatementRecipientType {
+  FAMILY
+  MEMBER
+  EXTERNAL_DONOR
+}
+
+enum GivingStatementPeriodType {
+  ANNUAL
+  QUARTERLY
+}
+
+enum GivingStatementStatus {
+  GENERATED
+  SENT
+  FAILED
 }
 
 /// Seven sacramental record types of the Mar Thoma Church (PA-7).
@@ -284,6 +452,27 @@ model Diocese {
   emergencyAccessGrants EmergencyAccessGrant[]
   contextualShares      ContextualShare[]
   liturgicalObservances LiturgicalObservance[]
+  // R5 finance (diocese-owned ledgers + diocese-scoped rows)
+  funds                    Fund[]
+  accounts                 Account[]
+  accountingPeriods        AccountingPeriod[]
+  journalEntries           JournalEntry[]
+  approvalPolicies         ApprovalPolicy[]
+  approvalRequests         ApprovalRequest[]
+  externalDonors           ExternalDonor[]
+  campaigns                Campaign[]
+  donations                Donation[]
+  donationBatches          DonationBatch[]
+  pledges                  Pledge[]
+  vendors                  Vendor[]
+  vendorBills              VendorBill[]
+  payments                 Payment[]
+  budgets                  Budget[]
+  bankStatementLines       BankStatementLine[]
+  reconciliationRuns       ReconciliationRun[]
+  givingStatements         GivingStatement[]
+  stripeEvents             StripeEvent[]
+  organizations            Organization[] @relation("DioceseOrganizations")
 }
 
 model Parish {
@@ -341,6 +530,26 @@ model Parish {
   emergencyAccessGrants    EmergencyAccessGrant[]
   contextualShares         ContextualShare[]
   liturgicalObservances    LiturgicalObservance[]
+  // R5 finance
+  funds                    Fund[]
+  accounts                 Account[]
+  accountingPeriods        AccountingPeriod[]
+  journalEntries           JournalEntry[]
+  approvalPolicies         ApprovalPolicy[]
+  approvalRequests         ApprovalRequest[]
+  externalDonors           ExternalDonor[]
+  campaigns                Campaign[]
+  donations                Donation[]
+  donationBatches          DonationBatch[]
+  pledges                  Pledge[]
+  vendors                  Vendor[]
+  vendorBills              VendorBill[]
+  payments                 Payment[]
+  budgets                  Budget[]
+  bankStatementLines       BankStatementLine[]
+  reconciliationRuns       ReconciliationRun[]
+  givingStatements         GivingStatement[]
+  stripeEvents             StripeEvent[]
 
   @@index([dioceseId])
 }
@@ -370,6 +579,14 @@ model AppUser {
   recipientContextualShares  ContextualShare[]          @relation("ContextualShareRecipient")
   revokedContextualShares    ContextualShare[]          @relation("ContextualShareRevokedBy")
   createdSacramentalRecords  SacramentalRecord[]         @relation("SacramentalRecordCreatedBy")
+  // R5 finance
+  createdJournalEntries      JournalEntry[]             @relation("JournalEntryCreatedBy")
+  postedJournalEntries       JournalEntry[]             @relation("JournalEntryPostedBy")
+  closedAccountingPeriods    AccountingPeriod[]         @relation("PeriodClosedBy")
+  reopenedAccountingPeriods  AccountingPeriod[]         @relation("PeriodReopenedBy")
+  approvalRequestsAsMaker    ApprovalRequest[]          @relation("ApprovalRequestMaker")
+  approvalDecisions          ApprovalDecision[]         @relation("ApprovalDecisionApprover")
+  generatedGivingStatements  GivingStatement[]          @relation("GivingStatementGeneratedBy")
 
   @@index([dioceseId, role])
   @@index([parishId, role])
@@ -391,8 +608,15 @@ model Family {
   parish              Parish              @relation(fields: [parishId], references: [id], onDelete: Cascade)
   members             Member[]
   pastoralData        FamilyPastoralData?
+  /// Giving envelope number unique per parish (R5)
+  envelopeNumber      String?
+  donations           Donation[]
+  pledges             Pledge[]
+  givingStatements    GivingStatement[]
+  externalDonorsLinked ExternalDonor[]    @relation("ExternalDonorLinkedFamily")
 
   @@unique([parishId, familyNumber])
+  @@unique([parishId, envelopeNumber])
   @@index([dioceseId, parishId])
 }
 
@@ -439,6 +663,9 @@ model Member {
   communicationPreferences CommunicationPreference[]
   volunteerAssignments     VolunteerAssignment[]
   registration             MemberRegistration?        @relation("MemberRegistrationApproved")
+  donations                Donation[]
+  pledges                  Pledge[]
+  givingStatements         GivingStatement[]
 
   @@unique([parishId, memberIdentifier])
   @@index([dioceseId, parishId, status])
@@ -832,7 +1059,8 @@ model ProgramSessionAttendance {
 model Organization {
   id                   String                   @id @default(uuid()) @db.Uuid
   dioceseId            String                   @db.Uuid
-  parishId             String                   @db.Uuid
+  /// Null = diocese-level organization; set = parish-level organization
+  parishId             String?                  @db.Uuid
   name                 String
   description          String?
   organizationType     OrganizationType         @default(OTHER)
@@ -841,19 +1069,25 @@ model Organization {
   isActive             Boolean                  @default(true)
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
-  parish               Parish                   @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  diocese              Diocese                  @relation("DioceseOrganizations", fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish               Parish?                  @relation(fields: [parishId], references: [id], onDelete: Cascade)
   memberships          OrganizationMembership[]
   officers             OrganizationOfficer[]
   volunteerAssignments VolunteerAssignment[]
 
   @@index([dioceseId, parishId, isActive])
   @@index([parishId, organizationType])
+  @@index([dioceseId, isActive])
 }
+
+// Note: Organization ledger rows use polymorphic ownerId (no FK to Organization)
+// because ownerType is DIOCESE | PARISH | ORGANIZATION.
 
 model OrganizationMembership {
   id               String            @id @default(uuid()) @db.Uuid
   dioceseId        String            @db.Uuid
-  parishId         String            @db.Uuid
+  /// Null when parent organization is diocese-scoped
+  parishId         String?           @db.Uuid
   organizationId   String            @db.Uuid
   memberId         String            @db.Uuid
   role             OrgMembershipRole @default(MEMBER)
@@ -865,7 +1099,7 @@ model OrganizationMembership {
   membershipMode   MembershipMode
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
-  parish           Parish            @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  parish           Parish?           @relation(fields: [parishId], references: [id], onDelete: Cascade)
   organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   member           Member            @relation(fields: [memberId], references: [id], onDelete: Cascade)
   // Note: the PA-16 exclusivity partial unique index is declared in Supabase SQL
@@ -879,7 +1113,8 @@ model OrganizationMembership {
 model OrganizationOfficer {
   id             String       @id @default(uuid()) @db.Uuid
   dioceseId      String       @db.Uuid
-  parishId       String       @db.Uuid
+  /// Null when parent organization is diocese-scoped
+  parishId       String?      @db.Uuid
   organizationId String       @db.Uuid
   memberId       String       @db.Uuid
   title          String
@@ -888,7 +1123,7 @@ model OrganizationOfficer {
   termEnd        DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  parish         Parish       @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  parish         Parish?      @relation(fields: [parishId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   member         Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
@@ -1103,4 +1338,542 @@ model MemberRegistration {
   approvedMember   Member?            @relation("MemberRegistrationApproved", fields: [approvedMemberId], references: [id], onDelete: SetNull)
 
   @@index([dioceseId, parishId, approvalStatus])
+}
+
+
+// ── R5 / M10 Finance models ──────────────────────────────────────────────────
+// Multi-level ledgers: every finance row carries dioceseId (required) and
+// optional parishId. Ledger owner is (ownerType, ownerId):
+//   DIOCESE       → ownerId = dioceseId, parishId null
+//   PARISH        → ownerId = parishId,  parishId set
+//   ORGANIZATION  → ownerId = organizationId; parishId null (diocese org)
+//                   or set (parish org)
+
+model Fund {
+  id         String          @id @default(uuid()) @db.Uuid
+  dioceseId  String          @db.Uuid
+  parishId   String?         @db.Uuid
+  ownerType  LedgerOwnerType
+  ownerId    String          @db.Uuid
+  name       String
+  isActive   Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  diocese    Diocese         @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish     Parish?         @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  accounts   Account[]
+  campaigns  Campaign[]
+  donationAllocations DonationAllocation[]
+
+  @@unique([ownerType, ownerId, name])
+  @@index([dioceseId, ownerType, ownerId])
+  @@index([parishId, ownerType, ownerId])
+}
+
+model Account {
+  id         String          @id @default(uuid()) @db.Uuid
+  dioceseId  String          @db.Uuid
+  parishId   String?         @db.Uuid
+  ownerType  LedgerOwnerType
+  ownerId    String          @db.Uuid
+  code       String
+  name       String
+  type       AccountType
+  fundId     String?         @db.Uuid
+  isActive   Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  diocese    Diocese         @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish     Parish?         @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  fund       Fund?           @relation(fields: [fundId], references: [id], onDelete: SetNull)
+  journalLines JournalLine[]
+  budgetLines  BudgetLine[]
+  campaigns    Campaign[]    @relation("CampaignIncomeAccount")
+
+  @@unique([ownerType, ownerId, code])
+  @@index([dioceseId, ownerType, ownerId])
+  @@index([parishId, ownerType, ownerId])
+  @@index([fundId])
+}
+
+model AccountingPeriod {
+  id               String          @id @default(uuid()) @db.Uuid
+  dioceseId        String          @db.Uuid
+  parishId         String?         @db.Uuid
+  ownerType        LedgerOwnerType
+  ownerId          String          @db.Uuid
+  startDate        DateTime        @db.Date
+  endDate          DateTime        @db.Date
+  status           PeriodStatus    @default(OPEN)
+  closedByUserId   String?         @db.Uuid
+  closedAt         DateTime?
+  reopenReason     String?
+  reopenedByUserId String?         @db.Uuid
+  reopenedAt       DateTime?
+  createdAt        DateTime        @default(now())
+  diocese          Diocese         @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish           Parish?         @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  closedBy         AppUser?        @relation("PeriodClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  reopenedBy       AppUser?        @relation("PeriodReopenedBy", fields: [reopenedByUserId], references: [id], onDelete: SetNull)
+  journalEntries   JournalEntry[]
+  donations        Donation[]
+
+  @@unique([ownerType, ownerId, startDate, endDate])
+  @@index([dioceseId, ownerType, ownerId, status])
+  @@index([parishId, ownerType, ownerId, status])
+}
+
+model JournalEntry {
+  id              String            @id @default(uuid()) @db.Uuid
+  dioceseId       String            @db.Uuid
+  parishId        String?           @db.Uuid
+  ownerType       LedgerOwnerType
+  ownerId         String            @db.Uuid
+  periodId        String            @db.Uuid
+  entryDate       DateTime          @db.Date
+  description     String
+  reference       String?
+  source          JournalSource     @default(MANUAL)
+  status          JournalStatus     @default(DRAFT)
+  cashImpact      Boolean           @default(true)
+  reversesEntryId String?           @db.Uuid
+  currency        String            @default("USD") @db.Char(3)
+  createdByUserId String            @db.Uuid
+  postedByUserId  String?           @db.Uuid
+  postedAt        DateTime?
+  createdAt       DateTime          @default(now())
+  diocese         Diocese           @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish          Parish?           @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  period          AccountingPeriod  @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  createdBy       AppUser           @relation("JournalEntryCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  postedBy        AppUser?          @relation("JournalEntryPostedBy", fields: [postedByUserId], references: [id], onDelete: SetNull)
+  reversesEntry   JournalEntry?     @relation("JournalReversal", fields: [reversesEntryId], references: [id], onDelete: SetNull)
+  reversedBy      JournalEntry[]    @relation("JournalReversal")
+  lines           JournalLine[]
+  donations       Donation[]
+  vendorBills     VendorBill[]
+  payments        Payment[]
+  donationBatches DonationBatch[]
+
+  @@index([ownerType, ownerId, entryDate])
+  @@index([periodId])
+  @@index([dioceseId, status])
+  @@index([parishId, status])
+  @@index([reversesEntryId])
+}
+
+model JournalLine {
+  id                 String              @id @default(uuid()) @db.Uuid
+  journalEntryId     String              @db.Uuid
+  accountId          String              @db.Uuid
+  direction          JournalDirection
+  amountCents        BigInt
+  memo               String?
+  journalEntry       JournalEntry        @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account            Account             @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  bankStatementLines BankStatementLine[]
+
+  @@index([journalEntryId])
+  @@index([accountId])
+}
+
+model ApprovalPolicy {
+  id             String               @id @default(uuid()) @db.Uuid
+  dioceseId      String               @db.Uuid
+  parishId       String?              @db.Uuid
+  ownerType      LedgerOwnerType
+  ownerId        String               @db.Uuid
+  entityKind     ApprovalEntityKind
+  mode           ApprovalMode         @default(THRESHOLD_BASED)
+  thresholdCents BigInt?
+  approverRoles  Role[]
+  minApprovals   Int                  @default(1)
+  sensitiveKinds ApprovalEntityKind[] @default([])
+  isActive       Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  diocese        Diocese              @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish         Parish?              @relation(fields: [parishId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerType, ownerId, entityKind])
+  @@index([dioceseId])
+  @@index([parishId])
+}
+
+model ApprovalRequest {
+  id                String                @id @default(uuid()) @db.Uuid
+  dioceseId         String                @db.Uuid
+  parishId          String?               @db.Uuid
+  ownerType         LedgerOwnerType
+  ownerId           String                @db.Uuid
+  entityKind        ApprovalEntityKind
+  entityId          String                @db.Uuid
+  makerUserId       String                @db.Uuid
+  amountCents       BigInt
+  status            ApprovalRequestStatus @default(PENDING)
+  requiredApprovals Int                   @default(1)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  diocese           Diocese               @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish            Parish?               @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  maker             AppUser               @relation("ApprovalRequestMaker", fields: [makerUserId], references: [id], onDelete: Restrict)
+  decisions         ApprovalDecision[]
+
+  @@index([dioceseId, status])
+  @@index([parishId, status])
+  @@index([entityKind, entityId])
+  @@index([makerUserId])
+}
+
+model ApprovalDecision {
+  id                String               @id @default(uuid()) @db.Uuid
+  approvalRequestId String               @db.Uuid
+  approverUserId    String               @db.Uuid
+  decision          ApprovalDecisionType
+  note              String?
+  createdAt         DateTime             @default(now())
+  approvalRequest   ApprovalRequest      @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  approver          AppUser              @relation("ApprovalDecisionApprover", fields: [approverUserId], references: [id], onDelete: Restrict)
+
+  @@unique([approvalRequestId, approverUserId])
+  @@index([approverUserId])
+}
+
+model ExternalDonor {
+  id               String            @id @default(uuid()) @db.Uuid
+  dioceseId        String            @db.Uuid
+  parishId         String?           @db.Uuid
+  name             String
+  email            String?
+  phone            String?
+  address          String?
+  notes            String?
+  linkedFamilyId   String?           @db.Uuid
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  diocese          Diocese           @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish           Parish?           @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  linkedFamily     Family?           @relation("ExternalDonorLinkedFamily", fields: [linkedFamilyId], references: [id], onDelete: SetNull)
+  donations        Donation[]
+  givingStatements GivingStatement[]
+
+  @@index([dioceseId, parishId, name])
+  @@index([linkedFamilyId])
+}
+
+model Campaign {
+  id          String         @id @default(uuid()) @db.Uuid
+  dioceseId   String         @db.Uuid
+  parishId    String?        @db.Uuid
+  name        String
+  description String?
+  fundId      String         @db.Uuid
+  accountId   String         @db.Uuid
+  goalCents   BigInt
+  startDate   DateTime       @db.Date
+  endDate     DateTime       @db.Date
+  status      CampaignStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  diocese     Diocese        @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish      Parish?        @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  fund        Fund           @relation(fields: [fundId], references: [id], onDelete: Restrict)
+  account     Account        @relation("CampaignIncomeAccount", fields: [accountId], references: [id], onDelete: Restrict)
+  donations   Donation[]
+  pledges     Pledge[]
+
+  @@index([dioceseId, parishId, status])
+  @@index([fundId])
+}
+
+model DonationBatch {
+  id                   String              @id @default(uuid()) @db.Uuid
+  dioceseId            String              @db.Uuid
+  parishId             String?             @db.Uuid
+  ownerType            LedgerOwnerType
+  ownerId              String              @db.Uuid
+  batchDate            DateTime            @db.Date
+  label                String
+  status               DonationBatchStatus @default(OPEN)
+  totalCents           BigInt              @default(0)
+  donationCount        Int                 @default(0)
+  depositReference     String?
+  postedJournalEntryId String?             @db.Uuid
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  diocese              Diocese             @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish               Parish?             @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  postedJournalEntry   JournalEntry?       @relation(fields: [postedJournalEntryId], references: [id], onDelete: SetNull)
+  donations            Donation[]
+
+  @@index([dioceseId, parishId, batchDate])
+  @@index([status])
+}
+
+model Donation {
+  id              String           @id @default(uuid()) @db.Uuid
+  dioceseId       String           @db.Uuid
+  parishId        String?          @db.Uuid
+  familyId        String?          @db.Uuid
+  memberId        String?          @db.Uuid
+  externalDonorId String?          @db.Uuid
+  isAnonymous     Boolean          @default(false)
+  fundId          String?          @db.Uuid
+  campaignId      String?          @db.Uuid
+  periodId        String           @db.Uuid
+  batchId         String?          @db.Uuid
+  amountCents     BigInt
+  method          DonationMethod
+  checkNumber     String?
+  externalTxnId   String?
+  dedication      String?
+  softCreditNote  String?
+  receivedAt      DateTime         @db.Date
+  status          DonationStatus   @default(ACTIVE)
+  journalEntryId  String?          @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  diocese         Diocese          @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish          Parish?          @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  family          Family?          @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  member          Member?          @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  externalDonor   ExternalDonor?   @relation(fields: [externalDonorId], references: [id], onDelete: SetNull)
+  campaign        Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  period          AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  batch           DonationBatch?   @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  journalEntry    JournalEntry?    @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+  allocations     DonationAllocation[]
+
+  @@index([dioceseId, parishId, receivedAt])
+  @@index([familyId])
+  @@index([memberId])
+  @@index([externalDonorId])
+  @@index([campaignId])
+  @@index([batchId])
+  @@unique([dioceseId, parishId, externalTxnId])
+}
+
+model DonationAllocation {
+  id          String   @id @default(uuid()) @db.Uuid
+  donationId  String   @db.Uuid
+  fundId      String   @db.Uuid
+  amountCents BigInt
+  donation    Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  fund        Fund     @relation(fields: [fundId], references: [id], onDelete: Restrict)
+
+  @@index([donationId])
+  @@index([fundId])
+}
+
+model Pledge {
+  id             String          @id @default(uuid()) @db.Uuid
+  dioceseId      String          @db.Uuid
+  parishId       String?         @db.Uuid
+  campaignId     String          @db.Uuid
+  familyId       String?         @db.Uuid
+  memberId       String?         @db.Uuid
+  amountCents    BigInt
+  fulfilledCents BigInt          @default(0)
+  frequency      PledgeFrequency @default(ONE_TIME)
+  status         PledgeStatus    @default(ACTIVE)
+  startDate      DateTime        @db.Date
+  endDate        DateTime?       @db.Date
+  lastRemindedAt DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  diocese        Diocese         @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish         Parish?         @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  campaign       Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  family         Family?         @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  member         Member?         @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([dioceseId, parishId, campaignId])
+  @@index([status])
+  @@index([familyId])
+  @@index([memberId])
+}
+
+model Vendor {
+  id        String       @id @default(uuid()) @db.Uuid
+  dioceseId String       @db.Uuid
+  parishId  String?      @db.Uuid
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  taxId     String?
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  diocese   Diocese      @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish    Parish?      @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  bills     VendorBill[]
+
+  @@index([dioceseId, parishId, name])
+}
+
+model VendorBill {
+  id             String           @id @default(uuid()) @db.Uuid
+  dioceseId      String           @db.Uuid
+  parishId       String?          @db.Uuid
+  ownerType      LedgerOwnerType
+  ownerId        String           @db.Uuid
+  vendorId       String           @db.Uuid
+  amountCents    BigInt
+  description    String
+  invoiceNumber  String?
+  billDate       DateTime         @db.Date
+  dueDate        DateTime?        @db.Date
+  status         VendorBillStatus @default(DRAFT)
+  journalEntryId String?          @db.Uuid
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  diocese        Diocese          @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish         Parish?          @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  vendor         Vendor           @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry?    @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+  payments       Payment[]
+
+  @@index([dioceseId, parishId, status])
+  @@index([vendorId])
+  @@index([ownerType, ownerId])
+}
+
+model Payment {
+  id             String          @id @default(uuid()) @db.Uuid
+  dioceseId      String          @db.Uuid
+  parishId       String?         @db.Uuid
+  ownerType      LedgerOwnerType
+  ownerId        String          @db.Uuid
+  vendorBillId   String          @db.Uuid
+  amountCents    BigInt
+  method         PaymentMethod
+  checkNumber    String?
+  paidAt         DateTime        @db.Date
+  journalEntryId String?         @db.Uuid
+  createdAt      DateTime        @default(now())
+  diocese        Diocese         @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish         Parish?         @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  vendorBill     VendorBill      @relation(fields: [vendorBillId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry?   @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+
+  @@index([dioceseId, parishId, paidAt])
+  @@index([vendorBillId])
+}
+
+model Budget {
+  id         String          @id @default(uuid()) @db.Uuid
+  dioceseId  String          @db.Uuid
+  parishId   String?         @db.Uuid
+  ownerType  LedgerOwnerType
+  ownerId    String          @db.Uuid
+  fiscalYear Int
+  status     BudgetStatus    @default(DRAFT)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  diocese    Diocese         @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish     Parish?         @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  lines      BudgetLine[]
+
+  @@unique([ownerType, ownerId, fiscalYear])
+  @@index([dioceseId])
+  @@index([parishId])
+}
+
+model BudgetLine {
+  id            String  @id @default(uuid()) @db.Uuid
+  budgetId      String  @db.Uuid
+  accountId     String  @db.Uuid
+  originalCents BigInt
+  revisedCents  BigInt
+  budget        Budget  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  account       Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@unique([budgetId, accountId])
+  @@index([accountId])
+}
+
+model ReconciliationRun {
+  id             String                  @id @default(uuid()) @db.Uuid
+  dioceseId      String                  @db.Uuid
+  parishId       String?                 @db.Uuid
+  ownerType      LedgerOwnerType
+  ownerId        String                  @db.Uuid
+  status         ReconciliationRunStatus @default(OPEN)
+  matchedCount   Int                     @default(0)
+  unmatchedCount Int                     @default(0)
+  importedAt     DateTime                @default(now())
+  completedAt    DateTime?
+  diocese        Diocese                 @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish         Parish?                 @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  lines          BankStatementLine[]
+
+  @@index([dioceseId, parishId, status])
+}
+
+model BankStatementLine {
+  id                      String            @id @default(uuid()) @db.Uuid
+  dioceseId               String            @db.Uuid
+  parishId                String?           @db.Uuid
+  ownerType               LedgerOwnerType
+  ownerId                 String            @db.Uuid
+  reconciliationRunId     String            @db.Uuid
+  postedDate              DateTime          @db.Date
+  amountCents             BigInt
+  descriptionRaw          String
+  reconciledJournalLineId String?           @db.Uuid
+  status                  BankLineStatus    @default(UNMATCHED)
+  createdAt               DateTime          @default(now())
+  diocese                 Diocese           @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish                  Parish?           @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  reconciliationRun       ReconciliationRun @relation(fields: [reconciliationRunId], references: [id], onDelete: Cascade)
+  reconciledJournalLine   JournalLine?      @relation(fields: [reconciledJournalLineId], references: [id], onDelete: SetNull)
+
+  @@index([reconciliationRunId])
+  @@index([reconciledJournalLineId])
+  @@index([dioceseId, parishId, postedDate])
+}
+
+model GivingStatement {
+  id                String                       @id @default(uuid()) @db.Uuid
+  dioceseId         String                       @db.Uuid
+  parishId          String?                      @db.Uuid
+  periodType        GivingStatementPeriodType
+  periodKey         String
+  recipientType     GivingStatementRecipientType
+  familyId          String?                      @db.Uuid
+  memberId          String?                      @db.Uuid
+  externalDonorId   String?                      @db.Uuid
+  totalCents        BigInt
+  pdfBlobUrl        String
+  status            GivingStatementStatus        @default(GENERATED)
+  sentAt            DateTime?
+  generatedByUserId String                       @db.Uuid
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  diocese           Diocese                      @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish            Parish?                      @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  family            Family?                      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member            Member?                      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  externalDonor     ExternalDonor?               @relation(fields: [externalDonorId], references: [id], onDelete: Cascade)
+  generatedBy       AppUser                      @relation("GivingStatementGeneratedBy", fields: [generatedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([dioceseId, parishId, periodType, periodKey, recipientType, familyId, memberId, externalDonorId])
+  @@index([dioceseId, parishId, periodType, periodKey])
+  @@index([memberId])
+  @@index([familyId])
+}
+
+model StripeEvent {
+  id          String    @id
+  type        String
+  dioceseId   String?   @db.Uuid
+  parishId    String?   @db.Uuid
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+  donationId  String?   @db.Uuid
+  diocese     Diocese?  @relation(fields: [dioceseId], references: [id], onDelete: SetNull)
+  parish      Parish?   @relation(fields: [parishId], references: [id], onDelete: SetNull)
+
+  @@index([dioceseId, parishId])
+  @@index([processedAt])
 }

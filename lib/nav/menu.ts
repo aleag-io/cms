@@ -19,7 +19,7 @@ export type NavItem = {
   title: string;
   href: string;
   roles: AppRole[];
-  section: 'People' | 'Parish' | 'Diocese' | 'Sharing' | 'Administration';
+  section: 'People' | 'Parish' | 'Diocese' | 'Finance' | 'Sharing' | 'Administration';
   /** When set, item only appears in this portal mode (shell plan §7). */
   portals?: PortalMode[];
 };
@@ -226,6 +226,151 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/audit',
     section: 'Administration',
     roles: ['global_admin', 'diocese_admin', 'parish_admin'],
+  },
+  // ── Finance (multi-level: diocese / parish / org ledgers) ─────────────────
+  {
+    title: 'Finance Overview',
+    href: '/finance',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: [
+      'global_admin',
+      'diocese_admin',
+      'diocese_staff',
+      'parish_admin',
+      'parish_staff',
+      'organization_leader',
+    ],
+  },
+  {
+    title: 'Chart of Accounts',
+    href: '/finance/accounts',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: [
+      'global_admin',
+      'diocese_admin',
+      'diocese_staff',
+      'parish_admin',
+      'parish_staff',
+      'organization_leader',
+    ],
+  },
+  {
+    title: 'Journal',
+    href: '/finance/journal',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: [
+      'global_admin',
+      'diocese_admin',
+      'diocese_staff',
+      'parish_admin',
+      'parish_staff',
+      'organization_leader',
+    ],
+  },
+  {
+    title: 'Periods',
+    href: '/finance/periods',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: [
+      'global_admin',
+      'diocese_admin',
+      'diocese_staff',
+      'parish_admin',
+      'parish_staff',
+      'organization_leader',
+    ],
+  },
+  {
+    title: 'Donations',
+    href: '/finance/donations',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: [
+      'global_admin',
+      'diocese_admin',
+      'diocese_staff',
+      'parish_admin',
+      'parish_staff',
+    ],
+  },
+  {
+    title: 'Approvals',
+    href: '/finance/approvals',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: [
+      'global_admin',
+      'diocese_admin',
+      'diocese_staff',
+      'parish_admin',
+      'parish_staff',
+      'organization_leader',
+    ],
+  },
+  {
+    title: 'Campaigns',
+    href: '/finance/campaigns',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff'],
+  },
+  {
+    title: 'Pledges',
+    href: '/finance/pledges',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff'],
+  },
+  {
+    title: 'Vendors',
+    href: '/finance/vendors',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff'],
+  },
+  {
+    title: 'Bills & Payments',
+    href: '/finance/bills',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff', 'organization_leader'],
+  },
+  {
+    title: 'Budgets',
+    href: '/finance/budgets',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff', 'organization_leader'],
+  },
+  {
+    title: 'Reconciliation',
+    href: '/finance/reconciliation',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff', 'organization_leader'],
+  },
+  {
+    title: 'Giving Statements',
+    href: '/finance/giving-statements',
+    section: 'Finance',
+    portals: ['parish'],
+    roles: ['global_admin', 'diocese_admin', 'parish_admin', 'parish_staff'],
+  },
+  {
+    title: 'Diocese Finance',
+    href: '/diocese/finance',
+    section: 'Finance',
+    portals: ['diocese'],
+    roles: [
+      'global_admin',
+      'diocese_admin',
+      'diocese_staff',
+      'diocese_report_viewer',
+    ],
   },
 ];
 

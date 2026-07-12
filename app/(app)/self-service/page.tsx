@@ -234,17 +234,80 @@ export default function SelfServicePage() {
 
                 <CommunicationPreferencesCard />
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Giving history</CardTitle>
-                        <CardDescription>
-                            Your giving and pledge history will appear here once online
-                            giving launches (Release R5).
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
+                <MyGivingCard />
             </div>
         </div>
+    );
+}
+
+type MyStatement = {
+    id: string;
+    periodKey: string;
+    status: string;
+    totalCents: string;
+};
+
+function MyGivingCard() {
+    const [statements, setStatements] = useState<MyStatement[]>([]);
+    const [loaded, setLoaded] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+        apiRequest<{ ok: true; statements: MyStatement[] }>(
+            "/api/finance/giving-statements?mine=1",
+        )
+            .then((res) => {
+                if (active) setStatements(res.statements);
+            })
+            .catch(() => {
+                /* member may have no statements yet */
+            })
+            .finally(() => {
+                if (active) setLoaded(true);
+            });
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>My Giving</CardTitle>
+                <CardDescription>
+                    Your annual contribution statements. Only gifts attributed to you
+                    appear here — never another family member&apos;s.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {!loaded ? (
+                    <p className="text-sm text-muted-foreground">Loading…</p>
+                ) : statements.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                        No statements are available yet.
+                    </p>
+                ) : (
+                    <ul className="divide-y">
+                        {statements.map((s) => (
+                            <li
+                                key={s.id}
+                                className="flex items-center justify-between py-2 text-sm"
+                            >
+                                <span>Tax year {s.periodKey}</span>
+                                <a
+                                    className="text-primary underline"
+                                    href={`/api/finance/giving-statements/${s.id}/pdf`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    Download PDF
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 

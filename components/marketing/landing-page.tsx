@@ -7,6 +7,7 @@ import {
   ShieldCheckIcon,
   UsersThreeIcon,
   CrossIcon,
+  BankIcon,
   CheckCircleIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,12 @@ const features = [
     description:
       "Baptism, confirmation, marriage, and more — parish register search with certificate-ready records.",
     icon: CrossIcon,
+  },
+  {
+    title: "Finance & giving",
+    description:
+      "Double-entry ledgers with database-enforced balancing, maker-checker approvals, donations and campaigns, vendor bills, budgets, bank reconciliation, Stripe online giving, and annual tax statements.",
+    icon: BankIcon,
   },
   {
     title: "Governance & roles",

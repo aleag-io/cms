@@ -63,6 +63,19 @@ describe('visibleNavItems', () => {
       '/settings/users',
       '/settings/permissions',
       '/audit',
+      '/finance',
+      '/finance/accounts',
+      '/finance/journal',
+      '/finance/periods',
+      '/finance/donations',
+      '/finance/approvals',
+      '/finance/campaigns',
+      '/finance/pledges',
+      '/finance/vendors',
+      '/finance/bills',
+      '/finance/budgets',
+      '/finance/reconciliation',
+      '/finance/giving-statements',
     ]);
     expect(hrefs.some((h) => h.startsWith('/diocese'))).toBe(false);
     expect(hrefs).not.toContain('/parishes');
@@ -73,7 +86,7 @@ describe('visibleNavItems', () => {
       visibleNavItems(['diocese_report_viewer'], { portal: 'diocese' }).map(
         (item) => item.href,
       ),
-    ).toEqual(['/app', '/diocese/aggregate']);
+    ).toEqual(['/app', '/diocese/aggregate', '/diocese/finance']);
   });
 
   it('hides parish ops from diocese admin in diocese portal', () => {
@@ -89,6 +102,7 @@ describe('visibleNavItems', () => {
       '/diocese/liturgical',
       '/sharing',
       '/audit',
+      '/diocese/finance',
     ]);
     expect(hrefs).not.toContain('/programs');
     expect(hrefs).not.toContain('/members');
@@ -200,6 +214,24 @@ describe('navSectionsFromClaims', () => {
           '/audit',
         ],
       },
+      {
+        title: 'Finance',
+        items: [
+          '/finance',
+          '/finance/accounts',
+          '/finance/journal',
+          '/finance/periods',
+          '/finance/donations',
+          '/finance/approvals',
+          '/finance/campaigns',
+          '/finance/pledges',
+          '/finance/vendors',
+          '/finance/bills',
+          '/finance/budgets',
+          '/finance/reconciliation',
+          '/finance/giving-statements',
+        ],
+      },
     ]);
   });
 
@@ -223,6 +255,10 @@ describe('navSectionsFromClaims', () => {
       },
       { title: 'Sharing', items: ['/sharing'] },
       { title: 'Administration', items: ['/audit'] },
+      {
+        title: 'Finance',
+        items: ['/diocese/finance'],
+      },
     ]);
   });
 });

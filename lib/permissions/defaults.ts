@@ -27,14 +27,23 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['member_export', ['read', 'export']],
     ['parish_officer', ['read', 'write', 'delete']],
     ['parish_permission_override', ['read', 'write', 'delete']],
+    ['finance_ledger', ['read', 'write']],
+    ['finance_approval', ['read', 'write']],
+    ['finance_giving', ['read', 'write', 'export']],
   ]),
   diocese_admin: allow([
     ['member_profile', ['read', 'write', 'delete', 'export']],
     ['parish_directory', ['read', 'export']],
+    ['finance_ledger', ['read', 'write']],
+    ['finance_approval', ['read', 'write']],
+    ['finance_giving', ['read', 'write', 'export']],
   ]),
   diocese_staff: allow([
     ['member_profile', ['read']],
     ['parish_directory', ['read']],
+    ['finance_ledger', ['read', 'write']],
+    ['finance_approval', ['read']],
+    ['finance_giving', ['read', 'write']],
   ]),
   parish_admin: allow([
     ['member_profile', ['read', 'write', 'delete', 'export']],
@@ -44,11 +53,17 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['member_export', ['read', 'export']],
     ['parish_officer', ['read', 'write', 'delete']],
     ['parish_permission_override', ['read', 'write', 'delete']],
+    ['finance_ledger', ['read', 'write']],
+    ['finance_approval', ['read', 'write']],
+    ['finance_giving', ['read', 'write', 'export']],
   ]),
   parish_staff: allow([
     ['member_profile', ['read', 'write']],
     ['parish_directory', ['read']],
     ['member_export', ['read']],
+    ['finance_ledger', ['read', 'write']],
+    ['finance_approval', ['read']],
+    ['finance_giving', ['read', 'write']],
   ]),
   clergy: allow([
     ['member_profile', ['read']],
@@ -70,6 +85,11 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
   organization_leader: allow([
     ['member_profile', ['read']],
     ['parish_directory', ['read']],
+    ['finance_ledger', ['read', 'write']],
+    ['finance_approval', ['read', 'write']],
   ]),
-  member: allow([['parish_directory', ['read']]]),
+  member: allow([
+    ['parish_directory', ['read']],
+    ['finance_giving', ['read']],
+  ]),
 };

@@ -6,7 +6,10 @@ export type PermissionResource =
   | 'parish_directory'
   | 'member_export'
   | 'parish_officer'
-  | 'parish_permission_override';
+  | 'parish_permission_override'
+  | 'finance_ledger'
+  | 'finance_approval'
+  | 'finance_giving';
 
 export type PermissionAction = 'read' | 'write' | 'delete' | 'export' | 'send';
 

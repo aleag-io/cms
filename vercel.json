@@ -12,6 +12,10 @@
     {
       "path": "/api/jobs/expire-emergency-access",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/jobs/process-pledge-reminders",
+      "schedule": "0 14 * * *"
     }
   ]
 }
