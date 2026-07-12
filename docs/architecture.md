@@ -381,7 +381,7 @@ Audit logging is treated as a core security control, not an optional analytics f
 | Environment | Purpose                                                                   |
 | ----------- | ------------------------------------------------------------------------- |
 | Development | Local developer machines (Supabase local via `supabase start`)            |
-| Preview     | Vercel preview deployments per PR (linked to a staging Supabase project)  |
+| Preview     | Vercel previews linked to a dedicated staging Supabase project; see the [setup plan](preview-environment-plan.md) |
 | Production  | Live Vercel production deployment (linked to production Supabase project) |
 
 ### 5.2 Infrastructure Stack
