@@ -83,6 +83,7 @@ export const POST = (request: Request) =>
     const externalDonorId = optionalUuid('externalDonorId', body.externalDonorId);
     const fundId = optionalUuid('fundId', body.fundId);
     const campaignId = optionalUuid('campaignId', body.campaignId);
+    const categoryId = optionalUuid('categoryId', body.categoryId);
     const cashAccountId = requireUuid('cashAccountId', body.cashAccountId);
     const incomeAccountId = requireUuid(
       'incomeAccountId',
@@ -163,6 +164,7 @@ export const POST = (request: Request) =>
           isAnonymous,
           fundId,
           campaignId,
+          categoryId,
           periodId: period.id,
           amountCents,
           method,

@@ -173,9 +173,12 @@ type Family = { id: string; familyName: string };
 type Account = { id: string; code: string; name: string; type: string };
 type Fund = { id: string; name: string };
 
+type Category = { id: string; name: string; incomeAccountId: string };
+
 function RecordDonationDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const queryClient = useQueryClient();
   const [familyId, setFamilyId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [fundId, setFundId] = useState("");
   const [cashAccountId, setCash] = useState("");
   const [incomeAccountId, setIncome] = useState("");
@@ -186,6 +189,7 @@ function RecordDonationDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const familiesQuery = useQuery({ queryKey: ["families", "min"], enabled: open, queryFn: () => apiRequest<{ ok: true; families: Family[] }>("/api/families") });
   const accountsQuery = useQuery({ queryKey: ["finance", "accounts", "parish"], enabled: open, queryFn: () => apiRequest<{ ok: true; accounts: Account[] }>("/api/finance/accounts?owner=parish") });
   const fundsQuery = useQuery({ queryKey: ["finance", "funds", "parish"], enabled: open, queryFn: () => apiRequest<{ ok: true; funds: Fund[] }>("/api/finance/funds?owner=parish") });
+  const categoriesQuery = useQuery({ queryKey: ["finance", "giving-categories", "parish"], enabled: open, queryFn: () => apiRequest<{ ok: true; categories: Category[] }>("/api/finance/giving-categories?owner=parish") });
   const accounts = accountsQuery.data?.accounts ?? [];
 
   const create = useMutation({
@@ -194,6 +198,7 @@ function RecordDonationDialog({ open, onOpenChange }: { open: boolean; onOpenCha
         method: "POST",
         body: JSON.stringify({
           familyId: familyId || null,
+          categoryId: categoryId || null,
           fundId: fundId || null,
           cashAccountId,
           incomeAccountId,
@@ -226,6 +231,20 @@ function RecordDonationDialog({ open, onOpenChange }: { open: boolean; onOpenCha
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5"><Label htmlFor="d-amt">Amount</Label><Input id="d-amt" inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
             <div className="grid gap-1.5"><Label htmlFor="d-date">Received</Label><Input id="d-date" type="date" value={receivedAt} onChange={(e) => setReceivedAt(e.target.value)} /></div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Category</Label>
+            <Select
+              value={categoryId}
+              onValueChange={(v) => {
+                setCategoryId(v);
+                const c = (categoriesQuery.data?.categories ?? []).find((x) => x.id === v);
+                if (c) setIncome(c.incomeAccountId);
+              }}
+            >
+              <SelectTrigger aria-label="Category"><SelectValue placeholder="Select category (optional)" /></SelectTrigger>
+              <SelectContent>{(categoriesQuery.data?.categories ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
