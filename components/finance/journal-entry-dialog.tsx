@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -29,22 +29,69 @@ import { formatCents, parseCentsInput } from "@/lib/finance/money";
 type Account = { id: string; code: string; name: string; type: string };
 type Line = { accountId: string; direction: "DEBIT" | "CREDIT"; amount: string };
 
+export type EditableEntry = {
+  id: string;
+  description: string;
+  entryDate: string;
+  reference: string | null;
+  status: string;
+  lines: Array<{ accountId: string; direction: "DEBIT" | "CREDIT"; amountCents: string }>;
+};
+
 const BLANK: Line = { accountId: "", direction: "DEBIT", amount: "" };
+
+/** cents string → editable dollar string (no currency symbol). */
+function centsToInput(cents: string): string {
+  let n: bigint;
+  try {
+    n = BigInt(cents);
+  } catch {
+    return "";
+  }
+  const neg = n < 0n;
+  const abs = neg ? -n : n;
+  return `${neg ? "-" : ""}${abs / 100n}.${(abs % 100n).toString().padStart(2, "0")}`;
+}
 
 export function JournalEntryDialog({
   owner,
   open,
   onOpenChange,
+  entry,
 }: {
   owner: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  entry?: EditableEntry | null;
 }) {
   const queryClient = useQueryClient();
+  const isEdit = Boolean(entry);
   const [description, setDescription] = useState("");
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [reference, setReference] = useState("");
   const [lines, setLines] = useState<Line[]>([{ ...BLANK }, { ...BLANK, direction: "CREDIT" }]);
+
+  // Initialize from the entry being edited, or reset to blank for a new entry.
+  useEffect(() => {
+    if (!open) return;
+    if (entry) {
+      setDescription(entry.description);
+      setEntryDate(entry.entryDate.slice(0, 10));
+      setReference(entry.reference ?? "");
+      setLines(
+        entry.lines.map((l) => ({
+          accountId: l.accountId,
+          direction: l.direction,
+          amount: centsToInput(l.amountCents),
+        })),
+      );
+    } else {
+      setDescription("");
+      setEntryDate(new Date().toISOString().slice(0, 10));
+      setReference("");
+      setLines([{ ...BLANK }, { ...BLANK, direction: "CREDIT" }]);
+    }
+  }, [open, entry]);
 
   const accountsQuery = useQuery({
     queryKey: ["finance", "accounts", owner],
@@ -65,9 +112,9 @@ export function JournalEntryDialog({
   const accounts = accountsQuery.data?.accounts ?? [];
 
   const periodId = useMemo(() => {
-    const open = (periodsQuery.data?.periods ?? []).filter((p) => p.status === "OPEN");
+    const openPeriods = (periodsQuery.data?.periods ?? []).filter((p) => p.status === "OPEN");
     const d = new Date(entryDate);
-    return open.find((p) => new Date(p.startDate) <= d && d <= new Date(p.endDate))?.id ?? null;
+    return openPeriods.find((p) => new Date(p.startDate) <= d && d <= new Date(p.endDate))?.id ?? null;
   }, [periodsQuery.data, entryDate]);
 
   const totals = useMemo(() => {
@@ -86,15 +133,29 @@ export function JournalEntryDialog({
     return { debit, credit, balanced: debit === credit && debit > 0n };
   }, [lines]);
 
-  function reset() {
-    setDescription("");
-    setReference("");
-    setLines([{ ...BLANK }, { ...BLANK, direction: "CREDIT" }]);
-  }
-
   const save = useMutation({
-    mutationFn: (submit: boolean) =>
-      apiRequest("/api/finance/journal", {
+    mutationFn: async (submit: boolean) => {
+      const payloadLines = lines
+        .filter((l) => l.accountId && l.amount.trim())
+        .map((l) => ({
+          accountId: l.accountId,
+          direction: l.direction,
+          amountCents: parseCentsInput(l.amount).toString(),
+        }));
+      if (entry) {
+        await apiRequest(`/api/finance/journal/${entry.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ description, entryDate, reference: reference || null, periodId, lines: payloadLines }),
+        });
+        if (submit) {
+          await apiRequest(`/api/finance/journal/${entry.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ action: "submit" }),
+          });
+        }
+        return;
+      }
+      await apiRequest("/api/finance/journal", {
         method: "POST",
         body: JSON.stringify({
           owner,
@@ -103,34 +164,28 @@ export function JournalEntryDialog({
           reference: reference || null,
           periodId,
           submit,
-          lines: lines
-            .filter((l) => l.accountId && l.amount.trim())
-            .map((l) => ({
-              accountId: l.accountId,
-              direction: l.direction,
-              amountCents: parseCentsInput(l.amount).toString(),
-            })),
+          lines: payloadLines,
         }),
-      }),
+      });
+    },
     onSuccess: async (_data, submit) => {
       await queryClient.invalidateQueries({ queryKey: ["finance", "journal", owner] });
-      toast.success(submit ? "Entry submitted" : "Draft saved");
-      reset();
+      toast.success(entry ? "Entry updated" : submit ? "Entry submitted" : "Draft saved");
       onOpenChange(false);
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Save failed"),
   });
 
-  const canSave = description.trim() && periodId && totals.balanced && !save.isPending;
+  const canSave = Boolean(description.trim()) && Boolean(periodId) && totals.balanced && !save.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>New journal entry</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit journal entry" : "New journal entry"}</DialogTitle>
           <DialogDescription>
             Debits must equal credits. Save as a draft, or submit to post (routed through
-            approval when a policy requires it).
+            approval when a policy requires it). Posted entries are corrected with a reversing entry.
           </DialogDescription>
         </DialogHeader>
 
@@ -202,7 +257,7 @@ export function JournalEntryDialog({
             </Badge>
           </div>
           {!periodId && periodsQuery.data ? (
-            <p className="text-sm text-destructive">No open accounting period covers this date. Create/open a period first.</p>
+            <p className="text-sm text-destructive">No open accounting period covers this date. Open a period first.</p>
           ) : null}
         </div>
 

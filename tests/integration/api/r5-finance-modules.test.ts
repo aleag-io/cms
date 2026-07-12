@@ -150,6 +150,28 @@ describe('R5 finance modules', () => {
     expect((await testDb.vendorBill.findUniqueOrThrow({ where: { id: bill.id } })).status).toBe('PAID');
   });
 
+  it('edits an existing account and vendor via PATCH', async () => {
+    const accountPatch = await import('@/app/api/finance/accounts/[id]/route');
+    const vendorPatch = await import('@/app/api/finance/vendors/[id]/route');
+
+    const editRes = await accountPatch.PATCH(
+      new Request('http://localhost', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Renamed Cash', type: 'ASSET' }) }),
+      { params: Promise.resolve({ id: CASH }) },
+    );
+    expect(editRes.status).toBe(200);
+    expect((await testDb.account.findUniqueOrThrow({ where: { id: CASH } })).name).toBe('Renamed Cash');
+
+    const vendor = (await (await vendors.POST(jreq('/api/finance/vendors', { name: 'Old Name' }))).json()).vendor;
+    const vEdit = await vendorPatch.PATCH(
+      new Request('http://localhost', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'New Name', email: 'ap@vendor.test' }) }),
+      { params: Promise.resolve({ id: vendor.id }) },
+    );
+    expect(vEdit.status).toBe(200);
+    const saved = await testDb.vendor.findUniqueOrThrow({ where: { id: vendor.id } });
+    expect(saved.name).toBe('New Name');
+    expect(saved.email).toBe('ap@vendor.test');
+  });
+
   it('Summary basis switch: cash excludes accrual-only entries', async () => {
     // Seed posted entries the way the engine does (DRAFT + lines, then POSTED)
     // so the posted-lines immutability trigger is satisfied.

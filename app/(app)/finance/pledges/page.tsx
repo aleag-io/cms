@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellIcon, PlusIcon } from "@phosphor-icons/react";
+import { BellIcon, PencilSimpleIcon, PlusIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { DataTable } from "@/components/patterns/data-table";
 import { PageHeader } from "@/components/patterns/page-header";
@@ -30,6 +30,7 @@ export default function PledgesPage() {
   const queryClient = useQueryClient();
   const [campaignId, setCampaignId] = useState("");
   const [open, setOpen] = useState(false);
+  const [editPledge, setEditPledge] = useState<Pledge | null>(null);
 
   const campaignsQuery = useQuery({ queryKey: ["finance", "campaigns"], queryFn: () => apiRequest<{ ok: true; campaigns: Campaign[] }>("/api/finance/campaigns") });
   const pledgesQuery = useQuery({
@@ -78,11 +79,22 @@ export default function PledgesPage() {
             { key: "amount", header: <span className="block text-right">Pledged</span>, className: "text-right", cell: (p) => <span className="tabular-nums">{formatCents(p.amountCents)}</span> },
             { key: "fulfilled", header: <span className="block text-right">Fulfilled</span>, className: "text-right", cell: (p) => <span className="tabular-nums">{formatCents(p.fulfilledCents)}</span> },
             { key: "status", header: "Status", cell: (p) => <Badge variant={p.status === "FULFILLED" ? "secondary" : "outline"}>{p.status}</Badge> },
-            { key: "actions", header: "", className: "text-right", cell: (p) => (BigInt(p.fulfilledCents) < BigInt(p.amountCents) ? <Button type="button" variant="ghost" size="sm" disabled={remind.isPending} onClick={() => remind.mutate(p.id)}><BellIcon className="mr-1.5 size-4" /> Remind</Button> : null) },
+            {
+              key: "actions", header: "", className: "text-right",
+              cell: (p) => (
+                <div className="flex justify-end gap-1">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setEditPledge(p)}><PencilSimpleIcon className="mr-1.5 size-4" /> Edit</Button>
+                  {BigInt(p.fulfilledCents) < BigInt(p.amountCents) ? (
+                    <Button type="button" variant="ghost" size="sm" disabled={remind.isPending} onClick={() => remind.mutate(p.id)}><BellIcon className="mr-1.5 size-4" /> Remind</Button>
+                  ) : null}
+                </div>
+              ),
+            },
           ]}
         />
       </div>
       <CreatePledgeDialog campaignId={campaignId} open={open} onOpenChange={setOpen} onDone={() => queryClient.invalidateQueries({ queryKey: ["finance", "pledges", campaignId] })} />
+      <EditPledgeDialog pledge={editPledge} onOpenChange={(o) => !o && setEditPledge(null)} onDone={() => queryClient.invalidateQueries({ queryKey: ["finance", "pledges", campaignId] })} />
     </div>
   );
 }
@@ -113,6 +125,50 @@ function CreatePledgeDialog({ campaignId, open, onOpenChange, onDone }: { campai
         </div>
         <DialogFooter>
           <Button type="button" disabled={!familyId || !amount || create.isPending} onClick={() => create.mutate()}>{create.isPending ? "Saving…" : "Create"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditPledgeDialog({ pledge, onOpenChange, onDone }: { pledge: Pledge | null; onOpenChange: (o: boolean) => void; onDone: () => void }) {
+  const [amount, setAmount] = useState("");
+  const [status, setStatus] = useState("ACTIVE");
+
+  // Render-phase sync when a different pledge is selected for editing.
+  const [lastId, setLastId] = useState<string | null>(null);
+  if (pledge && pledge.id !== lastId) {
+    setLastId(pledge.id);
+    setAmount((Number(BigInt(pledge.amountCents)) / 100).toFixed(2));
+    setStatus(pledge.status);
+  }
+
+  const save = useMutation({
+    mutationFn: () =>
+      apiRequest(`/api/finance/pledges/${pledge!.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ amountCents: parseCentsInput(amount).toString(), status }),
+      }),
+    onSuccess: () => { toast.success("Pledge updated"); onDone(); onOpenChange(false); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  return (
+    <Dialog open={Boolean(pledge)} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Edit pledge</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-1.5"><Label htmlFor="ep-amt">Amount</Label><Input id="ep-amt" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+          <div className="grid gap-1.5">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger aria-label="Status"><SelectValue /></SelectTrigger>
+              <SelectContent>{["ACTIVE", "FULFILLED", "LAPSED", "CANCELLED"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" disabled={!amount || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save changes"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

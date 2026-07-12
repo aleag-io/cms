@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PlusIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon, PlusIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import {
   LedgerOwnerSwitcher,
@@ -39,6 +39,7 @@ export default function FinanceAccountsPage() {
   const ledger = useFinanceLedgerOwner();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  const [editAccount, setEditAccount] = useState<Account | null>(null);
   const accountsQuery = useQuery({
     queryKey: ["finance", "accounts", ledger.owner],
     enabled: ledger.isReady && !ledger.isForbidden && Boolean(ledger.owner),
@@ -83,7 +84,14 @@ export default function FinanceAccountsPage() {
                 <PlusIcon className="mr-2 size-4" />
                 {seedChart.isPending ? "Setting up…" : "Seed default chart"}
               </Button>
-              <Button type="button" onClick={() => setAddOpen(true)} disabled={!ledger.isReady}>
+              <Button
+                type="button"
+                onClick={() => {
+                  setEditAccount(null);
+                  setAddOpen(true);
+                }}
+                disabled={!ledger.isReady}
+              >
                 <PlusIcon className="mr-2 size-4" /> Add account
               </Button>
             </>
@@ -189,22 +197,62 @@ export default function FinanceAccountsPage() {
               header: "Fund",
               cell: (account) => account.fund?.name ?? "—",
             },
+            {
+              key: "actions",
+              header: "",
+              className: "text-right",
+              cell: (account) =>
+                ledger.canWrite ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditAccount(account);
+                      setAddOpen(true);
+                    }}
+                  >
+                    <PencilSimpleIcon className="mr-1.5 size-4" /> Edit
+                  </Button>
+                ) : null,
+            },
           ]}
         />
       </div>
       {ledger.canWrite ? (
-        <AddAccountDialog owner={ledger.owner} open={addOpen} onOpenChange={setAddOpen} />
+        <AccountDialog
+          owner={ledger.owner}
+          account={editAccount}
+          open={addOpen}
+          onOpenChange={(o) => {
+            setAddOpen(o);
+            if (!o) setEditAccount(null);
+          }}
+        />
       ) : null}
     </div>
   );
 }
 
-function AddAccountDialog({ owner, open, onOpenChange }: { owner: string; open: boolean; onOpenChange: (o: boolean) => void }) {
+function AccountDialog({ owner, account, open, onOpenChange }: { owner: string; account: Account | null; open: boolean; onOpenChange: (o: boolean) => void }) {
   const queryClient = useQueryClient();
+  const isEdit = Boolean(account);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [type, setType] = useState<(typeof ACCOUNT_TYPES)[number]>("ASSET");
   const [fundId, setFundId] = useState("");
+
+  // Sync the form when the dialog opens or the edited account changes
+  // (render-phase reset per the React "adjusting state on prop change" pattern).
+  const [initSig, setInitSig] = useState("");
+  const sig = open ? (account?.id ?? "new") : "";
+  if (sig && sig !== initSig) {
+    setInitSig(sig);
+    setCode(account?.code ?? "");
+    setName(account?.name ?? "");
+    setType((account?.type as (typeof ACCOUNT_TYPES)[number]) ?? "ASSET");
+    setFundId(account?.fund?.id ?? "");
+  }
 
   const fundsQuery = useQuery({
     queryKey: ["finance", "funds", owner],
@@ -212,16 +260,20 @@ function AddAccountDialog({ owner, open, onOpenChange }: { owner: string; open: 
     queryFn: () => apiRequest<{ ok: true; funds: { id: string; name: string }[] }>(`/api/finance/funds?owner=${encodeURIComponent(owner)}`),
   });
 
-  const create = useMutation({
+  const save = useMutation({
     mutationFn: () =>
-      apiRequest("/api/finance/accounts", {
-        method: "POST",
-        body: JSON.stringify({ owner, code, name, type, fundId: fundId || null }),
-      }),
+      account
+        ? apiRequest(`/api/finance/accounts/${account.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ code, name, type, fundId: fundId || null }),
+          })
+        : apiRequest("/api/finance/accounts", {
+            method: "POST",
+            body: JSON.stringify({ owner, code, name, type, fundId: fundId || null }),
+          }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["finance", "accounts", owner] });
-      toast.success("Account added");
-      setCode(""); setName(""); setFundId("");
+      toast.success(account ? "Account updated" : "Account added");
       onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
@@ -230,7 +282,7 @@ function AddAccountDialog({ owner, open, onOpenChange }: { owner: string; open: 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Add account</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? "Edit account" : "Add account"}</DialogTitle></DialogHeader>
         <div className="grid gap-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5"><Label htmlFor="ac-code">Code</Label><Input id="ac-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. 1000" /></div>
@@ -252,7 +304,7 @@ function AddAccountDialog({ owner, open, onOpenChange }: { owner: string; open: 
           </div>
         </div>
         <DialogFooter>
-          <Button type="button" disabled={!code.trim() || !name.trim() || create.isPending} onClick={() => create.mutate()}>{create.isPending ? "Adding…" : "Add account"}</Button>
+          <Button type="button" disabled={!code.trim() || !name.trim() || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : isEdit ? "Save changes" : "Add account"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
