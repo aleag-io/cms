@@ -199,6 +199,38 @@ never filters sensitive data client-side.
   new tests in `tests/rls/r4-*.test.ts`,
   `tests/integration/api/r4-liturgical.test.ts`,
   `tests/unit/lib/liturgical-validate.test.ts`.
+- **Release R5 — Finance & Giving (M10, Phase 20) — implemented (backend + UI).**
+  Double-entry ledger (`Account`/`Fund`/`JournalEntry`/`JournalLine`) with
+  DB-enforced balancing (deferred constraint trigger), period lock + super-admin
+  audited reopen (PA-21), posted-entry immutability (reversing entries only),
+  polymorphic diocese/parish/organization ledgers with RLS isolation
+  (`current_org_leader_ids()` org-leader scope, parish-admin read-only oversight,
+  PA-13), and a config-driven **maker-checker** engine wired into the posting
+  lifecycle (`lib/finance/approval-flow.ts`): strict/threshold/hybrid, no
+  self-approval, per-entity independent selection (PA-23/24), backed by a DB
+  approval-gate trigger so a MANUAL journal cannot post without an
+  APPROVED/AUTO_APPROVED request. **Key fix vs. the original grok/codex draft:**
+  `postJournalEntry` created entries as `POSTED` then nested-inserted lines,
+  which the `assert_posted_lines_immutable` trigger rejects — it now creates
+  DRAFT + lines then flips to the target status, so journal/donation/reversal
+  posting works. Modules: donations (family-default, explicit member attribution,
+  never auto-allocated, PA-22) + campaigns/pledges + lapsed-pledge reminders via
+  the M7 comms queue; vendor bills & payments through approval (accrual then cash
+  journals, PA-19); budgets + cash/accrual reporting basis (PA-17/18); CSV bank
+  reconciliation (PA-20); idempotent Stripe webhook ingestion
+  (`/api/webhooks/stripe`, public in `proxy.ts`, IN-6); annual giving statements
+  (`@react-pdf/renderer` + Vercel Blob with inline re-render fallback) + idempotent
+  send. Full `/finance/*` UI (accounts, periods, journal create/edit/reverse,
+  approvals, donations, campaigns, pledges, vendors, bills & payments, budgets,
+  reconciliation, giving statements), `/diocese/finance` Tier-2, and
+  `/self-service` My Giving. Money stored as integer cents (BIGINT). Migrations
+  `20260711000001_r5_finance_core` + RLS `20260711000002_r5_finance_rls.sql`
+  + hardening `20260711000003_r5_finance_hardening_rls.sql`. Tests:
+  `tests/unit/finance/*`, `tests/rls/r5-invariants.test.ts`,
+  `tests/rls/r5-ledger.test.ts`, `tests/integration/api/r5-finance.test.ts`,
+  `tests/integration/api/r5-finance-modules.test.ts`, `tests/e2e/r5-finance-ui.test.ts`.
+  Deps added: `stripe`, `@react-pdf/renderer`, `@vercel/blob`. Plan:
+  [docs/releases/r5-finance-giving/1-finance-giving.md](docs/releases/r5-finance-giving/1-finance-giving.md).
 
 ## How to run
 

@@ -1,10 +1,14 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUUpLeftIcon, PlusIcon } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import {
   LedgerOwnerSwitcher,
   useFinanceLedgerOwner,
 } from "@/components/finance/ledger-owner-switcher";
+import { JournalEntryDialog } from "@/components/finance/journal-entry-dialog";
 import { DataTable } from "@/components/patterns/data-table";
 import { PageHeader } from "@/components/patterns/page-header";
 import {
@@ -14,6 +18,7 @@ import {
   PageSkeleton,
 } from "@/components/patterns/states";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { apiRequest, isApiClientError } from "@/lib/api-client";
 import { formatCents } from "@/lib/finance/money";
 
@@ -49,6 +54,8 @@ function label(value: string): string {
 
 export default function FinanceJournalPage() {
   const ledger = useFinanceLedgerOwner();
+  const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const journalQuery = useQuery({
     queryKey: ["finance", "journal", ledger.owner],
     enabled: ledger.isReady && !ledger.isForbidden && Boolean(ledger.owner),
@@ -58,11 +65,33 @@ export default function FinanceJournalPage() {
       ),
   });
 
+  const reverse = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/api/finance/journal/${id}/reverse`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["finance", "journal", ledger.owner] });
+      toast.success("Reversing entry posted");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Reverse failed"),
+  });
+
   const header = (
     <PageHeader
       title="Journal"
       description="Draft, approval-pending, and posted entries for the selected ledger. Corrections use reversing entries rather than editing posted rows."
-      actions={<LedgerOwnerSwitcher state={ledger} />}
+      actions={
+        <>
+          <LedgerOwnerSwitcher state={ledger} />
+          {ledger.canWrite ? (
+            <Button type="button" onClick={() => setDialogOpen(true)} disabled={!ledger.isReady}>
+              <PlusIcon className="mr-2 size-4" /> New entry
+            </Button>
+          ) : null}
+        </>
+      }
     />
   );
 
@@ -157,9 +186,27 @@ export default function FinanceJournalPage() {
                 <span className="tabular-nums">{entryTotal(entry)}</span>
               ),
             },
+            {
+              key: "actions",
+              header: "",
+              className: "text-right",
+              cell: (entry) =>
+                ledger.canWrite && entry.status === "POSTED" ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={reverse.isPending}
+                    onClick={() => reverse.mutate(entry.id)}
+                  >
+                    <ArrowUUpLeftIcon className="mr-1.5 size-4" /> Reverse
+                  </Button>
+                ) : null,
+            },
           ]}
         />
       </div>
+      <JournalEntryDialog owner={ledger.owner} open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
 }

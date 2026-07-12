@@ -69,6 +69,13 @@ describe('visibleNavItems', () => {
       '/finance/periods',
       '/finance/donations',
       '/finance/approvals',
+      '/finance/campaigns',
+      '/finance/pledges',
+      '/finance/vendors',
+      '/finance/bills',
+      '/finance/budgets',
+      '/finance/reconciliation',
+      '/finance/giving-statements',
     ]);
     expect(hrefs.some((h) => h.startsWith('/diocese'))).toBe(false);
     expect(hrefs).not.toContain('/parishes');
@@ -216,6 +223,13 @@ describe('navSectionsFromClaims', () => {
           '/finance/periods',
           '/finance/donations',
           '/finance/approvals',
+          '/finance/campaigns',
+          '/finance/pledges',
+          '/finance/vendors',
+          '/finance/bills',
+          '/finance/budgets',
+          '/finance/reconciliation',
+          '/finance/giving-statements',
         ],
       },
     ]);
