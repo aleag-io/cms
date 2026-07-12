@@ -471,6 +471,7 @@ model Diocese {
   bankStatementLines       BankStatementLine[]
   reconciliationRuns       ReconciliationRun[]
   givingStatements         GivingStatement[]
+  givingCategories         GivingCategory[]
   stripeEvents             StripeEvent[]
   organizations            Organization[] @relation("DioceseOrganizations")
 }
@@ -549,6 +550,7 @@ model Parish {
   bankStatementLines       BankStatementLine[]
   reconciliationRuns       ReconciliationRun[]
   givingStatements         GivingStatement[]
+  givingCategories         GivingCategory[]
   stripeEvents             StripeEvent[]
 
   @@index([dioceseId])
@@ -1363,6 +1365,7 @@ model Fund {
   accounts   Account[]
   campaigns  Campaign[]
   donationAllocations DonationAllocation[]
+  givingCategories GivingCategory[]
 
   @@unique([ownerType, ownerId, name])
   @@index([dioceseId, ownerType, ownerId])
@@ -1387,6 +1390,8 @@ model Account {
   journalLines JournalLine[]
   budgetLines  BudgetLine[]
   campaigns    Campaign[]    @relation("CampaignIncomeAccount")
+  givingCategories GivingCategory[] @relation("GivingCategoryIncomeAccount")
+  depositBatches   DonationBatch[]  @relation("DonationBatchDepositAccount")
 
   @@unique([ownerType, ownerId, code])
   @@index([dioceseId, ownerType, ownerId])
@@ -1598,11 +1603,13 @@ model DonationBatch {
   donationCount        Int                 @default(0)
   depositReference     String?
   postedJournalEntryId String?             @db.Uuid
+  depositAccountId     String?             @db.Uuid
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
   diocese              Diocese             @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
   parish               Parish?             @relation(fields: [parishId], references: [id], onDelete: Cascade)
   postedJournalEntry   JournalEntry?       @relation(fields: [postedJournalEntryId], references: [id], onDelete: SetNull)
+  depositAccount       Account?            @relation("DonationBatchDepositAccount", fields: [depositAccountId], references: [id], onDelete: SetNull)
   donations            Donation[]
 
   @@index([dioceseId, parishId, batchDate])
@@ -1627,6 +1634,7 @@ model Donation {
   externalTxnId   String?
   dedication      String?
   softCreditNote  String?
+  categoryId      String?          @db.Uuid
   receivedAt      DateTime         @db.Date
   status          DonationStatus   @default(ACTIVE)
   journalEntryId  String?          @db.Uuid
@@ -1641,9 +1649,11 @@ model Donation {
   period          AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
   batch           DonationBatch?   @relation(fields: [batchId], references: [id], onDelete: SetNull)
   journalEntry    JournalEntry?    @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+  category        GivingCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   allocations     DonationAllocation[]
 
   @@index([dioceseId, parishId, receivedAt])
+  @@index([categoryId])
   @@index([familyId])
   @@index([memberId])
   @@index([externalDonorId])
@@ -1876,4 +1886,31 @@ model StripeEvent {
 
   @@index([dioceseId, parishId])
   @@index([processedAt])
+}
+
+model GivingCategory {
+  id                String          @id @default(uuid()) @db.Uuid
+  dioceseId         String          @db.Uuid
+  parishId          String?         @db.Uuid
+  ownerType         LedgerOwnerType
+  ownerId           String          @db.Uuid
+  name              String
+  section           String
+  sortOrder         Int             @default(0)
+  fundId            String?         @db.Uuid
+  incomeAccountId   String          @db.Uuid
+  isTaxDeductible   Boolean         @default(true)
+  countsToStatement Boolean         @default(true)
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  diocese           Diocese         @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish            Parish?         @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  fund              Fund?           @relation(fields: [fundId], references: [id], onDelete: SetNull)
+  incomeAccount     Account         @relation("GivingCategoryIncomeAccount", fields: [incomeAccountId], references: [id], onDelete: Restrict)
+  donations         Donation[]
+
+  @@unique([ownerType, ownerId, name])
+  @@index([dioceseId, ownerType, ownerId, section, sortOrder])
+  @@index([parishId, ownerType, ownerId])
 }
