@@ -6,22 +6,38 @@
 > [module-delivery-plan.md](../../module-delivery-plan.md) §5. Implementation detail for Phase 20. This turns that phase's
 > deliverables into an ordered, implementable work breakdown with the concrete
 > architectural decisions, schema/migrations, RLS policies, invariant-enforcing triggers,
-> and tests required to reach the **Phase 20 exit gate**. It builds directly on the Phase 1–4
-> spine: `withTenant`, deny-by-default + forced RLS, the claims pipeline (incl.
-> `org_leader_ids` and the `current_org_leader_ids()` SECURITY DEFINER helper), the
-> permission resolver, append-only audit, and the Phase 4 grant-aware Tier-3 pattern
-> (`has_active_grant()`).
+> API surface, **UI**, and tests required to reach the **Phase 20 exit gate**. It builds
+> directly on the Phase 1–4 spine: `withTenant`, deny-by-default + forced RLS, the claims
+> pipeline (incl. `org_leader_ids` and the `current_org_leader_ids()` SECURITY DEFINER
+> helper), the permission resolver, append-only audit, the Phase 4 grant-aware Tier-3
+> pattern (`has_active_grant()`), and the R1 shell/UI conventions
+> ([r1 design-system-shell](../r1-people-core/1-design-system-shell.md)). It also carries
+> forward the two hardening patterns learned in R4 (see
+> [r4-sacramental-liturgical/1-sacramental-records.md](../r4-sacramental-liturgical/1-sacramental-records.md)
+> Changelog): PA-12 overrides enforced **in RLS** via `permission_decision()` where finance
+> overrides apply, and validated request bodies via a `lib/finance/validate.ts` module rather
+> than ad-hoc per-route checks.
+>
+> **2026-07-11 revision:** this plan previously covered only the backend (schema, RLS, API,
+> exit-gate tests) — module-delivery-plan.md lists R5 as **"M10 (backend + UI)"**, so §§14–22
+> (giving statements/pledge reminders + eight UI PRs), the non-goals, files-to-touch, and
+> Definition of Done sections below are new. See the [Changelog](#changelog) at the bottom.
 
 **Phase goal:** a correct double-entry ledger with governed posting — the
-highest-correctness-risk area of the system. Every posting balances at the **database
-layer** (not just the app), closed periods reject writes, organization ledgers are isolated
-from the parish general ledger, and every journal, bill, and payment flows through a
-configurable maker-checker approval engine. Diocese users see finance data only as Tier-2
-aggregates unless a `ledger_detail` / `giving_detail` grant exists (Phase 4 pattern extended
-to the new tables).
+highest-correctness-risk area of the system — **and** the screens a parish treasurer,
+organization leader, and diocese finance viewer actually use to run it. Every posting
+balances at the **database layer** (not just the app), closed periods reject writes,
+organization ledgers are isolated from the parish general ledger, and every journal, bill,
+and payment flows through a configurable maker-checker approval engine. Diocese users see
+finance data only as Tier-2 aggregates unless a `ledger_detail` / `giving_detail` grant
+exists (Phase 4 pattern extended to the new tables). The UI never becomes a second
+enforcement point — every screen renders exactly what the RLS-guarded, role-projected API
+returns.
 
 **Requirements covered:** PA-9, PA-13, PA-17, PA-18, PA-19, PA-20, PA-21, PA-22, PA-23,
-PA-24; features §2.11 (all sub-sections); access-control §2–3 (finance categories), §5, §7.
+PA-24; features §2.11 (all thirteen sub-sections, including §2.11.7 pledge reminders and
+§2.11.10 annual giving statements — both previously unaddressed in this plan); access-control
+§2–3 (finance categories), §5, §7.
 
 **Exit gate (must all be green in CI):**
 1. **Ledger-balances invariant holds (unit + integration, property-based):** across a
@@ -42,6 +58,15 @@ PA-24; features §2.11 (all sub-sections); access-control §2–3 (finance categ
    across org ledgers in their parish; a diocese role sees **zero** raw ledger/donation rows
    without a grant, and only `summary_only`/`period_scoped` aggregates otherwise (PA-22:
    family donations are never auto-allocated to member statements).
+6. **UI (e2e + a11y):** every finance surface is axe-clean; a member never sees another
+   family's donations or another organization's ledger in the DOM; an organization leader's
+   ledger switcher never lists an organization they do not lead; a diocese user without a
+   grant sees the Tier-2 aggregate view only — no raw-row table renders, not even empty rows
+   with a 403 swallowed client-side.
+7. **Giving statements (integration):** a generated member statement's line items are a strict
+   subset of that member's `memberId`-attributed donations; a family statement never appears
+   inside a member statement's line items; re-running generation for an already-sent period is
+   idempotent (no duplicate `finance.statement.send` audit rows for the same recipient/period).
 
 ---
 
@@ -53,18 +78,24 @@ PA-24; features §2.11 (all sub-sections); access-control §2–3 (finance categ
 | Claims pipeline | ✅ incl. `org_leader_ids`, `program_leader_ids`, `member_id` | `lib/auth.ts` |
 | Sub-parish leader scoping | ✅ `current_org_leader_ids()` SECURITY DEFINER helper | `supabase/migrations/20260629182000_*_rls.sql` |
 | Grant-aware Tier-3 RLS | ✅ `has_active_grant()` / `has_emergency_access()`; Member+Family wired | `supabase/migrations/20260630000002_*_rls.sql` |
+| PA-12 override enforcement in RLS | ✅ `public.permission_decision()` pattern proven on Sacramental/Pastoral tables | `supabase/migrations/20260710100000_r4_hardening_rls.sql` |
 | Finance sharing categories | ✅ `GIVING_DETAIL`, `GIVING_STATEMENTS`, `FINANCIAL_STATEMENTS`, `LEDGER_DETAIL` in `DataCategory` | `prisma/schema.prisma` |
 | Append-only audit | ✅ `writeAuditEntry`, revoke+trigger on `AuditEntry` | `lib/audit.ts` |
 | Permission resolver + overrides | ✅ role×resource×action with `ParishPermissionOverride` | `lib/permissions/*` |
+| App shell, nav, DataTable/patterns | ✅ `components/patterns/*`, `lib/nav/menu.ts`, tenant-context ("work in parish") control | R1 Phase 5 |
+| Communications queue + provider seam | ✅ `Message`/`MessageRecipient`, `lib/communications/providers.ts` (`CommProvider.send`, no attachment support yet) | Phase 3 |
 | Finance schema | ❌ none — no accounts, journals, periods, donations, budgets, vendors, approvals | greenfield |
 | Money/decimal convention | ❌ not established | — |
 | Stripe / CSV tooling | ❌ no `stripe` SDK, no CSV parser dependency | `package.json` |
+| Finance UI | ❌ none | greenfield |
+| PDF generation | ❌ no PDF library in the dependency tree (R4 certificates used print-CSS only) | `package.json` |
 
 **The headline shift:** Phases 1–4 governed *who can read which rows*. Phase 20 introduces
 *correctness invariants on writes* — double-entry balancing, period locks, and maker-checker
 approval — that must be enforced by the database so the ledger cannot be corrupted by an
 app bug, a bad migration, or a direct SQL write inside a tenant transaction. The DB is still
-the sole enforcement point; the application layer surfaces and orchestrates the workflow.
+the sole enforcement point; the application layer surfaces and orchestrates the workflow —
+including, in this revision, the screens that make the workflow usable.
 
 ---
 
@@ -169,8 +200,10 @@ A report run takes `?basis=cash|accrual`:
 - **cash** → only entries representing actual cash movement (`cashImpact = true`).
 
 No data is duplicated; the basis switch is a filter. The selected basis is echoed in report
-metadata (features §2.11.4). Full report rendering/exports land in **Phase 6**; Phase 20
-delivers the basis-aware aggregation primitives and one summary endpoint to prove the switch.
+metadata (features §2.11.4). Full multi-statement report packs (income statement, balance
+sheet, comparative diocese/parish/org views — features §2.11.9) land in **Phase 6/M11**;
+Phase 20 delivers the basis-aware aggregation primitives and one summary endpoint + UI card to
+prove the switch — see the explicit scope boundary in §2.16.
 
 ### 2.8 Stripe webhook ingestion is idempotent on the Stripe event id (PA-9, IN-6)
 
@@ -195,40 +228,133 @@ reconciliation run has a `status` and a summary of matched/unmatched counts.
 Diocese-read policies on `Donation` (category `GIVING_DETAIL`) and the parish general
 `JournalEntry`/`JournalLine` (category `LEDGER_DETAIL`) reuse `has_active_grant()` /
 `has_emergency_access()` exactly as Member/Family did in Phase 4 §5.4. **Organization**
-ledgers are explicitly excluded from `ledger_detail` grants (access-control §2: “parish
-ledger only; organization ledgers are not included”): the diocese-read policy matches
+ledgers are explicitly excluded from `ledger_detail` grants (access-control §2: "parish
+ledger only; organization ledgers are not included"): the diocese-read policy matches
 `ownerType='PARISH'` only. A new Tier-2 aggregate view `diocese_parish_giving_summary`
 (sum by fund/period, **no** donor names/emails/amounts-per-donor) is added following the
 Phase 4 view rules (SECURITY DEFINER, diocese/role-scoped `WHERE`, PII-free, `GRANT SELECT`
 to `app_authenticated`).
 
+### 2.11 Annual giving statements are v1-lite: server-rendered PDF, per family/member, sent individually (PA-9, §2.11.10)
+
+**Chosen:** a dedicated `GivingStatement` record (one row per recipient per tax year — family
+**or** member) rendered to PDF with `@react-pdf/renderer` (pure JS, no headless browser, works
+in a Vercel Function) and delivered as an **individual email**, not through the broadcast
+`Message`/`MessageRecipient` model — that model sends one body to an audience; a statement's
+body is uniquely computed per recipient. `lib/communications/providers.ts`'s `CommProvider.send`
+payload gains one **additive** optional field, `attachment?: { filename: string; content: Buffer;
+mimeType: string }`, so the existing Resend-backed provider seam can attach a PDF without a new
+send path. SMS ignores attachments (statements are email-only).
+
+- **Family statement**: all `Donation` rows for the family in the tax year, regardless of
+  `memberId`. Delivered to `Family.primaryContactEmail`.
+- **Member statement**: only `Donation` rows where `memberId = <that member>` (PA-22) —
+  reuses the exact filter already established in §2.6 and its own report path. Delivered to
+  the member's own email when self-requested, or to the family email when parish-generated in
+  batch (a member can additionally view/download their own from `/self-service`).
+- **Batch generation** (`POST /api/finance/giving-statements/generate`) is idempotent per
+  `(ownerId=parishId, taxYear, recipientType, recipientId)` — a unique constraint on
+  `GivingStatement` plus a re-run check means re-generating an already-`SENT` statement
+  **updates** the stored snapshot but does not re-send unless the caller explicitly requests
+  `resend: true` (exit gate #7).
+- The **PDF is never regenerated on every view** — it is rendered once at generate-time and
+  the rendered bytes are stored (see §2.15 on storage) so re-downloads are stable even if
+  underlying donation data is later corrected via a reversing entry.
+
+### 2.12 Pledge reminders reuse the M7 communications queue, not a new channel (§2.11.7)
+
+**Chosen:** a cron job (`lib/finance/pledgeReminders.ts`, wired the same way as
+`processQueuedCommunications` — `/api/jobs/process-pledge-reminders`, GET/POST
+secret-guarded, registered in `vercel.json`) finds `Pledge` rows where
+`fulfilledCents < amountCents` and the parent `Campaign.endDate` is within a configurable
+lookahead window (or already past, for a lapsed-pledge nudge), and enqueues **one**
+broadcast-shaped `Message` (channel `EMAIL`, `audienceType` reusing the existing enum by
+targeting the individual family/member as a size-1 audience) per pledge, honoring the
+existing `CommunicationPreference` opt-out exactly like Phase 11's composer. This is
+deliberately **not** folded into the giving-statement send path (§2.11) because reminders are
+templated/broadcast-shaped (no PDF, no per-recipient computed ledger data) while statements
+are personalized documents — reusing the queue here (unlike statements) is the right
+economy because the content need is a plain templated nudge. Audit `finance.pledge.reminder`
+per pledge reminder enqueued.
+
+### 2.13 UI ledger-owner context reuses the Phase 5 tenant-context control
+
+The Finance shell adds a **ledger-owner switcher** next to the existing "work in parish"
+control (R1 Phase 5 §7): an Organization Leader who leads more than one organization
+(`org_leader_ids` claim has >1 entry) picks which org's ledger they are viewing/posting into;
+Parish Admin/Staff default to the parish general ledger. A **"View organization ledgers"**
+toggle (read-only, PA-13) lets Parish Admin browse into any org ledger in their parish without
+ever exposing a write action — the toggle simply changes which `ownerType`/`ownerId` the
+already-scoped API calls request; it grants no capability the RLS policy (§5.4) doesn't
+already allow. The switcher state lives in the URL (`?owner=parish` or
+`?owner=org:<id>`), never in a client store that could drift from what the API actually
+authorizes.
+
+### 2.14 Money formatting is a single presentation-edge helper; never re-derive cents in a component
+
+`lib/finance/money.ts` exports `formatCents(cents: bigint, currency = 'USD'): string` (→
+`Intl.NumberFormat`) and `parseCentsInput(input: string): bigint` (dollar-string → integer
+cents, rejecting fractional-cent input) — the **only** place UI code converts between cents
+and a displayed dollar amount. No component does its own `/100` division or string
+concatenation; this keeps the §2.1 integer-cents invariant from leaking a floating-point bug
+in at the edge where it would be hardest to catch in tests.
+
+### 2.15 Rendered statement PDFs are stored in Vercel Blob, not regenerated per download
+
+`GivingStatement.pdfBlobUrl` (private Vercel Blob) holds the rendered bytes from §2.11's
+generate step. Downloads (`GET /api/finance/giving-statements/[id]/pdf`) stream from Blob
+after an RLS-equivalent permission check in the route handler (same pattern as the existing
+member-export CSV route) — Blob URLs themselves are not treated as capability tokens; the API
+route is always the gate.
+
+### 2.16 Explicit scope boundary vs Phase 6/M11 reporting
+
+Phase 20 ships: chart of accounts, the balanced ledger, periods, maker-checker, donations
+(+ campaigns/pledges + statements + reminders), vendor bills/payments, annual budgets +
+basis-aware summary, CSV reconciliation, Stripe ingestion — and one UI screen per area
+(§§14–22). It does **not** ship: multi-report packs (income statement, balance sheet, fund
+balance summary, over-budget variance report as a standalone deliverable, comparative
+diocese/parish/org report views, the ad-hoc query builder, or the Global Finance Approval
+Policy Dashboard) — those are M11/Phase 21 per module-delivery-plan.md §1. The `?basis=`
+summary endpoint and budget-variance UI built here are the primitives Phase 21 composes into
+full report packs; they are not themselves the report pack.
+
 ---
 
 ## 3. Work breakdown
 
-Eleven PRs in dependency order. PRs 5-1/5-2 are the schema + invariant/RLS foundation;
-5-3…5-10 are features; 5-11 is the exit-gate suite (assertions drafted early to guide
-implementation, per the working agreement: **write the finance/RLS/permission tests first**).
+Twenty PRs in dependency order. PRs 20-1/20-2 are the schema + invariant/RLS foundation;
+20-3…20-11 are backend features (tests-first per the working agreement); 20-12…20-19 are
+UI over that API surface; 20-20 is the exit-gate suite.
 
 | PR | Title | Key outputs |
 | -- | ----- | ----------- |
-| 5-1 | Schema: money convention + core ledger models | Prisma migration; `Account`, `Fund`, `AccountingPeriod`, `JournalEntry`, `JournalLine`; enums; BIGINT cents convention |
-| 5-2 | SQL: balancing + period-lock + immutability triggers, ledger RLS, grant-aware diocese read, giving aggregate view | constraint triggers, parish/org isolation policies, `diocese_parish_giving_summary` |
-| 5-3 | Posting engine + chart of accounts + journal API | `lib/finance/posting.ts`, `/api/finance/accounts`, `/api/finance/journal` |
-| 5-4 | Periods: open/close/reopen API + audit | `/api/finance/periods`, reopen super-admin + reason |
-| 5-5 | Maker-checker approval engine | `ApprovalPolicy/Request/Decision`, `lib/finance/approval.ts`, `/api/finance/approvals`, `/api/finance/approval-policies` |
-| 5-6 | Donations + campaigns + pledges (+ auto-journal) | `Donation`, `Campaign`, `Pledge`; `/api/finance/donations`, `/campaigns`, `/pledges` |
-| 5-7 | Vendor bills & payments (through approval) | `Vendor`, `VendorBill`, `Payment`; lifecycle API |
-| 5-8 | Budgets + reporting basis primitives | `Budget`, `BudgetLine`; variance compute; `?basis=` summary endpoint |
-| 5-9 | Bank reconciliation (CSV) | `BankStatementLine`, matcher, `/api/finance/reconciliation` |
-| 5-10 | Stripe webhook ingestion (idempotent) | `StripeEvent`, `/api/webhooks/stripe`, signature verify |
-| 5-11 | Exit gate tests | `tests/rls/phase5-*`, `tests/integration/api/phase5-*`, `tests/unit/finance/*` |
+| 20-1 | Schema: money convention + core ledger models | Prisma migration; `Account`, `Fund`, `AccountingPeriod`, `JournalEntry`, `JournalLine`; enums; BIGINT cents convention |
+| 20-2 | SQL: balancing + period-lock + immutability triggers, ledger RLS, grant-aware diocese read, giving aggregate view | constraint triggers, parish/org isolation policies, `diocese_parish_giving_summary` |
+| 20-3 | Posting engine + chart of accounts + journal API | `lib/finance/posting.ts`, `/api/finance/accounts`, `/api/finance/journal` |
+| 20-4 | Periods: open/close/reopen API + audit | `/api/finance/periods`, reopen super-admin + reason |
+| 20-5 | Maker-checker approval engine | `ApprovalPolicy/Request/Decision`, `lib/finance/approval.ts`, `/api/finance/approvals`, `/api/finance/approval-policies` |
+| 20-6 | Donations + campaigns + pledges (+ auto-journal) | `Donation`, `Campaign`, `Pledge`; `/api/finance/donations`, `/campaigns`, `/pledges` |
+| 20-7 | Vendor bills & payments (through approval) | `Vendor`, `VendorBill`, `Payment`; lifecycle API |
+| 20-8 | Budgets + reporting basis primitives | `Budget`, `BudgetLine`; variance compute; `?basis=` summary endpoint |
+| 20-9 | Bank reconciliation (CSV) | `BankStatementLine`, matcher, `/api/finance/reconciliation` |
+| 20-10 | Stripe webhook ingestion (idempotent) | `StripeEvent`, `/api/webhooks/stripe`, signature verify |
+| 20-11 | Giving statements + pledge reminders | `GivingStatement`, PDF render + Blob storage, `CommProvider` attachment support, `/api/finance/giving-statements`, pledge-reminder cron |
+| 20-12 | UI: Finance shell, ledger-owner switcher, chart of accounts + funds + periods | `/finance` layout, nav section, `/finance/accounts`, `/finance/periods` |
+| 20-13 | UI: Journal register, entry form, reversing entries | `/finance/journal`, `/finance/journal/[id]` |
+| 20-14 | UI: Approval queue + policy configuration | `/finance/approvals`, `/finance/approvals/policies` |
+| 20-15 | UI: Donations, campaigns, pledges, giving statements (+ self-service) | `/finance/donations`, `/finance/campaigns`, `/finance/pledges`, `/finance/giving-statements`, `/self-service` "My Giving" |
+| 20-16 | UI: Vendor bills & payments | `/finance/vendors`, `/finance/bills`, `/finance/payments` |
+| 20-17 | UI: Budgets + variance dashboard | `/finance/budgets` |
+| 20-18 | UI: Bank reconciliation | `/finance/reconciliation` |
+| 20-19 | UI: Diocese Tier-2 giving/ledger oversight + parish-admin org-ledger oversight | `/diocese/finance`, org-ledger read views |
+| 20-20 | Exit gate tests | `tests/rls/r5-*`, `tests/integration/api/r5-*`, `tests/unit/finance/*`, `tests/e2e/r5-*`, `tests/e2e/r5-a11y.test.ts` |
 
 ---
 
 ## 4. PR 20-1 — Schema: money convention + core ledger models
 
-Migration timestamp: `20260701000001_phase5_finance_core`
+Migration timestamp: `20260701000001_r5_finance_core`
 
 ### 4.1 Enums
 
@@ -326,14 +452,14 @@ CREATE INDEX ON "JournalLine" ("accountId");
 Add the enums and models above with `amountCents BigInt`, all relations, and `@@index`
 matching the SQL. Add the `Parish` and `Organization` back-relations. No `Role` enum change
 is required for Phase 20 (approver sets are config-driven `Role[]` arrays, and org-leader
-financial capability is expressed via the existing permission resolver — see §8). The
+financial capability is expressed via the existing permission resolver — see §17). The
 `proxy.ts` public-path list gains **one** new entry (`/api/webhooks/stripe`, PR 20-10).
 
 ---
 
 ## 5. PR 20-2 — SQL: invariant triggers, ledger RLS, grant-aware diocese read, giving view
 
-Migration timestamp: `20260701000002_phase5_finance_rls.sql` (in `supabase/migrations/`)
+Migration timestamp: `20260701000002_r5_finance_rls.sql` (in `supabase/migrations/`)
 
 ### 5.1 Grants to app_authenticated
 
@@ -537,6 +663,9 @@ backstop** — the engine never assumes it is the only guard.
   `REVERSAL`, `reversesEntryId` set). Audit `finance.journal.reverse`.
 
 All reads/writes go through `withTenant` (never bare `prisma`), per the architecture spine.
+Request bodies are validated in a shared `lib/finance/validate.ts` (account code format,
+line count/shape, date bounds) — the R4-hardening pattern of one validation module per
+feature area rather than ad-hoc per-route checks.
 
 ---
 
@@ -580,7 +709,7 @@ export function resolveApproval(policy: Policy, amountCents: bigint, entityKind:
 
 ### Org-leader finance capability via the permission resolver (not a new role)
 
-PA-23 references an “Organization Leader **with financial management permissions**.” Rather
+PA-23 references an "Organization Leader **with financial management permissions**." Rather
 than add a role, extend `PermissionResource` with `'finance_ledger'` and `'finance_approval'`
 and gate org-ledger writes / approval-policy config through the existing resolver +
 `ParishPermissionOverride`. This reuses the Phase 2 machinery and keeps the role set stable.
@@ -608,7 +737,8 @@ and gate org-ledger writes / approval-policy config through the existing resolve
   auto-generates a balanced journal entry (debit cash/clearing, credit fund income). Audit
   `finance.donation.create` (per-record giving audit, access-control §5).
 - Member contribution report path filters `memberId = ?` and **never** allocates family
-  donations to members (PA-22) — asserted in exit-gate unit tests.
+  donations to members (PA-22) — asserted in exit-gate unit tests. This is the same query
+  shape PR 20-11's member giving statement reuses.
 - Diocese-read RLS on `Donation` with category `GIVING_DETAIL`; giving summary via the Tier-2
   view (§5.6). CSV donation-batch import (`POST /api/finance/donations/import`).
 
@@ -632,8 +762,8 @@ and gate org-ledger writes / approval-policy config through the existing resolve
   variance crosses a threshold. Annual granularity only (PA-17).
 - `GET /api/finance/summary?basis=cash|accrual&from=&to=` — returns income/expense/fund
   totals computed with the basis filter of §2.7 and echoes `{ basis }` in the response.
-  Full report packs + exports are **Phase 6**; this endpoint proves the basis switch and
-  feeds exit-gate tests.
+  Full report packs + exports are **Phase 6/M11** (§2.16); this endpoint proves the basis
+  switch and feeds exit-gate tests and PR 20-17's variance dashboard.
 
 ---
 
@@ -661,7 +791,212 @@ and gate org-ledger writes / approval-policy config through the existing resolve
 
 ---
 
-## 14. PR 20-11 — Exit gate tests
+## 14. PR 20-11 — Giving statements + pledge reminders (§2.11.7, §2.11.10)
+
+### Schema (migration `20260701000011_r5_giving_statements`)
+
+```sql
+CREATE TYPE "GivingStatementRecipientType" AS ENUM ('FAMILY', 'MEMBER');
+CREATE TYPE "GivingStatementStatus"        AS ENUM ('GENERATED', 'SENT', 'FAILED');
+
+CREATE TABLE "GivingStatement" (
+  "id"            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "parishId"      UUID NOT NULL REFERENCES "Parish"("id"),
+  "taxYear"       INT  NOT NULL,
+  "recipientType" "GivingStatementRecipientType" NOT NULL,
+  "familyId"      UUID REFERENCES "Family"("id"),
+  "memberId"      UUID REFERENCES "Member"("id"),
+  "totalCents"    BIGINT NOT NULL,
+  "pdfBlobUrl"    TEXT NOT NULL,
+  "status"        "GivingStatementStatus" NOT NULL DEFAULT 'GENERATED',
+  "sentAt"        TIMESTAMPTZ,
+  "generatedByUserId" UUID NOT NULL REFERENCES "AppUser"("id"),
+  "createdAt"     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (
+    ("recipientType" = 'FAMILY'  AND "familyId" IS NOT NULL AND "memberId" IS NULL) OR
+    ("recipientType" = 'MEMBER'  AND "memberId" IS NOT NULL AND "familyId" IS NULL)
+  ),
+  UNIQUE ("parishId", "taxYear", "recipientType", "familyId", "memberId")
+);
+```
+
+RLS: parish admin/staff read+write their parish's statements; a member may `SELECT` **only**
+their own `recipientType='MEMBER'` row (`memberId = current_member_id()`), never a
+`FAMILY` row (a family isn't a login principal — family statements are parish-generated and
+emailed, not self-service-viewable, matching PA-22's member/family attribution split).
+Diocese: no read path (statements are not a Tier-2/3 category in this phase — flagged as a
+possible future `GIVING_STATEMENTS` grant wiring, currently unused as a `DataCategory` value
+despite being defined; see §22 non-goals).
+
+### `lib/finance/statements.ts`
+
+- `computeFamilyStatement(tx, familyId, taxYear)` — sums all `Donation` rows for the family in
+  the calendar tax year.
+- `computeMemberStatement(tx, memberId, taxYear)` — sums only `Donation` rows where
+  `memberId = memberId` (reuses PR 20-6's exact filter; **no** allocation logic exists here by
+  construction, closing the PA-22 gap directly in code, not just by convention).
+- `renderStatementPdf(input): Buffer` — `@react-pdf/renderer` document: parish letterhead,
+  recipient name, tax year, itemized donations (date, fund, amount via `formatCents`), total,
+  boilerplate IRS non-cash/no-goods-or-services language.
+
+### API
+
+- `POST /api/finance/giving-statements/generate` — body `{ taxYear, recipientType: 'FAMILY'|'MEMBER'|'ALL' }`.
+  Idempotent per §2.11: re-running for an already-`GENERATED`/`SENT` recipient **replaces** the
+  stored PDF/snapshot but does not re-send. Roles: `PARISH_ADMIN`, `PARISH_STAFF`. Audit
+  `finance.statement.generate` (batch summary: count generated).
+- `POST /api/finance/giving-statements/send` — body `{ taxYear, resend?: boolean }`. Sends
+  each `GENERATED` (or, with `resend: true`, already-`SENT`) statement's PDF via
+  `CommProvider.send` with the new `attachment` field; sets `status='SENT'`, `sentAt`. Audit
+  **one** `finance.statement.send` row per recipient (not per batch) so exit-gate #7's
+  idempotency check (no duplicate `.send` rows for the same recipient+period) is a direct
+  audit-table assertion.
+- `GET /api/finance/giving-statements` — list for the parish (privileged) or `?mine=1` (member,
+  own row only).
+- `GET /api/finance/giving-statements/[id]/pdf` — streams the stored Blob after a permission
+  check identical to the row's RLS shape (§2.15).
+
+### Pledge reminders (`lib/finance/pledgeReminders.ts`)
+
+- `processPledgeReminders()` — same idempotent, `FOR UPDATE SKIP LOCKED` shape as
+  `processQueuedCommunications` (Phase 3), scoped to `Pledge` rows with
+  `fulfilledCents < amountCents` and the parent campaign inside the reminder window. Enqueues
+  one `Message`/`MessageRecipient` pair per lapsed pledge (§2.12), honoring
+  `CommunicationPreference` opt-out. Audit `finance.pledge.reminder`.
+- `GET/POST /api/jobs/process-pledge-reminders` — secret-guarded cron entry, registered in
+  `vercel.json` alongside the existing comms-worker cron.
+
+---
+
+## 15. PR 20-12 — UI: Finance shell, ledger-owner switcher, chart of accounts + funds + periods
+
+- **Nav:** extend `NavItem['section']` (`lib/nav/menu.ts`) with `'Finance'`; add items
+  `Finance Overview` (`/finance`), `Chart of Accounts` (`/finance/accounts`), `Periods`
+  (`/finance/periods`) gated to `parish_admin`, `parish_staff`, `organization_leader`
+  (org-scoped view only — see below).
+- **`app/(app)/finance/layout.tsx`** — Finance shell: the ledger-owner switcher (§2.13) reading
+  `org_leader_ids`/roles from session claims; renders nothing (redirects to `/` with a toast)
+  for roles with no finance surface at all (e.g. plain `member`, who instead gets the
+  `/self-service` "My Giving" panel from PR 20-15).
+- **`/finance/accounts`** — `DataTable` of `Account` rows grouped by `AccountType`, create/edit
+  dialog (code, name, type, fund), soft-deactivate via `ConfirmDialog`. Fund management is a
+  secondary tab on the same page (`/finance/accounts?tab=funds`).
+- **`/finance/periods`** — list with status badges; "Close period" `ConfirmDialog` (blocked
+  client-side, but the **API 4xx is the real gate**, per the "UI is not the security boundary"
+  rule) when draft/pending entries exist; "Reopen" button rendered **only** for
+  `global_admin`, with a required-reason textarea matching the API's non-empty-reason rule.
+- Uses `lib/finance/money.ts` (§2.14) for every displayed amount; uses `lib/api-client.ts` for
+  all calls — no ad-hoc `fetch`.
+
+---
+
+## 16. PR 20-13 — UI: Journal register, entry form, reversing entries
+
+- **`/finance/journal`** — register `DataTable` (date, description, status, amount, source),
+  filters by period/status/source; "New entry" opens the entry form.
+- **Journal entry form** — dynamic line-item rows (account picker scoped to the current ledger
+  owner, direction, amount via `parseCentsInput`), running debit/credit totals with an
+  inline "unbalanced" indicator **before** submit (client-side UX only — `assertBalanced` and
+  the DB trigger are still the enforcement, per §2.2). Submitting either posts immediately
+  (auto-approved) or shows "Submitted for approval" and links to `/finance/approvals`.
+- **`/finance/journal/[id]`** — read-only detail (lines, approval history if any); "Reverse
+  entry" action (visible only for `POSTED`, gated the same roles as create) opens a
+  confirm dialog that calls `POST /api/finance/journal/[id]/reverse` and links to the new
+  reversing entry.
+
+---
+
+## 17. PR 20-14 — UI: Approval queue + policy configuration
+
+- **`/finance/approvals`** — two tabs: "Pending my decision" (entries where the caller's role
+  is in `approverRoles` and they are not the maker — the self-approval rule is also enforced
+  by simply not rendering a Decide button for the maker's own requests, backstopped by the API
+  403) and "My submissions" (maker's own requests + status). Approve/Reject buttons open a
+  `ConfirmDialog`.
+- **`/finance/approvals/policies`** — per-`(ownerType, ownerId, entityKind)` policy editor:
+  mode selector (`strict`/`threshold_based`/`hybrid`), threshold input (via money helper),
+  approver-role multi-select, `minApprovals` stepper. When a parent-scope default exists it is
+  shown as a **dismissible suggestion banner**, never a disabled/forced value (PA-24).
+- Both pages respect the ledger-owner switcher (§2.13): an org leader configures/decides only
+  within their own org's policies/requests, enforced by the API/RLS, mirrored by the UI only
+  fetching that owner's data.
+
+---
+
+## 18. PR 20-15 — UI: Donations, campaigns, pledges, giving statements (+ self-service)
+
+- **`/finance/donations`** — `DataTable` (date, family/member, fund, campaign, amount, method),
+  "Record donation" form (family/member picker — member picker is optional and explicitly
+  labeled "attribute to member" so staff never conflate default family attribution with
+  explicit member attribution, per PA-22); CSV batch import dialog.
+- **`/finance/campaigns`** — list + create/edit (goal, dates, fund); campaign detail shows
+  progress bar (received vs. pledged vs. goal).
+- **`/finance/pledges`** — list scoped to a campaign; fulfillment status badges; manual
+  "Send reminder now" action for a single lapsed pledge (calls the same path
+  `processPledgeReminders` uses, scoped to one pledge) in addition to the automatic cron.
+- **`/finance/giving-statements`** — batch generate (tax-year picker, recipient-type filter),
+  preview list with status (`GENERATED`/`SENT`/`FAILED`), "Send" / "Resend" actions, per-row
+  PDF download.
+- **`/self-service` — new "My Giving" section**: a member's own `MEMBER`-attributed statements
+  (list + PDF download) via `GET /api/finance/giving-statements?mine=1`. This is the only
+  finance surface a plain `member` role sees; it never renders family-level totals (PA-22) or
+  another member's rows.
+
+---
+
+## 19. PR 20-16 — UI: Vendor bills & payments
+
+- **`/finance/vendors`** — vendor list + create/edit.
+- **`/finance/bills`** — `DataTable` with lifecycle status badges (draft → submitted →
+  approved → posted → paid → voided) and aging (days-outstanding) column; bill detail shows
+  approval history when applicable (reuses the approval-status component from PR 20-14).
+- **`/finance/payments`** — record a payment against an approved bill; posts the cash journal
+  on success and updates the bill's outstanding balance shown on `/finance/bills`.
+
+---
+
+## 20. PR 20-17 — UI: Budgets + variance dashboard
+
+- **`/finance/budgets`** — fiscal-year selector, `BudgetLine` grid (account, original, revised,
+  actual, variance) with over-budget rows highlighted past the configured threshold; revise
+  budget inline (updates `revisedCents`, keeps `originalCents` immutable for the original-vs-
+  revised comparison required by PA-17).
+- A basis toggle (`cash`/`accrual`) on the same page drives the `?basis=` summary endpoint
+  (PR 20-8) for the "actual" column — proving the switch end-to-end per §2.7, without building
+  the full report pack (§2.16 scope boundary).
+
+---
+
+## 21. PR 20-18 — UI: Bank reconciliation
+
+- **`/finance/reconciliation`** — CSV upload (drag-drop + file picker) → import summary
+  (rows parsed, rows rejected with reasons); matched/unmatched statement-line table with a
+  per-row "Confirm match" / "Mark unmatched" action; reconciliation-run status header
+  (matched/unmatched counts) updating live via route refresh (no new realtime channel — this
+  reuses the existing server-refresh pattern, not a websocket).
+
+---
+
+## 22. PR 20-19 — UI: Diocese Tier-2 giving/ledger oversight + parish-admin org-ledger oversight
+
+- **`/diocese/finance`** — Tier-2 aggregate only by default: renders
+  `diocese_parish_giving_summary` (§5.6) grouped by parish/fund/period — sums only, no donor
+  rows, matching the existing `/diocese/aggregate` page's pattern. Roles: `diocese_admin`,
+  `diocese_staff`, `diocese_report_viewer`.
+- When a `LEDGER_DETAIL` or `GIVING_DETAIL` grant is active for a parish (reusing the R3
+  sharing console's grant lifecycle — no new grant UI is built here), an additional "View raw
+  ledger" / "View raw donations" link appears **for that parish only**, landing on a read-only
+  variant of `/finance/journal` / `/finance/donations` scoped to the grantee's session — same
+  components as PR 20-13/20-15, no write actions rendered for a diocese session (backstopped
+  by the RLS `SELECT`-only grant policy).
+- **Parish-admin org-ledger oversight**: the "View organization ledgers" toggle from §2.13
+  surfaces on `/finance/journal` and `/finance/accounts` for `parish_admin` — read-only,
+  reusing the same components with write buttons hidden (and API-blocked) when
+  `owner=org:<id>` and the caller is not that org's leader.
+
+---
+
+## 23. PR 20-20 — Exit gate tests
 
 ### `tests/unit/finance/posting.test.ts` (property-based)
 
@@ -673,7 +1008,13 @@ and gate org-ledger writes / approval-policy config through the existing resolve
 - Full truth table for `STRICT` / `THRESHOLD_BASED` / `HYBRID` at, below, and above threshold;
   sensitive-kind routing for `HYBRID`; `minApprovals` respected.
 
-### `tests/rls/phase5-ledger.test.ts`
+### `tests/unit/finance/statements.test.ts`
+
+- `computeMemberStatement` line items are always a subset of `computeFamilyStatement`'s for the
+  same family+year; a donation with `memberId = null` never appears in any member statement;
+  `formatCents`/`parseCentsInput` round-trip and reject fractional cents.
+
+### `tests/rls/r5-ledger.test.ts`
 
 - Parish A ledger invisible to Parish B; org leader sees only own org ledger; parish admin
   can `SELECT` but **not** `INSERT` into an org ledger; diocese role sees **zero** raw
@@ -681,12 +1022,17 @@ and gate org-ledger writes / approval-policy config through the existing resolve
   general-ledger rows but **not** organization-ledger rows; a `GIVING_DETAIL` grant does not
   expose `LEDGER_DETAIL`.
 
-### `tests/rls/phase5-invariants.test.ts`
+### `tests/rls/r5-invariants.test.ts`
 
 - Direct `INSERT` of an unbalanced entry inside a `withTenant` tx **throws** (DB trigger, not
   app); posting into a `CLOSED` period **throws**; updating a `POSTED` entry **throws**.
 
-### `tests/integration/api/phase5-finance.test.ts`
+### `tests/rls/r5-giving-statements.test.ts`
+
+- A member can `SELECT` only their own `MEMBER`-row statement, never a `FAMILY` row or another
+  member's row; diocese has no read path on `GivingStatement`.
+
+### `tests/integration/api/r5-finance.test.ts`
 
 - Donation → one balanced journal entry; **replayed Stripe event creates exactly one**
   donation + one entry (idempotency); maker cannot self-approve (403); below-threshold
@@ -694,13 +1040,33 @@ and gate org-ledger writes / approval-policy config through the existing resolve
   posting rejected; `GLOBAL_ADMIN` reopen with reason → succeeds + `finance.period.reopen`
   audit written; non-super-admin reopen → 403; member contribution report excludes
   family-only donations (PA-22); `?basis=cash` excludes accrual-only vendor-bill entries that
-  `?basis=accrual` includes.
+  `?basis=accrual` includes; generating statements twice for the same tax year does not
+  duplicate `finance.statement.send` audit rows unless `resend: true` (exit gate #7).
 
-Each auditable action asserts its exact audit `action` string (see §15).
+### `tests/e2e/r5-finance-ui.test.ts`
+
+- Parish admin: create account → post manual journal (balanced) → close period → attempt
+  post into closed period fails in the UI with the API's error surfaced (not swallowed);
+  reopen visible only when signed in as `global_admin`.
+- Organization leader: ledger switcher lists only their own organizations; cannot see another
+  org's ledger even via direct URL (`?owner=org:<other-id>` → `ForbiddenState`, matching the
+  shared shell pattern from R1).
+- Member: `/self-service` "My Giving" shows only their own member-attributed statement; no
+  family total, no other member's data, anywhere in the rendered DOM.
+- Diocese without grant: `/diocese/finance` renders the Tier-2 summary only; no raw-row table,
+  no hidden/`display:none` leak of donor rows (DOM-inspected, not just visually absent).
+
+### `tests/e2e/r5-a11y.test.ts`
+
+- axe scan across `/finance`, `/finance/journal`, `/finance/approvals`,
+  `/finance/donations`, `/finance/giving-statements`, `/finance/budgets`,
+  `/finance/reconciliation`, `/diocese/finance`.
+
+Each auditable action asserts its exact audit `action` string (see §24).
 
 ---
 
-## 15. Audit events (cross-reference with access-control §5, §7)
+## 24. Audit events (cross-reference with access-control §5, §7)
 
 | Action | Written by |
 | ------ | ---------- |
@@ -714,26 +1080,35 @@ Each auditable action asserts its exact audit `action` string (see §15).
 | `finance.budget.create` / `.revise` | budgets API |
 | `finance.reconciliation.import` / `.match` | reconciliation API |
 | `finance.stripe.ingest` | Stripe webhook (idempotent; no card/secret data in metadata) |
+| `finance.statement.generate` | giving-statements generate API (batch summary) |
+| `finance.statement.send` | giving-statements send API (one row per recipient, per exit gate #7) |
+| `finance.pledge.reminder` | pledge-reminder cron (one row per pledge reminded) |
 
 Sensitive-category reads (`ledger_detail`, `giving_detail`) that surface raw rows to a
 diocese user via a grant write a per-access `finance.ledger.read` / `finance.giving.read`
-audit entry, consistent with access-control §5 (“Sensitive data categories … require
-per-record access audit entries”).
+audit entry, consistent with access-control §5 ("Sensitive data categories … require
+per-record access audit entries").
 
 ---
 
-## 16. Claims / permissions updates
+## 25. Claims / permissions updates
 
 - **Claims hook:** no structural change. Approver eligibility is evaluated from the existing
   `roles` claim; org-ledger scope reuses `org_leader_ids` / `current_org_leader_ids()`.
-- **Permission resolver:** add `PermissionResource` values `'finance_ledger'` and
-  `'finance_approval'` (and the matching defaults) so org-leader financial capability and
-  approval-policy configuration are gated through the Phase 2 resolver +
-  `ParishPermissionOverride` rather than a new role (§8).
+- **Permission resolver:** add `PermissionResource` values `'finance_ledger'`,
+  `'finance_approval'`, and `'finance_giving'` (statements/donations write scope for a
+  staff-with-override case, mirroring the `member_sacramental_record` precedent) to
+  `lib/permissions/types.ts`, so org-leader financial capability and approval-policy
+  configuration are gated through the Phase 2 resolver + `ParishPermissionOverride` rather
+  than a new role (§8).
+- **Nav:** `NavItem['section']` gains `'Finance'` (currently `'People' | 'Parish' | 'Diocese' |
+  'Sharing' | 'Administration'`) in `lib/nav/menu.ts` — a peer of the existing module
+  sections, not nested under `'Parish'`, since Finance has its own oversight (diocese) and
+  self-service (member) surfaces that don't fit the parish-operations nav shape.
 
 ---
 
-## 17. `proxy.ts` changes
+## 26. `proxy.ts` changes
 
 Add the Stripe webhook to public paths (unauthenticated; signature-verified in the handler):
 
@@ -744,28 +1119,99 @@ const PUBLIC_PATHS = [
 ];
 ```
 
-No other new unauthenticated routes in this phase.
+No other new unauthenticated routes in this phase — the giving-statement PDF route and the
+pledge-reminder cron are both authenticated/secret-guarded, not public.
 
 ---
 
-## 18. AGENTS.md update (on phase completion)
+## 27. Files to touch (expected)
+
+| Area | Paths |
+| ---- | ----- |
+| Schema | `prisma/schema.prisma`, `prisma/migrations/*_r5_finance_core`, `*_r5_giving_statements` |
+| RLS | `supabase/migrations/*_r5_finance_rls.sql`, `*_r5_giving_statements_rls.sql` |
+| API | `app/api/finance/**`, `app/api/webhooks/stripe/route.ts`, `app/api/jobs/process-pledge-reminders/route.ts` |
+| Lib | `lib/finance/{posting,approval,reconcile,statements,pledgeReminders,money,validate}.ts` |
+| Comms | `lib/communications/providers.ts` (additive `attachment` field on `CommProvider.send`) |
+| UI | `app/(app)/finance/**`, `app/(app)/diocese/finance/**`, `app/(app)/self-service/*` (My Giving section) |
+| Nav / permissions | `lib/nav/menu.ts`, `lib/permissions/types.ts` |
+| Config | `proxy.ts` (Stripe webhook public path), `vercel.json` (pledge-reminder cron), `package.json` (`stripe`, `@react-pdf/renderer`, `papaparse`, `@vercel/blob` if not already present) |
+| Tests | `tests/unit/finance/*`, `tests/rls/r5-*.test.ts`, `tests/integration/api/r5-*.test.ts`, `tests/e2e/r5-*.test.ts`, `tests/e2e/r5-a11y.test.ts` |
+| Seed | `tests/helpers/db.ts` truncate list (all new finance tables, in FK-safe order) |
+
+---
+
+## 28. Explicit non-goals (M10 v1)
+
+- Multi-currency accounting (a `currency` column exists for forward-compatibility; math
+  assumes USD everywhere in v1).
+- Full financial report packs (income statement, balance sheet, fund balance summary,
+  comparative diocese/parish/org views, ad-hoc query builder, Global Finance Approval Policy
+  Dashboard) — **M11/Phase 21** (§2.16).
+- Direct bank API integration (CSV-in only, PA-20).
+- Monthly/quarterly budget granularity (annual only, PA-17).
+- Automatic consolidation of organization ledgers into parish statements (PA-23 — explicit
+  user action only, and even then only via the read-only oversight surface in PR 20-19, never
+  a merged statement).
+- A `GIVING_STATEMENTS` diocese grant/read path (the `DataCategory` value exists in the enum
+  from Phase 4 but is unused by any RLS policy in this phase — statements are parish-private
+  and member-self-service only; wiring a diocese grant for statements is deferred until a
+  concrete diocese use case is confirmed).
+- Recurring-donation self-service management beyond what Stripe Checkout/Billing Portal
+  provides natively (no custom subscription-management UI).
+- Statement e-signature or e-file submission to the IRS — PDF generation and email delivery
+  only.
+
+---
+
+## 29. Definition of Done
+
+Code + tests merged; all seven exit gates (§ top of doc) green in CI; every finance screen in
+§§15–22 passes the `r5-a11y` axe scan; `AGENTS.md` / `.github/copilot-instructions.md` updated
+per §30; this plan's central decisions (§2) unchanged, or amended with a dated entry in the
+[Changelog](#changelog) below, matching the R4 hardening precedent.
+
+---
+
+## 30. AGENTS.md update (on phase completion)
 
 When all exit gates pass, add to the `## Phase status` block in `AGENTS.md` (and mirror in
 `.github/copilot-instructions.md`):
 
 ```
-- **Phase 20 — implemented.** Finance core: double-entry ledger (Account/Fund/JournalEntry/
-  JournalLine) with DB-enforced balancing (deferred constraint trigger), period lock +
-  super-admin audited reopen (PA-21), posted-entry immutability (reversing entries only),
-  polymorphic parish/organization ledgers with RLS isolation (org-leader scope via
-  current_org_leader_ids(), parish-admin read-only oversight, PA-13), configurable
-  maker-checker approval engine (strict/threshold/hybrid, no self-approval, per-entity
-  independent selection, PA-23/24), donations (family-default, explicit member attribution,
-  never auto-allocated, PA-22) + campaigns/pledges with auto-journal, vendor bills & payments
-  (PA-19), budgets + cash/accrual reporting basis (PA-17/18), CSV bank reconciliation (PA-20),
-  idempotent Stripe webhook ingestion. Grant-aware Tier-3 RLS extended to Donation
-  (GIVING_DETAIL) and parish JournalEntry (LEDGER_DETAIL; org ledgers excluded); Tier-2
-  diocese_parish_giving_summary view (PII-free). Migration 20260701000001_phase5_finance_core
-  + RLS 20260701000002_phase5_finance_rls.sql. Money stored as integer cents (BIGINT).
-  Plan: `docs/releases/r5-finance-giving/1-finance-giving.md`.
+- **Phase 20 — implemented.** Finance & Giving (M10), backend + UI. Double-entry ledger
+  (Account/Fund/JournalEntry/JournalLine) with DB-enforced balancing (deferred constraint
+  trigger), period lock + super-admin audited reopen (PA-21), posted-entry immutability
+  (reversing entries only), polymorphic parish/organization ledgers with RLS isolation
+  (org-leader scope via current_org_leader_ids(), parish-admin read-only oversight, PA-13),
+  configurable maker-checker approval engine (strict/threshold/hybrid, no self-approval,
+  per-entity independent selection, PA-23/24), donations (family-default, explicit member
+  attribution, never auto-allocated, PA-22) + campaigns/pledges with auto-journal + lapsed-
+  pledge reminders via the M7 comms queue, annual giving statements (PDF, family/member,
+  idempotent batch send), vendor bills & payments (PA-19), budgets + cash/accrual reporting
+  basis (PA-17/18), CSV bank reconciliation (PA-20), idempotent Stripe webhook ingestion.
+  Grant-aware Tier-3 RLS extended to Donation (GIVING_DETAIL) and parish JournalEntry
+  (LEDGER_DETAIL; org ledgers excluded); Tier-2 diocese_parish_giving_summary view (PII-free).
+  Full UI: `/finance/*` (accounts, periods, journal, approvals, donations, campaigns,
+  pledges, giving-statements, vendors, bills, payments, budgets, reconciliation),
+  `/diocese/finance` Tier-2 + grant-gated raw views, `/self-service` My Giving. Migration
+  20260701000001_r5_finance_core + 20260701000011_r5_giving_statements; RLS
+  20260701000002_r5_finance_rls.sql + giving-statements RLS. Money stored as integer cents
+  (BIGINT). Plan: `docs/releases/r5-finance-giving/1-finance-giving.md`.
 ```
+
+---
+
+## Changelog
+
+- **2026-07-11:** Expanded from a backend-only plan to the full M10 backend+UI plan per
+  module-delivery-plan.md §5 ("R5 — Modules: M10 (backend + UI)"). Added: §2.11–§2.16
+  central decisions (giving statements, pledge reminders, ledger-owner switcher, money
+  formatting, statement storage, M11 scope boundary); PR 20-11 (giving statements + pledge
+  reminders, closing the previously-unaddressed features §2.11.7/§2.11.10 gap); PRs 20-12
+  through 20-19 (UI over the full API surface); exit gate #6 (UI/a11y) and #7 (giving
+  statement idempotency); §27 Files to touch, §28 Explicit non-goals, §29 Definition of Done
+  (new sections, matching the R4 plan's structure). Renumbered the exit-gate test PR from
+  20-11 to 20-20 and fixed a numbering inconsistency in the old §3 work-breakdown table
+  (it read "5-1..5-11" while the section headers below it read "PR 20-1..PR 20-11" — now
+  consistently "20-N" throughout, cross-referencing Phase 20 as used in AGENTS.md).
