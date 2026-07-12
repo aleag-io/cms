@@ -534,6 +534,43 @@ async function seedLedgerSkeleton(
   };
 }
 
+async function seedGivingCategories(prisma: PrismaClient, ledger: LedgerCtx) {
+  const accounts = await prisma.account.findMany({
+    where: { ownerType: ledger.ownerType, ownerId: ledger.ownerId, type: 'INCOME' },
+  });
+  const byCode = new Map(accounts.map((a) => [a.code, a]));
+  const defs = [
+    { name: 'Subscription', code: '4110', section: 'Church Operation', sortOrder: 1 },
+    { name: 'Offertory (Plate)', code: '4120', section: 'Church Operation', sortOrder: 2 },
+    { name: 'Birthday Offertory', code: '4130', section: 'Church Operation', sortOrder: 3 },
+    { name: 'Christmas Donation', code: '4140', section: 'Church Operation', sortOrder: 4 },
+    { name: 'Special Donation', code: '4150', section: 'Church Operation', sortOrder: 5 },
+    { name: 'Wedding Anniversary Offertory', code: '4160', section: 'Church Operation', sortOrder: 6 },
+    { name: 'Harvest (Donation/Auction)', code: '4210', section: 'Mission Fund', sortOrder: 1 },
+  ];
+  for (const d of defs) {
+    const account = byCode.get(d.code);
+    if (!account) continue;
+    const existing = await prisma.givingCategory.findFirst({
+      where: { ownerType: ledger.ownerType, ownerId: ledger.ownerId, name: d.name },
+    });
+    if (existing) continue;
+    await prisma.givingCategory.create({
+      data: {
+        dioceseId: ledger.dioceseId,
+        parishId: ledger.parishId,
+        ownerType: ledger.ownerType,
+        ownerId: ledger.ownerId,
+        name: d.name,
+        section: d.section,
+        sortOrder: d.sortOrder,
+        fundId: account.fundId,
+        incomeAccountId: account.id,
+      },
+    });
+  }
+}
+
 async function seedParishGiving(
   prisma: PrismaClient,
   dioceseId: string,
@@ -1172,6 +1209,7 @@ export async function seedFinanceData(
 
   for (const ledger of ledgerTargets) {
     const chart = await seedLedgerSkeleton(prisma, ledger);
+    await seedGivingCategories(prisma, ledger);
     counts.ledgers += 1;
     if (ledger.ownerType === 'DIOCESE') dioceseChart = chart;
     if (ledger.ownerType === 'PARISH' && ledger.parishId) {
