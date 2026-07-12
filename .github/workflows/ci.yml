@@ -35,6 +35,9 @@ jobs:
       - name: Build API docs
         run: npm run api-docs:ci
 
+      - name: Verify native Supabase branch bundle
+        run: npm run db:branch:check
+
       - name: Upload API docs
         uses: actions/upload-artifact@v4
         with:

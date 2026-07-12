@@ -78,6 +78,34 @@ npm run db:migrate:all
 Supabase SQL files are recorded in `_app_sql_migrations` so re-deploys skip
 already-applied files. Re-run everything with `APPLY_SQL_FORCE=1 npm run db:apply-rls:remote`.
 
+### Native Supabase GitHub branches
+
+Native Supabase branches use the generated deployment bundle in
+`supabase-branch/supabase/`. Configure the Supabase GitHub integration with
+**Working directory** `supabase-branch`, not the repository root.
+
+The bundle combines the canonical Prisma schema migrations and Supabase RLS
+migrations in dependency order. It also contains a non-destructive synthetic
+SQL seed with this disposable preview login:
+
+```text
+preview.admin@example.invalid / Preview@Local1
+```
+
+After adding or changing a migration or `supabase/config.toml`, regenerate and
+commit the bundle:
+
+```bash
+npm run db:branch:generate
+npm run db:branch:check
+```
+
+Prisma migrations remain the editable schema source. Files under
+`supabase-branch/supabase/migrations/` and its `config.toml` are generated and
+must not be edited manually. Supabase's **Deploy to production** option must
+remain disabled; Vercel's Prisma-first build remains the sole production
+migration owner.
+
 Notes:
 
 1. Supabase local uses Docker containers on your machine.

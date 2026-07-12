@@ -258,6 +258,10 @@ never filters sensitive data client-side.
     Preview deploys skip DB migrate unless `MIGRATE_ON_PREVIEW=1`.
   - Supabase SQL is tracked in `_app_sql_migrations` (skip already-applied files;
     force with `APPLY_SQL_FORCE=1`). Prefer idempotent SQL (`DROP POLICY IF EXISTS`, etc.).
+  - **Native Supabase branches:** `npm run db:branch:generate` builds the checked-in
+    `supabase-branch/supabase/` deployment bundle from both migration tracks; CI verifies it
+    with `npm run db:branch:check`. Configure the GitHub integration working directory as
+    `supabase-branch`; never enable Supabase production deployment.
 - Local DB: Supabase local stack (`supabase start`); `DATABASE_URL` points at port 54322.
   Prisma config: `prisma.config.ts`.
 
