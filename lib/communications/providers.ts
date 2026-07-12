@@ -14,11 +14,24 @@ export interface SendResult {
   providerMessageId: string;
 }
 
+/** Optional email attachment (e.g. a rendered giving-statement PDF). */
+export interface CommAttachment {
+  filename: string;
+  content: Buffer;
+  mimeType: string;
+}
+
 export interface CommProvider {
   send(
     channel: MessageChannel,
     destination: string,
-    payload: { subject?: string | null; body: string; idempotencyKey: string },
+    payload: {
+      subject?: string | null;
+      body: string;
+      idempotencyKey: string;
+      /** Email-only; SMS ignores attachments. */
+      attachment?: CommAttachment;
+    },
   ): Promise<SendResult>;
 }
 

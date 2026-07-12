@@ -17,6 +17,12 @@
  *   - Wide demographics, relationships, multi-parish membership
  *   - Programs, orgs, events, facilities, comms, sacramental, liturgical,
  *     sharing, registrations, officers, pastoral data, etc.
+ *   - Finance (R5/M10) across all ledger scopes:
+ *       diocese general ledger, diocese orgs, parish general ledgers,
+ *       parish org ledgers (AUXILIARY / ministry orgs with hasOwnLedger),
+ *       funds/CoA/periods, journals, donations (all methods), campaigns,
+ *       pledges, external donors, vendors/bills/payments, budgets,
+ *       approval policies, sample recon run
  *
  * Login helpers (after `npm run db:ensure-local-admin` or auth sync below):
  *   admin@cms.local / Admin@Local1  (DIOCESE_ADMIN)
@@ -67,6 +73,7 @@ import {
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { assertSeedTargetSafe } from '../lib/seed-guard';
+import { seedFinanceData, type FinanceParishBundle } from './seed-finance';
 
 // ── env ──────────────────────────────────────────────────────────────────────
 
@@ -612,6 +619,29 @@ async function truncateAll() {
   await prisma.$executeRawUnsafe(`
     TRUNCATE
       "AuditEntry",
+      "StripeEvent",
+      "GivingStatement",
+      "BankStatementLine",
+      "ReconciliationRun",
+      "BudgetLine",
+      "Budget",
+      "Payment",
+      "VendorBill",
+      "Vendor",
+      "Pledge",
+      "DonationAllocation",
+      "Donation",
+      "DonationBatch",
+      "Campaign",
+      "ExternalDonor",
+      "ApprovalDecision",
+      "ApprovalRequest",
+      "ApprovalPolicy",
+      "JournalLine",
+      "JournalEntry",
+      "AccountingPeriod",
+      "Account",
+      "Fund",
       "ContextualShare",
       "EmergencyAccessGrant",
       "DataSharingGrant",
@@ -2283,6 +2313,39 @@ async function seed() {
     ],
   });
 
+  // ── Finance (R5/M10) — multi-level ledgers + giving ──────────────────────
+  console.log('   Finance: diocese, diocese orgs, parishes, parish orgs…');
+  const financeParishes: FinanceParishBundle[] = parishBundles.map((pb) => ({
+    id: pb.id,
+    name: pb.name,
+    adminUserId: pb.adminUserId,
+    staffUserId: pb.staffUserId,
+    families: pb.families.map((f) => ({
+      id: f.id,
+      familyName: f.familyName,
+      primaryContactEmail: f.members.find((m) => m.email)?.email ?? null,
+    })),
+    members: pb.members
+      .filter((m) => m.status === MemberStatus.ACTIVE)
+      .map((m) => ({
+        id: m.id,
+        familyId: m.familyId,
+        firstName: m.firstName,
+        lastName: m.lastName,
+        email: m.email,
+      })),
+  }));
+
+  const financeCounts = await seedFinanceData(prisma, {
+    dioceseId,
+    dioceseAdminId,
+    dioceseStaffId,
+    parishes: financeParishes,
+  });
+  console.log(
+    `     finance ledgers=${financeCounts.ledgers} donations=${financeCounts.donations} journals=${financeCounts.journals}`,
+  );
+
   // ── Audit samples ────────────────────────────────────────────────────────
   console.log('   Audit entries…');
   await prisma.auditEntry.createMany({
@@ -2321,6 +2384,17 @@ async function seed() {
         dioceseId,
         metadata: { processed: 10 },
       },
+      {
+        requestId: randomUUID(),
+        actorType: ActorType.SYSTEM,
+        actorLabel: 'seed',
+        action: 'finance.seed',
+        entityType: 'diocese',
+        entityId: dioceseId,
+        outcome: AuditOutcome.SUCCESS,
+        dioceseId,
+        metadata: financeCounts as object,
+      },
     ],
   });
 
@@ -2338,6 +2412,21 @@ async function seed() {
     relationships: await prisma.memberRelationship.count(),
     multiParish: await prisma.memberParish.count({
       where: { isPrimary: false },
+    }),
+    financeFunds: await prisma.fund.count(),
+    financeAccounts: await prisma.account.count(),
+    financePeriods: await prisma.accountingPeriod.count(),
+    financeJournals: await prisma.journalEntry.count(),
+    financeDonations: await prisma.donation.count(),
+    financeCampaigns: await prisma.campaign.count(),
+    financePledges: await prisma.pledge.count(),
+    financeVendors: await prisma.vendor.count(),
+    financeBudgets: await prisma.budget.count(),
+    dioceseOrgs: await prisma.organization.count({
+      where: { parishId: null },
+    }),
+    orgLedgers: await prisma.organization.count({
+      where: { hasOwnLedger: true },
     }),
   };
 

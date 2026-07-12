@@ -37,6 +37,34 @@ const COOKIE_NAME = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-tok
 const DIOCESE_ID = '00000000-0000-0000-0000-000000000001';
 const PARISH_A_ID = '00000000-0000-0000-0000-000000000010';
 
+/** Ensure diocese + Parish A exist (idempotent). Required after migrate/reset. */
+export async function ensureTenantFixtures(): Promise<void> {
+  const pool = new Pool({ connectionString: DATABASE_URL });
+  const c = await pool.connect();
+  try {
+    await c.query('BEGIN');
+    await c.query(
+      `INSERT INTO "Diocese"(id, name, "createdAt", "updatedAt")
+       VALUES ($1, 'E2E Diocese', now(), now())
+       ON CONFLICT (id) DO NOTHING`,
+      [DIOCESE_ID],
+    );
+    await c.query(
+      `INSERT INTO "Parish"(id, "dioceseId", name, "isActive", "familyNumberPrefix", "familyNumberWidth", "familyNumberStart", "autoApprove", "createdAt", "updatedAt")
+       VALUES ($1, $2, 'St. Thomas Parish (Parish A)', true, '', 4, 1, false, now(), now())
+       ON CONFLICT (id) DO NOTHING`,
+      [PARISH_A_ID, DIOCESE_ID],
+    );
+    await c.query('COMMIT');
+  } catch (e) {
+    await c.query('ROLLBACK');
+    throw e;
+  } finally {
+    c.release();
+    await pool.end();
+  }
+}
+
 export async function isSupabaseAuthUp(): Promise<boolean> {
   try {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
@@ -106,6 +134,7 @@ export async function ensureMemberSession(): Promise<{
   cookie: { name: string; value: string };
   memberId: string;
 }> {
+  await ensureTenantFixtures();
   const email = 'member-e2e@cms.local';
   const password = 'E2ePassw0rd!';
   const uid = await ensureAuthUser(email, password);
@@ -184,6 +213,7 @@ async function ensureRoleSession(opts: {
   memberIdentifier?: string;
   clergyOfficer?: boolean;
 }): Promise<{ cookie: { name: string; value: string }; userId: string }> {
+  await ensureTenantFixtures();
   const password = 'E2ePassw0rd!';
   const uid = await ensureAuthUser(opts.email, password);
 
@@ -259,6 +289,31 @@ export function ensureStaffSession() {
     displayName: 'E2E Staff',
     role: 'PARISH_STAFF',
   });
+}
+
+/** Diocese-scoped DIOCESE_ADMIN session for aggregate-only portal tests. */
+export async function ensureDioceseAdminSession(): Promise<{
+  cookie: { name: string; value: string };
+  userId: string;
+}> {
+  await ensureTenantFixtures();
+  const email = 'diocese-admin-e2e@cms.local';
+  const password = 'E2ePassw0rd!';
+  const uid = await ensureAuthUser(email, password);
+  const pool = new Pool({ connectionString: DATABASE_URL });
+
+  try {
+    await pool.query(
+      `INSERT INTO "AppUser"(id,email,"displayName",role,"dioceseId","parishId","isActive","createdAt","updatedAt")
+       VALUES ($1,$2,'E2E Diocese Admin','DIOCESE_ADMIN',$3,NULL,true,now(),now())
+       ON CONFLICT (id) DO UPDATE SET role='DIOCESE_ADMIN',"parishId"=NULL,"isActive"=true`,
+      [uid, email, DIOCESE_ID],
+    );
+  } finally {
+    await pool.end();
+  }
+
+  return { cookie: await mintCookie(email, password), userId: uid };
 }
 
 /** Name of Parish A (the parish every e2e session belongs to). */
