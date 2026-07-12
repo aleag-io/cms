@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PlusIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon, PlusIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { DataTable } from "@/components/patterns/data-table";
 import { PageHeader } from "@/components/patterns/page-header";
@@ -24,6 +24,7 @@ type Campaign = { id: string; name: string; status: string; goalCents: string; r
 export default function CampaignsPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editCampaign, setEditCampaign] = useState<Campaign | null>(null);
 
   const campaignsQuery = useQuery({
     queryKey: ["finance", "campaigns"],
@@ -69,10 +70,19 @@ export default function CampaignsPage() {
                 );
               },
             },
+            {
+              key: "actions", header: "", className: "text-right",
+              cell: (c) => (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setEditCampaign(c)}>
+                  <PencilSimpleIcon className="mr-1.5 size-4" /> Edit
+                </Button>
+              ),
+            },
           ]}
         />
       </div>
       <CreateCampaignDialog open={open} onOpenChange={setOpen} funds={fundsQuery.data?.funds ?? []} accounts={accountsQuery.data?.accounts ?? []} onDone={() => queryClient.invalidateQueries({ queryKey: ["finance", "campaigns"] })} />
+      <EditCampaignDialog campaign={editCampaign} onOpenChange={(o) => !o && setEditCampaign(null)} onDone={() => queryClient.invalidateQueries({ queryKey: ["finance", "campaigns"] })} />
     </div>
   );
 }
@@ -114,6 +124,55 @@ function CreateCampaignDialog({ open, onOpenChange, funds, accounts, onDone }: {
         </div>
         <DialogFooter>
           <Button type="button" disabled={!name || !fundId || !accountId || !goal || !endDate || create.isPending} onClick={() => create.mutate()}>{create.isPending ? "Saving…" : "Create"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditCampaignDialog({ campaign, onOpenChange, onDone }: { campaign: Campaign | null; onOpenChange: (o: boolean) => void; onDone: () => void }) {
+  const [name, setName] = useState("");
+  const [goal, setGoal] = useState("");
+  const [status, setStatus] = useState("ACTIVE");
+
+  // Render-phase sync when a different campaign is selected for editing.
+  const [lastId, setLastId] = useState<string | null>(null);
+  if (campaign && campaign.id !== lastId) {
+    setLastId(campaign.id);
+    setName(campaign.name);
+    setGoal((Number(BigInt(campaign.goalCents)) / 100).toFixed(2));
+    setStatus(campaign.status);
+  }
+
+  const save = useMutation({
+    mutationFn: () =>
+      apiRequest(`/api/finance/campaigns/${campaign!.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name, goalCents: parseCentsInput(goal).toString(), status }),
+      }),
+    onSuccess: () => { toast.success("Campaign updated"); onDone(); onOpenChange(false); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  return (
+    <Dialog open={Boolean(campaign)} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Edit campaign</DialogTitle></DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid gap-1.5"><Label htmlFor="ec-name">Name</Label><Input id="ec-name" value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1.5"><Label htmlFor="ec-goal">Goal</Label><Input id="ec-goal" inputMode="decimal" value={goal} onChange={(e) => setGoal(e.target.value)} /></div>
+            <div className="grid gap-1.5">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger aria-label="Status"><SelectValue /></SelectTrigger>
+                <SelectContent>{["ACTIVE", "COMPLETED", "CANCELLED"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" disabled={!name || !goal || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save changes"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

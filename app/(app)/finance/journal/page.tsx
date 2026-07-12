@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUUpLeftIcon, PlusIcon } from "@phosphor-icons/react";
+import { ArrowUUpLeftIcon, PencilSimpleIcon, PlusIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import {
   LedgerOwnerSwitcher,
   useFinanceLedgerOwner,
 } from "@/components/finance/ledger-owner-switcher";
-import { JournalEntryDialog } from "@/components/finance/journal-entry-dialog";
+import {
+  JournalEntryDialog,
+  type EditableEntry,
+} from "@/components/finance/journal-entry-dialog";
 import { DataTable } from "@/components/patterns/data-table";
 import { PageHeader } from "@/components/patterns/page-header";
 import {
@@ -26,10 +29,26 @@ type JournalEntry = {
   id: string;
   entryDate: string;
   description: string;
+  reference?: string | null;
   status: string;
   source: string;
-  lines?: Array<{ amountCents: string; direction: string }>;
+  lines?: Array<{ accountId: string; amountCents: string; direction: "DEBIT" | "CREDIT" }>;
 };
+
+function toEditable(entry: JournalEntry): EditableEntry {
+  return {
+    id: entry.id,
+    description: entry.description,
+    entryDate: entry.entryDate,
+    reference: entry.reference ?? null,
+    status: entry.status,
+    lines: (entry.lines ?? []).map((l) => ({
+      accountId: l.accountId,
+      direction: l.direction,
+      amountCents: l.amountCents,
+    })),
+  };
+}
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
@@ -56,6 +75,7 @@ export default function FinanceJournalPage() {
   const ledger = useFinanceLedgerOwner();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState<EditableEntry | null>(null);
   const journalQuery = useQuery({
     queryKey: ["finance", "journal", ledger.owner],
     enabled: ledger.isReady && !ledger.isForbidden && Boolean(ledger.owner),
@@ -86,7 +106,14 @@ export default function FinanceJournalPage() {
         <>
           <LedgerOwnerSwitcher state={ledger} />
           {ledger.canWrite ? (
-            <Button type="button" onClick={() => setDialogOpen(true)} disabled={!ledger.isReady}>
+            <Button
+              type="button"
+              onClick={() => {
+                setEditEntry(null);
+                setDialogOpen(true);
+              }}
+              disabled={!ledger.isReady}
+            >
               <PlusIcon className="mr-2 size-4" /> New entry
             </Button>
           ) : null}
@@ -190,23 +217,51 @@ export default function FinanceJournalPage() {
               key: "actions",
               header: "",
               className: "text-right",
-              cell: (entry) =>
-                ledger.canWrite && entry.status === "POSTED" ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={reverse.isPending}
-                    onClick={() => reverse.mutate(entry.id)}
-                  >
-                    <ArrowUUpLeftIcon className="mr-1.5 size-4" /> Reverse
-                  </Button>
-                ) : null,
+              cell: (entry) => {
+                if (!ledger.canWrite) return null;
+                if (entry.status === "DRAFT" || entry.status === "PENDING_APPROVAL") {
+                  return (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditEntry(toEditable(entry));
+                        setDialogOpen(true);
+                      }}
+                    >
+                      <PencilSimpleIcon className="mr-1.5 size-4" /> Edit
+                    </Button>
+                  );
+                }
+                if (entry.status === "POSTED") {
+                  return (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={reverse.isPending}
+                      onClick={() => reverse.mutate(entry.id)}
+                    >
+                      <ArrowUUpLeftIcon className="mr-1.5 size-4" /> Reverse
+                    </Button>
+                  );
+                }
+                return null;
+              },
             },
           ]}
         />
       </div>
-      <JournalEntryDialog owner={ledger.owner} open={dialogOpen} onOpenChange={setDialogOpen} />
+      <JournalEntryDialog
+        owner={ledger.owner}
+        open={dialogOpen}
+        onOpenChange={(o) => {
+          setDialogOpen(o);
+          if (!o) setEditEntry(null);
+        }}
+        entry={editEntry}
+      />
     </div>
   );
 }

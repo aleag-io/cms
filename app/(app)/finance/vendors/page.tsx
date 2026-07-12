@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PlusIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon, PlusIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { DataTable } from "@/components/patterns/data-table";
 import { PageHeader } from "@/components/patterns/page-header";
@@ -24,6 +24,7 @@ type Vendor = { id: string; name: string; email: string | null; phone: string | 
 export default function FinanceVendorsPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -33,18 +34,31 @@ export default function FinanceVendorsPage() {
     queryFn: () => apiRequest<{ ok: true; vendors: Vendor[] }>("/api/finance/vendors"),
   });
 
-  const create = useMutation({
-    mutationFn: () =>
-      apiRequest("/api/finance/vendors", {
-        method: "POST",
-        body: JSON.stringify({ name, email: email || null, phone: phone || null }),
-      }),
+  function startAdd() {
+    setEditId(null);
+    setName("");
+    setEmail("");
+    setPhone("");
+    setOpen(true);
+  }
+  function startEdit(v: Vendor) {
+    setEditId(v.id);
+    setName(v.name);
+    setEmail(v.email ?? "");
+    setPhone(v.phone ?? "");
+    setOpen(true);
+  }
+
+  const save = useMutation({
+    mutationFn: () => {
+      const body = JSON.stringify({ name, email: email || null, phone: phone || null });
+      return editId
+        ? apiRequest(`/api/finance/vendors/${editId}`, { method: "PATCH", body })
+        : apiRequest("/api/finance/vendors", { method: "POST", body });
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["finance", "vendors"] });
-      toast.success("Vendor added");
-      setName("");
-      setEmail("");
-      setPhone("");
+      toast.success(editId ? "Vendor updated" : "Vendor added");
       setOpen(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
@@ -55,7 +69,7 @@ export default function FinanceVendorsPage() {
       title="Vendors"
       description="Payees for accounts-payable bills and payments."
       actions={
-        <Button type="button" onClick={() => setOpen(true)}>
+        <Button type="button" onClick={startAdd}>
           <PlusIcon className="mr-2 size-4" /> Add vendor
         </Button>
       }
@@ -93,6 +107,14 @@ export default function FinanceVendorsPage() {
             { key: "name", header: "Vendor", cell: (v) => <span className="font-medium">{v.name}</span> },
             { key: "email", header: "Email", cell: (v) => v.email ?? "—" },
             { key: "phone", header: "Phone", cell: (v) => v.phone ?? "—" },
+            {
+              key: "actions", header: "", className: "text-right",
+              cell: (v) => (
+                <Button type="button" variant="ghost" size="sm" onClick={() => startEdit(v)}>
+                  <PencilSimpleIcon className="mr-1.5 size-4" /> Edit
+                </Button>
+              ),
+            },
           ]}
         />
       </div>
@@ -100,7 +122,7 @@ export default function FinanceVendorsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add vendor</DialogTitle>
+            <DialogTitle>{editId ? "Edit vendor" : "Add vendor"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid gap-1.5">
@@ -117,8 +139,8 @@ export default function FinanceVendorsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
-              {create.isPending ? "Saving…" : "Add vendor"}
+            <Button type="button" disabled={!name.trim() || save.isPending} onClick={() => save.mutate()}>
+              {save.isPending ? "Saving…" : editId ? "Save changes" : "Add vendor"}
             </Button>
           </DialogFooter>
         </DialogContent>
