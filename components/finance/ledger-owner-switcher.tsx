@@ -37,6 +37,7 @@ export type FinanceLedgerOwnerState = {
 };
 
 const PARISH_WRITERS = new Set(["parish_admin", "parish_staff"]);
+const DIOCESE_MANAGERS = ["global_admin", "diocese_admin", "diocese_staff"] as const;
 
 /**
  * Resolve the visible ledger owner from the URL and the RLS-backed organization
@@ -60,10 +61,12 @@ export function useFinanceLedgerOwner(): FinanceLedgerOwnerState {
     [claims],
   );
   const canListOrganizations = Boolean(
-    parishId &&
+    (parishId &&
       [...roles].some((role) =>
         ["parish_admin", "parish_staff", "organization_leader"].includes(role),
-      ),
+      )) ||
+      // Diocese managers list diocese-level organizations (their own ledgers).
+      DIOCESE_MANAGERS.some((role) => roles.has(role)),
   );
 
   const organizationsQuery = useQuery({
@@ -73,11 +76,23 @@ export function useFinanceLedgerOwner(): FinanceLedgerOwnerState {
       apiRequest<{ ok: true; organizations: Organization[] }>("/api/organizations"),
   });
 
+  const isDioceseManager = DIOCESE_MANAGERS.some((role) => roles.has(role));
+  const isGlobalAdmin = roles.has("global_admin");
+
   const options = useMemo<OwnerOption[]>(() => {
     const result: OwnerOption[] = [];
+    const canManageDiocese = DIOCESE_MANAGERS.some((role) => roles.has(role));
     const isParishOperator = [...roles].some((role) => PARISH_WRITERS.has(role));
     const isParishAdmin = roles.has("parish_admin");
     const isOrgLeader = roles.has("organization_leader");
+    const globalAdmin = roles.has("global_admin");
+
+    // Diocese general ledger — diocese admins/staff and global admins manage the
+    // diocese's own books (ownerType DIOCESE). Only when not already scoped to a
+    // parish work-context, where the parish ledger is the natural default.
+    if (canManageDiocese && !parishId) {
+      result.push({ value: "diocese", label: "Diocese general ledger" });
+    }
 
     if (parishId && isParishOperator) {
       result.push({ value: "parish", label: "Parish general ledger" });
@@ -86,10 +101,10 @@ export function useFinanceLedgerOwner(): FinanceLedgerOwnerState {
     const organizations = organizationsQuery.data?.organizations ?? [];
     for (const organization of organizations) {
       if (!organization.hasOwnLedger) continue;
-      if (isOrgLeader && !isParishAdmin && !leaderIds.includes(organization.id)) {
+      if (isOrgLeader && !isParishAdmin && !globalAdmin && !leaderIds.includes(organization.id)) {
         continue;
       }
-      if (!isParishAdmin && !isOrgLeader) continue;
+      if (!isParishAdmin && !isOrgLeader && !globalAdmin) continue;
       result.push({
         value: `org:${organization.id}`,
         label: organization.name,
@@ -102,14 +117,17 @@ export function useFinanceLedgerOwner(): FinanceLedgerOwnerState {
   const isOrganizationDependent =
     roles.has("organization_leader") &&
     !roles.has("parish_admin") &&
-    !roles.has("parish_staff");
+    !roles.has("parish_staff") &&
+    !isDioceseManager;
   const owner =
     requestedOwner ||
     (parishId && [...roles].some((role) => PARISH_WRITERS.has(role))
       ? "parish"
-      : isOrganizationDependent
-        ? (options[0]?.value ?? "")
-        : "");
+      : isDioceseManager && !parishId
+        ? "diocese"
+        : isOrganizationDependent
+          ? (options[0]?.value ?? "")
+          : "");
 
   const isReady =
     !sessionLoading &&
@@ -135,13 +153,15 @@ export function useFinanceLedgerOwner(): FinanceLedgerOwnerState {
 
   const canWrite =
     !isForbidden &&
-    (owner === "parish"
-      ? [...roles].some((role) => PARISH_WRITERS.has(role))
-      : currentOrgId
-        ? leaderIds.includes(currentOrgId)
-        : false);
+    (owner === "diocese"
+      ? isDioceseManager
+      : owner === "parish"
+        ? [...roles].some((role) => PARISH_WRITERS.has(role)) || isGlobalAdmin
+        : currentOrgId
+          ? leaderIds.includes(currentOrgId) || isDioceseManager
+          : false);
   const canManageGiving = [...roles].some((role) =>
-    ["parish_admin", "parish_staff"].includes(role),
+    ["parish_admin", "parish_staff", "diocese_admin", "diocese_staff", "global_admin"].includes(role),
   );
 
   function onOwnerChange(nextOwner: string) {
