@@ -232,7 +232,7 @@ export const NAV_ITEMS: NavItem[] = [
     title: 'Finance Overview',
     href: '/finance',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: [
       'global_admin',
       'diocese_admin',
@@ -246,7 +246,7 @@ export const NAV_ITEMS: NavItem[] = [
     title: 'Chart of Accounts',
     href: '/finance/accounts',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: [
       'global_admin',
       'diocese_admin',
@@ -260,7 +260,7 @@ export const NAV_ITEMS: NavItem[] = [
     title: 'Journal',
     href: '/finance/journal',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: [
       'global_admin',
       'diocese_admin',
@@ -274,7 +274,7 @@ export const NAV_ITEMS: NavItem[] = [
     title: 'Periods',
     href: '/finance/periods',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: [
       'global_admin',
       'diocese_admin',
@@ -288,7 +288,7 @@ export const NAV_ITEMS: NavItem[] = [
     title: 'Donations',
     href: '/finance/donations',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: [
       'global_admin',
       'diocese_admin',
@@ -301,7 +301,7 @@ export const NAV_ITEMS: NavItem[] = [
     title: 'Approvals',
     href: '/finance/approvals',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: [
       'global_admin',
       'diocese_admin',
@@ -315,62 +315,60 @@ export const NAV_ITEMS: NavItem[] = [
     title: 'Campaigns',
     href: '/finance/campaigns',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff'],
   },
   {
     title: 'Pledges',
     href: '/finance/pledges',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff'],
   },
   {
     title: 'Vendors',
     href: '/finance/vendors',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff'],
   },
   {
     title: 'Bills & Payments',
     href: '/finance/bills',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff', 'organization_leader'],
   },
   {
     title: 'Budgets',
     href: '/finance/budgets',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff', 'organization_leader'],
   },
   {
     title: 'Reconciliation',
     href: '/finance/reconciliation',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff', 'organization_leader'],
   },
   {
     title: 'Giving Statements',
     href: '/finance/giving-statements',
     section: 'Finance',
-    portals: ['parish'],
+    portals: ['parish', 'diocese'],
     roles: ['global_admin', 'diocese_admin', 'parish_admin', 'parish_staff'],
   },
   {
-    title: 'Diocese Finance',
+    // Cross-parish giving aggregate for reporting roles only. Diocese admins
+    // manage the diocese's OWN standalone ledger via the Finance items above;
+    // finance data is never rolled up into their operational surface.
+    title: 'Cross-Parish Giving (report)',
     href: '/diocese/finance',
     section: 'Finance',
     portals: ['diocese'],
-    roles: [
-      'global_admin',
-      'diocese_admin',
-      'diocese_staff',
-      'diocese_report_viewer',
-    ],
+    roles: ['diocese_report_viewer'],
   },
 ];
 

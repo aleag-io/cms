@@ -102,10 +102,25 @@ describe('visibleNavItems', () => {
       '/diocese/liturgical',
       '/sharing',
       '/audit',
-      '/diocese/finance',
+      // Diocese manages its OWN standalone finance ledger (not a parish roll-up).
+      '/finance',
+      '/finance/accounts',
+      '/finance/journal',
+      '/finance/periods',
+      '/finance/donations',
+      '/finance/approvals',
+      '/finance/campaigns',
+      '/finance/pledges',
+      '/finance/vendors',
+      '/finance/bills',
+      '/finance/budgets',
+      '/finance/reconciliation',
+      '/finance/giving-statements',
     ]);
     expect(hrefs).not.toContain('/programs');
     expect(hrefs).not.toContain('/members');
+    // The parish-aggregate view is not part of the diocese admin's surface.
+    expect(hrefs).not.toContain('/diocese/finance');
   });
 
   it('shows parish portal items for diocese admin elevated roles in parish portal', () => {
@@ -257,7 +272,21 @@ describe('navSectionsFromClaims', () => {
       { title: 'Administration', items: ['/audit'] },
       {
         title: 'Finance',
-        items: ['/diocese/finance'],
+        items: [
+          '/finance',
+          '/finance/accounts',
+          '/finance/journal',
+          '/finance/periods',
+          '/finance/donations',
+          '/finance/approvals',
+          '/finance/campaigns',
+          '/finance/pledges',
+          '/finance/vendors',
+          '/finance/bills',
+          '/finance/budgets',
+          '/finance/reconciliation',
+          '/finance/giving-statements',
+        ],
       },
     ]);
   });

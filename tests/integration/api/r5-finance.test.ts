@@ -253,6 +253,48 @@ describe('R5 finance — posting + approval + periods', () => {
     expect(audit).not.toBeNull();
   });
 
+  it('diocese admin posts into the diocese OWN standalone ledger (owner=diocese)', async () => {
+    // Diocese-scoped ledger: ownerType DIOCESE, ownerId = dioceseId, parishId null.
+    const D_FUND = '00000000-0000-0000-0000-0000000f00d1';
+    const D_CASH = '00000000-0000-0000-0000-0000000f00d2';
+    const D_INCOME = '00000000-0000-0000-0000-0000000f00d3';
+    const D_PERIOD = '00000000-0000-0000-0000-0000000f00d4';
+    await testDb.fund.create({ data: { id: D_FUND, dioceseId: FX.dioceseId, parishId: null, ownerType: 'DIOCESE', ownerId: FX.dioceseId, name: 'Diocese General' } });
+    await testDb.account.createMany({
+      data: [
+        { id: D_CASH, dioceseId: FX.dioceseId, parishId: null, ownerType: 'DIOCESE', ownerId: FX.dioceseId, code: '1000', name: 'Diocese Cash', type: 'ASSET', fundId: D_FUND },
+        { id: D_INCOME, dioceseId: FX.dioceseId, parishId: null, ownerType: 'DIOCESE', ownerId: FX.dioceseId, code: '4000', name: 'Diocese Income', type: 'INCOME', fundId: D_FUND },
+      ],
+    });
+    await testDb.accountingPeriod.create({ data: { id: D_PERIOD, dioceseId: FX.dioceseId, parishId: null, ownerType: 'DIOCESE', ownerId: FX.dioceseId, startDate: new Date('2026-01-01'), endDate: new Date('2026-12-31'), status: 'OPEN' } });
+
+    resetAuth = asUser(await testDb.appUser.findUniqueOrThrow({ where: { id: FX.users.dioceseAdmin.id } }));
+    const res = await journal.POST(
+      new Request('http://localhost/api/finance/journal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          owner: 'diocese',
+          description: 'Diocese gift',
+          entryDate: '2026-06-01',
+          periodId: D_PERIOD,
+          submit: true,
+          lines: [
+            { accountId: D_CASH, direction: 'DEBIT', amountCents: 4200 },
+            { accountId: D_INCOME, direction: 'CREDIT', amountCents: 4200 },
+          ],
+        }),
+      }),
+    );
+    const data = await res.json();
+    expect(res.status).toBe(201);
+    expect(data.entry.status).toBe('POSTED');
+    const saved = await testDb.journalEntry.findUniqueOrThrow({ where: { id: data.entry.id } });
+    expect(saved.ownerType).toBe('DIOCESE');
+    expect(saved.ownerId).toBe(FX.dioceseId);
+    expect(saved.parishId).toBeNull();
+  });
+
   it('reverses a posted entry with a mirror-image balanced entry', async () => {
     await asParishAdmin();
     const posted = await (await journal.POST(jsonReq({ description: 'to reverse', entryDate: '2026-06-01', periodId: PERIOD, submit: true, lines: balancedLines(3000) }))).json();

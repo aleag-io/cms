@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -17,6 +18,10 @@ import {
 } from "@/components/patterns/states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiRequest, isApiClientError } from "@/lib/api-client";
 
 type Account = {
@@ -28,9 +33,12 @@ type Account = {
   fund?: { id: string; name: string } | null;
 };
 
+const ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"] as const;
+
 export default function FinanceAccountsPage() {
   const ledger = useFinanceLedgerOwner();
   const queryClient = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
   const accountsQuery = useQuery({
     queryKey: ["finance", "accounts", ledger.owner],
     enabled: ledger.isReady && !ledger.isForbidden && Boolean(ledger.owner),
@@ -65,15 +73,20 @@ export default function FinanceAccountsPage() {
         <>
           <LedgerOwnerSwitcher state={ledger} />
           {ledger.canWrite ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={seedChart.isPending || !ledger.isReady}
-              onClick={() => seedChart.mutate()}
-            >
-              <PlusIcon className="mr-2 size-4" />
-              {seedChart.isPending ? "Setting up…" : "Seed default chart"}
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={seedChart.isPending || !ledger.isReady}
+                onClick={() => seedChart.mutate()}
+              >
+                <PlusIcon className="mr-2 size-4" />
+                {seedChart.isPending ? "Setting up…" : "Seed default chart"}
+              </Button>
+              <Button type="button" onClick={() => setAddOpen(true)} disabled={!ledger.isReady}>
+                <PlusIcon className="mr-2 size-4" /> Add account
+              </Button>
+            </>
           ) : null}
         </>
       }
@@ -179,6 +192,69 @@ export default function FinanceAccountsPage() {
           ]}
         />
       </div>
+      {ledger.canWrite ? (
+        <AddAccountDialog owner={ledger.owner} open={addOpen} onOpenChange={setAddOpen} />
+      ) : null}
     </div>
+  );
+}
+
+function AddAccountDialog({ owner, open, onOpenChange }: { owner: string; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const queryClient = useQueryClient();
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [type, setType] = useState<(typeof ACCOUNT_TYPES)[number]>("ASSET");
+  const [fundId, setFundId] = useState("");
+
+  const fundsQuery = useQuery({
+    queryKey: ["finance", "funds", owner],
+    enabled: open && Boolean(owner),
+    queryFn: () => apiRequest<{ ok: true; funds: { id: string; name: string }[] }>(`/api/finance/funds?owner=${encodeURIComponent(owner)}`),
+  });
+
+  const create = useMutation({
+    mutationFn: () =>
+      apiRequest("/api/finance/accounts", {
+        method: "POST",
+        body: JSON.stringify({ owner, code, name, type, fundId: fundId || null }),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["finance", "accounts", owner] });
+      toast.success("Account added");
+      setCode(""); setName(""); setFundId("");
+      onOpenChange(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Add account</DialogTitle></DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1.5"><Label htmlFor="ac-code">Code</Label><Input id="ac-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. 1000" /></div>
+            <div className="grid gap-1.5">
+              <Label>Type</Label>
+              <Select value={type} onValueChange={(v) => setType(v as (typeof ACCOUNT_TYPES)[number])}>
+                <SelectTrigger aria-label="Account type"><SelectValue /></SelectTrigger>
+                <SelectContent>{ACCOUNT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid gap-1.5"><Label htmlFor="ac-name">Name</Label><Input id="ac-name" value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="grid gap-1.5">
+            <Label>Fund (optional)</Label>
+            <Select value={fundId} onValueChange={setFundId}>
+              <SelectTrigger aria-label="Fund"><SelectValue placeholder="No fund" /></SelectTrigger>
+              <SelectContent>{(fundsQuery.data?.funds ?? []).map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" disabled={!code.trim() || !name.trim() || create.isPending} onClick={() => create.mutate()}>{create.isPending ? "Adding…" : "Add account"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
