@@ -81,9 +81,36 @@ Register endpoints in the Stripe dashboard (each yields the `STRIPE_WEBHOOK_SECR
 - Preview: `https://preview.cms.aleag.io/api/webhooks/stripe` (test mode) — optional.
 `/api/webhooks/stripe` is already in the `proxy.ts` public allowlist and verifies the signature.
 
-## 6. Open issue — the ERROR deployment
-- `dpl_DrA5se…` (commit `6b23088`) failed with `"Resource provisioning failed"` before building. This is a Vercel/Supabase **provisioning** failure (likely a transient race with the Supabase branch DB creation), not a code error — the prior commit built fine.
-- **Action:** redeploy the branch HEAD (Vercel → Deployments → Redeploy, or push an empty commit). If it recurs consistently, check the Supabase org's branch quota/limits and the Vercel↔Supabase integration connection.
+## 6. BLOCKER — branch/preview deploys fail: "Resource provisioning failed"
+
+**Confirmed diagnosis (2026-07-12):** every deploy of a *non-main* branch fails at
+`errorCode: BUILD_FAILED / "Resource provisioning failed"` in ~2–4s **before the build starts**.
+Production (`main`) deploys succeed. Verified it is **not** code and **not** the committed CLI cache
+(removed it; still fails; the prior commit `7eeb272` built READY). It is the **Vercel Marketplace
+→ Supabase integration** failing to provision a per-Git-branch Supabase branch database for the
+deployment.
+
+**Why:** the integration creates a separate Supabase branch DB per Git branch. The *first* provision
+for `feature/r5-batch-donations` succeeded (branch DB `phxoklfceusvwkeddvxc`, and commit `7eeb272`
+deployed READY). Every deploy since fails to provision — almost always because **branching has hit a
+plan/compute limit or billing state** (preview branches are billable compute; free/trial credit
+exhausted or branch cap reached), or the Marketplace integration connection is degraded.
+
+**Fix — pick one (dashboard/billing; cannot be done from the CLI):**
+- **Option A (recommended, simplest path to "prod + preview functional"):** stop provisioning a
+  Supabase branch per Git branch. In Vercel → Project → Storage/Integrations → the Supabase
+  integration, **disable automatic per-branch branching**, and instead point **Preview** deployments
+  at ONE dedicated Supabase branch (the persistent `staging` branch in §4.2) via the Preview-scoped
+  env vars. Production keeps using the prod project. Result: no per-deploy provisioning, no failures.
+- **Option B:** in the Supabase dashboard → Branching, confirm the plan **allows branching** and has
+  compute budget; upgrade/repair billing so provisioning succeeds; then per-PR ephemeral branches
+  work again.
+- **Immediate validation without fixing this:** the last **READY** preview is commit `7eeb272`
+  (alias `cms-git-feature-r5-batch-donations-aleag.vercel.app`). Use it to test PR #59, or merge #59
+  to `main` (production deploys are unaffected).
+
+**Already fixed here (code side):** removed the 7.6 MB Supabase CLI cache that Copilot committed under
+`supabase-branch/supabase/.temp` and added the missing `.gitignore` (commit `b5b98a6`).
 
 ## 7. Prioritized checklist
 1. [ ] Set the **app-secret env vars** (§3.1) for Production (and Preview where applicable). *Nothing Stripe/email/SMS/cron/Blob works in prod without these.*
