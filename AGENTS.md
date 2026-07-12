@@ -231,6 +231,18 @@ never filters sensitive data client-side.
   `tests/integration/api/r5-finance-modules.test.ts`, `tests/e2e/r5-finance-ui.test.ts`.
   Deps added: `stripe`, `@react-pdf/renderer`, `@vercel/blob`. Plan:
   [docs/releases/r5-finance-giving/1-finance-giving.md](docs/releases/r5-finance-giving/1-finance-giving.md).
+  **Batch giving entry + categories (2026-07-12):** `GivingCategory` (purpose →
+  income account + fund/section, seeded from the real Receipts & Payments report)
+  + `Donation.categoryId` + `DonationBatch.depositAccountId`; batch entry API
+  (`/api/finance/donation-batches/*`), external-donors + giving-categories APIs,
+  and UI (`/finance/batches` grid with member/non-member/anonymous-plate donor
+  picker, `/finance/giving-categories` admin). A posted batch writes ONE
+  consolidated deposit journal (debit cash total, credit each category's income
+  account by subtotal) so it reconciles to a single bank-deposit line; the batch
+  locks on post. Migrations `20260712000001_r5_giving_categories` +
+  `20260712000002_r5_giving_categories_rls.sql`. Design/plan under
+  `docs/superpowers/{specs,plans}/2026-07-12-batch-donation-entry*`. Annual
+  Receipts & Payments PDF report is the next release (this model feeds it).
 
 ## How to run
 
