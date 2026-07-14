@@ -1,0 +1,246 @@
+{
+  "formatVersion": 1,
+  "description": "Generated native Supabase branch migrations. Canonical sources remain under prisma/migrations and supabase/migrations.",
+  "entries": [
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260629060238_init/migration.sql",
+      "sourceVersion": "20260629060238",
+      "nativeVersion": "20260629060238",
+      "output": "20260629060238_prisma_20260629060238_init.sql",
+      "sha256": "bb112386f616275e1f6b24845580078be18a5d2458100cc3fdf1df057d43ade6"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260629133320_phase1_schema/migration.sql",
+      "sourceVersion": "20260629133320",
+      "nativeVersion": "20260629090000",
+      "output": "20260629090000_prisma_20260629133320_phase1_schema.sql",
+      "sha256": "b7e7d77cc4ece090bdb44ecc8c18e487c53663d5f1965d5d78d8a6480782fb0d"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260629100000_auth_shims_and_role.sql",
+      "sourceVersion": "20260629100000",
+      "nativeVersion": "20260629100000",
+      "output": "20260629100000_auth_shims_and_role.sql",
+      "sha256": "61352e372b437d014ca8fb3cdc3ccaf44428b4cd6481699c20570b221d8cd261"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260629100001_rls_policies.sql",
+      "sourceVersion": "20260629100001",
+      "nativeVersion": "20260629100001",
+      "output": "20260629100001_rls_policies.sql",
+      "sha256": "b09d04ad81936204fc1044e5499d89c5d994682a9ba7a3581582328c68d1c33e"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260629100002_audit_immutability.sql",
+      "sourceVersion": "20260629100002",
+      "nativeVersion": "20260629100002",
+      "output": "20260629100002_audit_immutability.sql",
+      "sha256": "c5373e0f4d2f4d03d54dfe044f974ba62809e0d1f045825ad394205191fbab03"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260629100003_claims_hook.sql",
+      "sourceVersion": "20260629100003",
+      "nativeVersion": "20260629100003",
+      "output": "20260629100003_claims_hook.sql",
+      "sha256": "6e090cfc3d2331a3b8508de8acaccc229d765158dfcb022ca9bc484dbac7e24c"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260629140000_fix_rls_write_policies.sql",
+      "sourceVersion": "20260629140000",
+      "nativeVersion": "20260629140000",
+      "output": "20260629140000_fix_rls_write_policies.sql",
+      "sha256": "f07c04f3d03625bd1f09744ee923b4c11a3621bf06cbd3dc2aca9978b13aa31b"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260629170000_phase2_access_control/migration.sql",
+      "sourceVersion": "20260629170000",
+      "nativeVersion": "20260629170000",
+      "output": "20260629170000_prisma_20260629170000_phase2_access_control.sql",
+      "sha256": "d662242b7e3986e70bfab8831139a3223d7b6ed9f3ed2bd8034b0208e209352f"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260629171000_phase2_field_access_rls.sql",
+      "sourceVersion": "20260629171000",
+      "nativeVersion": "20260629171000",
+      "output": "20260629171000_phase2_field_access_rls.sql",
+      "sha256": "6fa482c4b52680ce339e6cf51288b79be24beaa5a253557f81aa14b6ce2a142b"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260629173000_member_primary_parish_fn.sql",
+      "sourceVersion": "20260629173000",
+      "nativeVersion": "20260629173000",
+      "output": "20260629173000_member_primary_parish_fn.sql",
+      "sha256": "6173f5b2b04a5a3f476d6c12f7aa35d3516eec9f3e50f6dd70b3c51c0d6e7101"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260629181842_phase3_parish_operations/migration.sql",
+      "sourceVersion": "20260629181842",
+      "nativeVersion": "20260629181842",
+      "output": "20260629181842_prisma_20260629181842_phase3_parish_operations.sql",
+      "sha256": "bbdef118d84d1dab20e5f1a00551482724cf6fdc8221b6c82ea519029ae9af8a"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260629182000_phase3_parish_operations_rls.sql",
+      "sourceVersion": "20260629182000",
+      "nativeVersion": "20260629182000",
+      "output": "20260629182000_phase3_parish_operations_rls.sql",
+      "sha256": "9d0b293075f2452aaf35ecb1ed998b93ffe9303cb5eeebf4a2a3904b0f94658b"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260630000001_phase4_data_sharing/migration.sql",
+      "sourceVersion": "20260630000001",
+      "nativeVersion": "20260630000001",
+      "output": "20260630000001_prisma_20260630000001_phase4_data_sharing.sql",
+      "sha256": "648f77a120960b1e97b00787758dabf02152754ca5bb37d7f548e0a62445bf76"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260630000002_phase4_data_sharing_rls.sql",
+      "sourceVersion": "20260630000002",
+      "nativeVersion": "20260630000002",
+      "output": "20260630000002_phase4_data_sharing_rls.sql",
+      "sha256": "240b917665374d4ed114bdf4ca91f43e16fd83850290796f0cdf6e0f19c39a85"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260630120000_phase3_hardening/migration.sql",
+      "sourceVersion": "20260630120000",
+      "nativeVersion": "20260630120000",
+      "output": "20260630120000_prisma_20260630120000_phase3_hardening.sql",
+      "sha256": "d3e27399764aee4c8803d0ca2e161067a27c2c20524bc5355318590c96029842"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260630121000_phase3_hardening.sql",
+      "sourceVersion": "20260630121000",
+      "nativeVersion": "20260630121000",
+      "output": "20260630121000_phase3_hardening.sql",
+      "sha256": "880dacaf4f87309a7e93d06c82daa5bf9d3c2ec8fde0db7234f00d00329da550"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260704090000_r1_member_self_update_rls.sql",
+      "sourceVersion": "20260704090000",
+      "nativeVersion": "20260704090000",
+      "output": "20260704090000_r1_member_self_update_rls.sql",
+      "sha256": "08df2315aeceb08f487e76c6ad44be0d834bac94fe76dd7a68c02712c82c88e7"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260709053000_grant_auth_schema_usage.sql",
+      "sourceVersion": "20260709053000",
+      "nativeVersion": "20260709053000",
+      "output": "20260709053000_grant_auth_schema_usage.sql",
+      "sha256": "e47f4d23221aa567f2438e0de66890f079ef9890eff0d134984b440387a96d98"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260709190000_r4_sacramental_records/migration.sql",
+      "sourceVersion": "20260709190000",
+      "nativeVersion": "20260709190000",
+      "output": "20260709190000_prisma_20260709190000_r4_sacramental_records.sql",
+      "sha256": "275be1f55ee7cb24e6e5dab37d144ed3bdd45e640b757bb5f73b42018660d6c2"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260709191000_r4_sacramental_records_rls.sql",
+      "sourceVersion": "20260709191000",
+      "nativeVersion": "20260709191000",
+      "output": "20260709191000_r4_sacramental_records_rls.sql",
+      "sha256": "ab863003076bcef08e0fd7d42d589711c41f061c43ca00181a275174d85a5c04"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260709200000_r4_liturgical_calendar/migration.sql",
+      "sourceVersion": "20260709200000",
+      "nativeVersion": "20260709200000",
+      "output": "20260709200000_prisma_20260709200000_r4_liturgical_calendar.sql",
+      "sha256": "6e976e152dba7c332bfc831564d37b79eebe16b470bd09d6b2c0e82a4ec9a8a2"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260709201000_r4_liturgical_calendar_rls.sql",
+      "sourceVersion": "20260709201000",
+      "nativeVersion": "20260709201000",
+      "output": "20260709201000_r4_liturgical_calendar_rls.sql",
+      "sha256": "518903630efc3787b0d8945cce7d489ec453ecb2efb25faac630191627737551"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260710000000_member_gender/migration.sql",
+      "sourceVersion": "20260710000000",
+      "nativeVersion": "20260710000000",
+      "output": "20260710000000_prisma_20260710000000_member_gender.sql",
+      "sha256": "38afc38b1c42fe7fa8c576df488a5c5c47a2679c102874f365efa9565cb30f7f"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260710100000_r4_hardening_rls.sql",
+      "sourceVersion": "20260710100000",
+      "nativeVersion": "20260710100000",
+      "output": "20260710100000_r4_hardening_rls.sql",
+      "sha256": "fec2806d4084bd0ee764197c55a6b4a1e75d8f8d25fbaadd0691696a205c196d"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260711000001_r5_finance_core/migration.sql",
+      "sourceVersion": "20260711000001",
+      "nativeVersion": "20260711000001",
+      "output": "20260711000001_prisma_20260711000001_r5_finance_core.sql",
+      "sha256": "bea8890d2cb75b42b55864874459fa59f6f1adffaff6dde7662051c6dcd21951"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260711000002_r5_finance_rls.sql",
+      "sourceVersion": "20260711000002",
+      "nativeVersion": "20260711000002",
+      "output": "20260711000002_r5_finance_rls.sql",
+      "sha256": "6a4ef779255813b5698c17d5a106956cefa57f98df90d270eda32bef2bcefe73"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260711000003_r5_finance_hardening_rls.sql",
+      "sourceVersion": "20260711000003",
+      "nativeVersion": "20260711000003",
+      "output": "20260711000003_r5_finance_hardening_rls.sql",
+      "sha256": "f4b8c3356bd5f0ab5ca4fc698f83793f961ac405a90713c71199dd39c162f9ce"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260712000001_r5_giving_categories/migration.sql",
+      "sourceVersion": "20260712000001",
+      "nativeVersion": "20260712000001",
+      "output": "20260712000001_prisma_20260712000001_r5_giving_categories.sql",
+      "sha256": "257eaf952d8f1ef1880b91591b77140b127c635f87982974d2d5cbb4aa62aa00"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260712000002_r5_giving_categories_rls.sql",
+      "sourceVersion": "20260712000002",
+      "nativeVersion": "20260712000002",
+      "output": "20260712000002_r5_giving_categories_rls.sql",
+      "sha256": "97b46a7a858ed54c41040dea43511518d3390db9a900a70e77446d46d2c62026"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260712130000_claims_hook_public.sql",
+      "sourceVersion": "20260712130000",
+      "nativeVersion": "20260712130000",
+      "output": "20260712130000_claims_hook_public.sql",
+      "sha256": "c3fa760d68fa4e0cb25f4d8102c7a3e84ac7ef6fb5a34d74ce90229a9b1c5199"
+    }
+  ]
+}

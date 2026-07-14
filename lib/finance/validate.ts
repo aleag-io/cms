@@ -159,3 +159,43 @@ export function parseDonationMethod(value: unknown): DonationMethod {
 export function isLedgerOwnerType(v: string): v is LedgerOwnerType {
   return OWNER_TYPES.has(v as LedgerOwnerType);
 }
+
+export function parseGivingCategory(body: Record<string, unknown>) {
+  return {
+    name: requireNonEmptyString('name', body.name),
+    section: requireNonEmptyString('section', body.section),
+    sortOrder:
+      typeof body.sortOrder === 'number' && Number.isInteger(body.sortOrder)
+        ? body.sortOrder
+        : 0,
+    fundId: optionalUuid('fundId', body.fundId),
+    incomeAccountId: requireUuid('incomeAccountId', body.incomeAccountId),
+    isTaxDeductible: body.isTaxDeductible !== false,
+    countsToStatement: body.countsToStatement !== false,
+  };
+}
+
+export function parseBatchDonationLine(body: Record<string, unknown>) {
+  const isAnonymous = body.isAnonymous === true;
+  const familyId = optionalUuid('familyId', body.familyId);
+  const memberId = optionalUuid('memberId', body.memberId);
+  const externalDonorId = optionalUuid('externalDonorId', body.externalDonorId);
+  if (isAnonymous && (familyId || memberId || externalDonorId)) {
+    throw new ApiError(400, 'Anonymous gifts cannot have a donor');
+  }
+  return {
+    amountCents: requireCents('amountCents', body.amountCents),
+    categoryId: requireUuid('categoryId', body.categoryId),
+    method: parseDonationMethod(body.method),
+    familyId,
+    memberId,
+    externalDonorId,
+    isAnonymous,
+    checkNumber:
+      typeof body.checkNumber === 'string' ? body.checkNumber.trim() || null : null,
+    receivedAt:
+      typeof body.receivedAt === 'string' && body.receivedAt.trim()
+        ? requireDate('receivedAt', body.receivedAt)
+        : null,
+  };
+}

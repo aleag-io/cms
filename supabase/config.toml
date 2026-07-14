@@ -59,16 +59,17 @@ max_client_conn = 100
 [db.migrations]
 # Prisma owns schema (tables/enums/indexes). Supabase SQL owns RLS/grants/hooks.
 # Apply order: `npx prisma migrate deploy` → `npm run db:apply-rls`.
-# Keep auto-apply OFF so a fresh `supabase start` does not GRANT on tables
-# that Prisma has not created yet.
+# This local/production config keeps auto-apply off. The generated native branch
+# bundle under supabase-branch/supabase enables it with ordered schema mirrors.
 enabled = false
 # Specifies an ordered list of schema files that describe your database.
 # Supports glob patterns relative to supabase directory: "./schemas/*.sql"
 schema_paths = []
 
 [db.seed]
-# If enabled, seeds the database after migrations during a db reset.
-enabled = true
+# The Prisma-first local workflow uses prisma/seed.ts. Native Supabase branches
+# use the generated deployment bundle under supabase-branch/supabase instead.
+enabled = false
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
 sql_paths = ["./seed.sql"]
@@ -188,10 +189,11 @@ minimum_password_length = 6
 password_requirements = ""
 
 # Custom access-token hook — injects diocese_id, parish_id, roles into JWT app_metadata.
-# Applied to auth schema via supabase/migrations/20260629100003_claims_hook.sql.
+# Installed in public by 20260712130000_claims_hook_public.sql because hosted
+# Supabase reserves ownership of the auth schema.
 [auth.hook.custom_access_token]
 enabled = true
-uri = "pg-functions://postgres/auth/custom_access_token_hook"
+uri = "pg-functions://postgres/public/custom_access_token_hook"
 
 # Configure passkey sign-ins.
 # [auth.passkey]

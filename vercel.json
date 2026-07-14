@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/jobs/process-communications",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/jobs/expire-sharing-requests",
@@ -11,7 +11,7 @@
     },
     {
       "path": "/api/jobs/expire-emergency-access",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/jobs/process-pledge-reminders",

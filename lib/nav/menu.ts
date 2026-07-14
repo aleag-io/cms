@@ -298,6 +298,20 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    title: 'Batches',
+    href: '/finance/batches',
+    section: 'Finance',
+    portals: ['parish', 'diocese'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff'],
+  },
+  {
+    title: 'Giving Categories',
+    href: '/finance/giving-categories',
+    section: 'Finance',
+    portals: ['parish', 'diocese'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'parish_admin', 'parish_staff'],
+  },
+  {
     title: 'Approvals',
     href: '/finance/approvals',
     section: 'Finance',
