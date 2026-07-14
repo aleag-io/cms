@@ -3,6 +3,39 @@
 > Owner: platform/ops. Status: requirements to finish configuring production, a stable preview,
 > and per-branch environments across Vercel and Supabase. Grounded in the live state on 2026-07-12.
 
+## 0. Status — native branching foundation (on `main`)
+
+The **code foundation** for Supabase native branching is now on `main`, so every branch inherits
+a working branch DB (schema + RLS + claims hook) instead of an empty database:
+
+- `scripts/generate-supabase-branch-bundle.js` merges `prisma/migrations/*` (schema) +
+  `supabase/migrations/*` (RLS/hooks) into the deployable bundle at
+  `supabase-branch/supabase/migrations`, plus a branch `config.toml`
+  (`db.migrations.enabled = true`, `db.seed.enabled = true`) and `migration-manifest.json`.
+- `npm run db:branch:generate` regenerates the bundle; `npm run db:branch:check` fails if it is
+  stale. CI runs the check (and `ci` starts with it) so the bundle can never drift from the
+  canonical migrations. **Re-run `db:branch:generate` and commit after adding any Prisma or
+  `supabase/` migration.**
+- `supabase/migrations/20260712130000_claims_hook_public.sql` installs the access-token hook in the
+  **`public`** schema — hosted/branch Supabase reserves ownership of `auth`, so the claims hook must
+  live in `public` for branch DBs to authenticate.
+
+**Remaining steps are dashboard-only (owner must do them — not CLI-scriptable):**
+
+1. **Supabase → Project → Integrations → GitHub → Branching:** set the **working directory to
+   `supabase-branch`** and enable migration application on branches. Keep **production deployments
+   disabled** (prod schema is applied by the Vercel build, never by Supabase branching — see §4.1).
+2. **Reset the existing empty branch DBs** so they re-apply the bundle from scratch. Verified empty
+   on 2026-07-13: the `preview` branch (`fnvayegctruotqnutswv`) has **0 public tables**. In
+   Supabase → Branching, reset/recreate each branch (or push a new commit to trigger a fresh
+   migration run). Also make the **`preview` branch persistent** (currently `persistent: false`) so
+   `preview.cms.aleag.io` survives PR churn.
+3. **Vercel → Project → Settings → Deployment Protection → Vercel Authentication → Off** (or scope
+   it) so test users can open `preview.cms.aleag.io` without a Vercel SSO login.
+
+After (1)+(2), a fresh push to any branch provisions a branch DB with the full schema + RLS +
+`public` claims hook. Verify by querying the branch DB for a non-empty `AppUser`/`Account` table.
+
 ## 1. Current state (observed)
 
 | Thing | Value |
