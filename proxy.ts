@@ -13,6 +13,9 @@ function isPublicPath(pathname: string): boolean {
     pathname === '/api-docs' ||
     pathname.startsWith('/api-docs/') ||
     pathname === '/api/bootstrap' ||
+    // Public health/diagnostic — reports which Supabase project the deployment
+    // is wired to (no secrets). Used to distinguish prod/preview/branch envs.
+    pathname === '/api/health' ||
     // Public member self-registration intake (MM-8) — validated + rate-limited
     // in the handler; pending members are invisible until approved.
     pathname === '/api/registrations' ||
