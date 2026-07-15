@@ -265,6 +265,18 @@ never filters sensitive data client-side.
 - Local DB: Supabase local stack (`supabase start`); `DATABASE_URL` points at port 54322.
   Prisma config: `prisma.config.ts`.
 
+## Branching & deployment workflow (canonical 2026-07-15)
+
+- **`preview` is the integration/QA branch (staging); `main` is production.** Flow:
+  `feature/x` → PR → `preview` (QA on `preview.cms.aleag.io`, persistent Supabase branch DB)
+  → release PR `preview → main` (merge commit, not squash) → prod (`cms.aleag.io`).
+  Feature branches come off `preview` and PRs target `preview` (squash-merge). Hotfixes:
+  branch off `main` → PR → `main`, then immediately PR `main → preview` to reconverge.
+  Nothing lands on `preview`/`main` except via PR; no force-pushes. Full doc:
+  [docs/ops/branching-workflow.md](docs/ops/branching-workflow.md) (includes the
+  `*_OVERRIDE` env wiring that keeps preview off the prod DB — check
+  `/api/health` for `consistent: true` + expected project ref per env).
+
 ## Working agreement
 
 - **Definition of Done:** code + tests merged; access-control behavior verified by a test;
