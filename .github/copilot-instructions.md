@@ -134,6 +134,15 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
 - Local DB: Supabase local stack (`supabase start`); `DATABASE_URL` points at port 54322.
   Prisma migrate: `npx prisma migrate deploy` (reads `prisma.config.ts`).
 
+## Branching & deployment workflow (canonical 2026-07-15)
+
+- **`preview` is the integration/QA branch (staging); `main` is production.** Flow:
+  `feature/x` → PR → `preview` (QA on `preview.cms.aleag.io`) → release PR
+  `preview → main` (merge commit, not squash) → prod. Feature branches come off
+  `preview`; feature PRs squash-merge. Hotfix: branch off `main` → PR → `main`,
+  then PR `main → preview` to reconverge. No direct pushes or force-pushes to
+  `preview`/`main`. Full doc: `docs/ops/branching-workflow.md`.
+
 ## Working agreement
 
 - **Definition of Done:** code + tests merged; access-control behavior verified by a test;
