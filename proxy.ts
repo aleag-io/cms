@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { supabaseAnonKey, supabaseUrl } from '@/lib/supabase/env';
 
 function isPublicPath(pathname: string): boolean {
   return (
@@ -52,17 +53,17 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = isPublicPath(pathname);
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = supabaseUrl();
+  const anonKey = supabaseAnonKey();
 
   // Missing env must not hang the request (CI smoke / misconfigured deploy).
   // Treat as unauthenticated; public routes still work.
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!url || !anonKey) {
     if (!isPublic) return unauthorizedOrLogin(request);
     return supabaseResponse;
   }
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createServerClient(url, anonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

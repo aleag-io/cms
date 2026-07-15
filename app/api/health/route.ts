@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { supabaseUrl } from '@/lib/supabase/env';
 
 // Public, unauthenticated diagnostic. Reports which Supabase project the running
 // deployment is actually wired to (auth vs. database), so prod/preview/branch
@@ -25,7 +26,7 @@ function refFromPostgres(conn: string | undefined): string | null {
 }
 
 export async function GET() {
-  const authRef = refFromSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const authRef = refFromSupabaseUrl(supabaseUrl());
   const dbRef = refFromPostgres(
     process.env.DATABASE_URL ?? process.env.POSTGRES_URL,
   );

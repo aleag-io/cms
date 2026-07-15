@@ -1,13 +1,14 @@
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { supabaseAnonKey, supabaseServiceRoleKey, supabaseUrl } from './env';
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl()!,
+    supabaseAnonKey()!,
     {
       cookies: {
         getAll() {
@@ -25,8 +26,8 @@ export async function createSupabaseServerClient() {
 
 export function createSupabaseAdminClient() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    supabaseUrl()!,
+    supabaseServiceRoleKey()!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 }
