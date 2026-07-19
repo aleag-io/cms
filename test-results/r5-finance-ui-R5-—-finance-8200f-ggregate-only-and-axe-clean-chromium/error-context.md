@@ -6,74 +6,219 @@
 
 # Test info
 
-- Name: r5-finance-ui.test.ts >> R5 — finance UI >> parish admin can open journal, periods, donations, approvals
-- Location: tests/e2e/r5-finance-ui.test.ts:75:7
+- Name: r5-finance-ui.test.ts >> R5 — finance UI >> diocese finance is aggregate-only and axe clean
+- Location: tests\e2e\r5-finance-ui.test.ts:131:7
 
 # Error details
 
 ```
-Error: page.goto: net::ERR_CONNECTION_RESET at http://localhost:3000/finance/periods
-Call log:
-  - navigating to "http://localhost:3000/finance/periods", waiting until "domcontentloaded"
+Error: expect(page).toHaveURL(expected) failed
 
+Expected pattern: /\/diocese\/finance$/
+Received string:  "http://localhost:3000/finance?owner=diocese"
+Timeout: 15000ms
+
+Call log:
+  - Expect "toHaveURL" with timeout 15000ms
+    29 × unexpected value "http://localhost:3000/finance"
+    4 × unexpected value "http://localhost:3000/finance?owner=diocese"
+
+```
+
+```yaml
+- img
+- paragraph: Mar Thoma CMS
+- paragraph: Church Management System
+- text: People
+- list:
+  - listitem:
+    - link "Dashboard":
+      - /url: /app
+      - img
+      - text: Dashboard
+- text: Diocese
+- list:
+  - listitem:
+    - link "Diocese Settings":
+      - /url: /diocese/settings
+      - img
+      - text: Diocese Settings
+  - listitem:
+    - link "Parishes":
+      - /url: /parishes
+      - img
+      - text: Parishes
+  - listitem:
+    - link "Diocese Users":
+      - /url: /diocese/users
+      - img
+      - text: Diocese Users
+  - listitem:
+    - link "Aggregate":
+      - /url: /diocese/aggregate
+      - img
+      - text: Aggregate
+  - listitem:
+    - link "Liturgical calendar":
+      - /url: /diocese/liturgical
+      - img
+      - text: Liturgical calendar
+  - listitem:
+    - link "Reports":
+      - /url: /reports
+      - img
+      - text: Reports
+- text: Sharing
+- list:
+  - listitem:
+    - link "Sharing":
+      - /url: /sharing
+      - img
+      - text: Sharing
+- text: Administration
+- list:
+  - listitem:
+    - link "Audit Log":
+      - /url: /audit
+      - img
+      - text: Audit Log
+- text: Finance
+- list:
+  - listitem:
+    - link "Finance Overview":
+      - /url: /finance
+      - img
+      - text: Finance Overview
+  - listitem:
+    - link "Chart of Accounts":
+      - /url: /finance/accounts
+      - img
+      - text: Chart of Accounts
+  - listitem:
+    - link "Journal":
+      - /url: /finance/journal
+      - img
+      - text: Journal
+  - listitem:
+    - link "Periods":
+      - /url: /finance/periods
+      - img
+      - text: Periods
+  - listitem:
+    - link "Donations":
+      - /url: /finance/donations
+      - img
+      - text: Donations
+  - listitem:
+    - link "Batches":
+      - /url: /finance/batches
+      - img
+      - text: Batches
+  - listitem:
+    - link "Giving Categories":
+      - /url: /finance/giving-categories
+      - img
+      - text: Giving Categories
+  - listitem:
+    - link "Approvals":
+      - /url: /finance/approvals
+      - img
+      - text: Approvals
+  - listitem:
+    - link "Campaigns":
+      - /url: /finance/campaigns
+      - img
+      - text: Campaigns
+  - listitem:
+    - link "Pledges":
+      - /url: /finance/pledges
+      - img
+      - text: Pledges
+  - listitem:
+    - link "Vendors":
+      - /url: /finance/vendors
+      - img
+      - text: Vendors
+  - listitem:
+    - link "Bills & Payments":
+      - /url: /finance/bills
+      - img
+      - text: Bills & Payments
+  - listitem:
+    - link "Budgets":
+      - /url: /finance/budgets
+      - img
+      - text: Budgets
+  - listitem:
+    - link "Reconciliation":
+      - /url: /finance/reconciliation
+      - img
+      - text: Reconciliation
+  - listitem:
+    - link "Giving Statements":
+      - /url: /finance/giving-statements
+      - img
+      - text: Giving Statements
+  - listitem:
+    - link "Financial Reports":
+      - /url: /finance/reports
+      - img
+      - text: Financial Reports
+  - listitem:
+    - link "Approval Policies":
+      - /url: /diocese/finance/policies
+      - img
+      - text: Approval Policies
+- button "ED E2E Diocese Admin DIOCESE ADMIN":
+  - text: ED E2E Diocese Admin DIOCESE ADMIN
+  - img
+- main:
+  - button "Toggle Sidebar":
+    - img
+    - text: Toggle Sidebar
+  - navigation "breadcrumb":
+    - list:
+      - listitem:
+        - link "Home":
+          - /url: /app
+      - listitem:
+        - link "Finance Overview" [disabled]
+  - button "Diocese context":
+    - img
+    - text: Diocese context
+    - img
+  - main:
+    - heading "Finance" [level=1]
+    - paragraph: Ledger, approvals, periods, and giving for the selected book. Database policies remain the source of truth for every owner scope.
+    - img
+    - text: Diocese general ledger
+    - link "Chart of Accounts Funds and ledger accounts":
+      - /url: /finance/accounts?owner=diocese
+      - img
+      - text: Chart of Accounts Funds and ledger accounts
+    - link "Journal Review postings and reversals":
+      - /url: /finance/journal?owner=diocese
+      - img
+      - text: Journal Review postings and reversals
+    - link "Accounting Periods Review open and closed periods":
+      - /url: /finance/periods?owner=diocese
+      - img
+      - text: Accounting Periods Review open and closed periods
+    - link "Donations Review gifts and attribution":
+      - /url: /finance/donations
+      - img
+      - text: Donations Review gifts and attribution
+    - link "Approvals Maker-checker request queue":
+      - /url: /finance/approvals?owner=diocese
+      - img
+      - text: Approvals Maker-checker request queue
+- region "Notifications alt+T"
+- alert
 ```
 
 # Test source
 
 ```ts
-  1   | /**
-  2   |  * R5 M10 — Finance UI smoke: auth gates, admin surfaces, member isolation, a11y.
-  3   |  */
-  4   | import { test, expect } from '@playwright/test';
-  5   | import AxeBuilder from '@axe-core/playwright';
-  6   | import {
-  7   |   ensureAdminSession,
-  8   |   ensureDioceseAdminSession,
-  9   |   ensureMemberSession,
-  10  |   isSupabaseAuthUp,
-  11  | } from './helpers/auth';
-  12  | 
-  13  | async function injectAdmin(
-  14  |   context: import('@playwright/test').BrowserContext,
-  15  |   baseURL: string,
-  16  | ) {
-  17  |   const { cookie } = await ensureAdminSession();
-  18  |   await context.addCookies([
-  19  |     { name: cookie.name, value: cookie.value, url: baseURL },
-  20  |   ]);
-  21  | }
-  22  | 
-  23  | test.describe('R5 — finance UI', () => {
-  24  |   test('unauthenticated /finance redirects to login', async ({ page }) => {
-  25  |     await page.goto('/finance');
-  26  |     await expect(page).toHaveURL(/\/login/);
-  27  |   });
-  28  | 
-  29  |   test('unauthenticated /finance/accounts redirects to login', async ({
-  30  |     page,
-  31  |   }) => {
-  32  |     await page.goto('/finance/accounts');
-  33  |     await expect(page).toHaveURL(/\/login/);
-  34  |   });
-  35  | 
-  36  |   test('parish admin can open finance overview and chart of accounts', async ({
-  37  |     page,
-  38  |     context,
-  39  |     baseURL,
-  40  |   }) => {
-  41  |     test.skip(
-  42  |       !(await isSupabaseAuthUp()),
-  43  |       'Supabase auth stack not available (run `supabase start`)',
-  44  |     );
-  45  |     test.setTimeout(90_000);
-  46  |     await injectAdmin(context, baseURL!);
-  47  | 
-  48  |     await page.goto('/finance');
-  49  |     await expect(
-  50  |       page.getByRole('heading', { name: /^finance$/i }),
-  51  |     ).toBeVisible({ timeout: 20_000 });
-  52  |     // Prefer the main content card link (sidebar also has the same title).
-  53  |     await expect(
   54  |       page
   55  |         .locator('main')
   56  |         .getByRole('link', { name: /chart of accounts/i })
@@ -113,8 +258,7 @@ Call log:
   90  |       ['/finance/donations', 'finance-donations', /^donations$/i],
   91  |       ['/finance/approvals', 'finance-approvals', /^approvals$/i],
   92  |     ] as const) {
-> 93  |       await page.goto(path, { waitUntil: 'domcontentloaded' });
-      |                  ^ Error: page.goto: net::ERR_CONNECTION_RESET at http://localhost:3000/finance/periods
+  93  |       await page.goto(path, { waitUntil: 'domcontentloaded' });
   94  |       await expect(page.getByTestId(testId)).toBeVisible({ timeout: 25_000 });
   95  |       await expect(page.getByRole('heading', { name: heading })).toBeVisible();
   96  |     }
@@ -175,7 +319,8 @@ Call log:
   151 |     await expect(page.locator('main a[href^="/finance"]')).toHaveCount(0);
   152 | 
   153 |     await page.goto('/finance', { waitUntil: 'domcontentloaded' });
-  154 |     await expect(page).toHaveURL(/\/diocese\/finance$/);
+> 154 |     await expect(page).toHaveURL(/\/diocese\/finance$/);
+      |                        ^ Error: expect(page).toHaveURL(expected) failed
   155 |     await expect(
   156 |       page.getByRole('heading', { name: /diocese finance/i }),
   157 |     ).toBeVisible();
@@ -215,4 +360,9 @@ Call log:
   191 |       const serious = results.violations.filter((v) =>
   192 |         ['serious', 'critical'].includes(v.impact ?? ''),
   193 |       );
+  194 |       expect(serious).toEqual([]);
+  195 |     });
+  196 |   }
+  197 | });
+  198 | 
 ```
