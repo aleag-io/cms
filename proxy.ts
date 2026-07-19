@@ -27,6 +27,7 @@ function isPublicPath(pathname: string): boolean {
     pathname === '/api/jobs/expire-sharing-requests' ||
     pathname === '/api/jobs/expire-emergency-access' ||
     pathname === '/api/jobs/process-pledge-reminders' ||
+    pathname === '/api/jobs/deliver-webhooks' ||
     // Stripe webhook — signature-verified in the handler; no session.
     pathname === '/api/webhooks/stripe' ||
     pathname.startsWith('/api/shares/link/') ||

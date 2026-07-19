@@ -243,6 +243,57 @@ never filters sensitive data client-side.
   `20260712000002_r5_giving_categories_rls.sql`. Design/plan under
   `docs/superpowers/{specs,plans}/2026-07-12-batch-donation-entry*`. Annual
   Receipts & Payments PDF report is the next release (this model feeds it).
+- **Release R6 — Reporting & Integrations (M11, M12) — implemented.**
+  **Reporting:** code-defined report registry (`lib/reports/`) — each
+  `ReportDefinition` declares scope/roles/params and a `run(tx, ctx, params)`
+  returning a flat-row `ReportResult`, served by one generic pair of routes
+  (`GET /api/reports` catalog, `GET /api/reports/[id]?format=json|csv|pdf`).
+  Flat rows are what let one CSV renderer, one PDF renderer, and the
+  cross-cutting leak gate iterate every entry generically — a new report is
+  covered with no test edit. `lib/reports/render-pdf.tsx` consumes **only** a
+  `ReportResult` (unit-asserted to import no data-layer module), so scanning
+  the JSON covers the PDF. Reports: `receipts-payments` (flagship annual
+  cash-basis statement — giving categories by `section` for receipts, expense
+  accounts by the new `Account.reportSection` for payments, Budget/Actual/
+  Variance from the fiscal-year `Budget`, "Other receipts"/"Other payments"
+  catch-alls), `membership-status`, `sacramental-register`,
+  `program-attendance`, `event-attendance`, `giving-summary`,
+  `pledge-fulfillment`, `income-vs-budget`, `fund-balances`, and diocese-scope
+  `diocese-{membership,sacramental,giving,pledges}`. UI: `/reports` hub +
+  `/reports/[id]` runner, `/finance/reports` + dedicated
+  `/finance/reports/receipts-payments`, `/diocese/finance/policies` (RP-9/DA-12
+  approval-policy dashboard), and five new sections on `/diocese/aggregate`.
+  Seven new self-securing Tier-2 views (`diocese_approval_policy_dashboard`,
+  `diocese_approval_request_summary`, `diocese_parish_membership_trend`,
+  `diocese_parish_{sacramental,attendance,event,pledge}_summary`).
+  **Integrations (M12):** outbound webhooks via a **transactional outbox** —
+  routes append a thin `WebhookEvent` inside the same `withTenant` txn as the
+  domain write; a privileged cron worker (`lib/webhooks/worker.ts`,
+  `/api/jobs/deliver-webhooks` every 5 min) fans out to `WebhookDelivery` and
+  delivers HMAC-signed (`sha256=HMAC(secret, ts + '.' + body)`) POSTs with a
+  1/5/30/120/360-minute backoff ladder and dead-letter at 6 attempts. Signing
+  secrets are parish-admin-only under RLS and returned exactly once.
+  **Key gotcha:** `emitWebhookEvent` uses `createMany`, not `create` — Prisma's
+  `create` emits `RETURNING`, which Postgres evaluates against the SELECT
+  policy that parish staff deliberately lack, so `create` would break emission
+  for every staff-authored write. Management API under
+  `/api/integrations/webhooks/*` + `/settings/integrations` UI. Member CSV
+  import (`lib/members/import.ts`, `POST /api/members/import`,
+  `/members/import`) is stateless dry-run → commit with per-row errors and
+  partial success; imports intentionally do **not** emit webhooks. Shared
+  `lib/csv.ts` (formula-injection neutralization + quote-aware parsing) now
+  backs the member export too. New permission resources `report` (read/export)
+  and `member_import` (write); **`diocese_report_viewer` had no
+  `DEFAULT_PERMISSIONS` entry at all** — a silent-403 trap now fixed.
+  **Exit gate:** `tests/integration/api/r6-sensitive-leak.test.ts` poisons the
+  fixture parish with sentinel values and sweeps every registry report × role ×
+  json/csv, the member export per role, all ten diocese views, and every stored
+  webhook payload. Migrations `20260718020514_r6_reporting_integrations` +
+  `supabase/migrations/20260717000002_r6_reporting_integrations_rls.sql`.
+  **Deferred:** RP-3 ad-hoc query builder → R7; IN-1 public REST API + scoped
+  API keys → later (no consumer yet); real `.xlsx` export; Resend/Twilio
+  production adapters (the provider seam is stubbed — Stripe IN-6 *is* live).
+  Plans: [docs/releases/r6-reporting-integrations/](docs/releases/r6-reporting-integrations/).
 
 ## How to run
 

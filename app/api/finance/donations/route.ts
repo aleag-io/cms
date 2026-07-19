@@ -3,6 +3,7 @@ import { AuditOutcome, Role } from '@prisma/client';
 import { claimsFromUser, requireRole } from '@/lib/auth';
 import { withTenant } from '@/lib/db/withTenant';
 import { writeAuditEntry } from '@/lib/audit';
+import { emitWebhookEvent } from '@/lib/webhooks/emit';
 import { ApiError, handle } from '@/lib/api';
 import {
   optionalUuid,
@@ -184,6 +185,26 @@ export const POST = (request: Request) =>
         },
         include: { allocations: true },
       });
+
+      // Thin payload (D9): amount and category only — never donor attribution.
+      // Webhook subscriptions are parish-scoped, so diocese-level gifts
+      // (parishId null) have no subscriber to notify.
+      if (parishId) {
+        await emitWebhookEvent(tx, {
+          dioceseId,
+          parishId,
+          type: 'donation.posted',
+          entityId: donation.id,
+          payload: {
+            donationId: donation.id,
+            parishId,
+            amountCents: donation.amountCents.toString(),
+            method: donation.method,
+            categoryId: donation.categoryId ?? null,
+            receivedAt: donation.receivedAt.toISOString(),
+          },
+        });
+      }
 
       return { donation, journal };
     });

@@ -114,6 +114,8 @@ enum PermissionResource {
   FINANCE_LEDGER
   FINANCE_APPROVAL
   FINANCE_GIVING
+  REPORT
+  MEMBER_IMPORT
 }
 
 // ── R5 / M10: Finance & Giving ───────────────────────────────────────────────
@@ -474,6 +476,10 @@ model Diocese {
   givingCategories         GivingCategory[]
   stripeEvents             StripeEvent[]
   organizations            Organization[] @relation("DioceseOrganizations")
+  // R6 integrations
+  webhookSubscriptions     WebhookSubscription[]
+  webhookEvents            WebhookEvent[]
+  webhookDeliveries        WebhookDelivery[]
 }
 
 model Parish {
@@ -552,6 +558,10 @@ model Parish {
   givingStatements         GivingStatement[]
   givingCategories         GivingCategory[]
   stripeEvents             StripeEvent[]
+  // R6 integrations
+  webhookSubscriptions     WebhookSubscription[]
+  webhookEvents            WebhookEvent[]
+  webhookDeliveries        WebhookDelivery[]
 
   @@index([dioceseId])
 }
@@ -589,6 +599,7 @@ model AppUser {
   approvalRequestsAsMaker    ApprovalRequest[]          @relation("ApprovalRequestMaker")
   approvalDecisions          ApprovalDecision[]         @relation("ApprovalDecisionApprover")
   generatedGivingStatements  GivingStatement[]          @relation("GivingStatementGeneratedBy")
+  createdWebhookSubscriptions WebhookSubscription[]     @relation("WebhookSubscriptionCreatedBy")
 
   @@index([dioceseId, role])
   @@index([parishId, role])
@@ -1382,6 +1393,9 @@ model Account {
   name       String
   type       AccountType
   fundId     String?         @db.Uuid
+  /// Presentation grouping for the Receipts & Payments report (expense side).
+  /// Mirrors GivingCategory.section on the receipts side. Null → "Other payments".
+  reportSection String?
   isActive   Boolean         @default(true)
   createdAt  DateTime        @default(now())
   diocese    Diocese         @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
@@ -1913,4 +1927,83 @@ model GivingCategory {
   @@unique([ownerType, ownerId, name])
   @@index([dioceseId, ownerType, ownerId, section, sortOrder])
   @@index([parishId, ownerType, ownerId])
+}
+
+// ── R6 / M12: Outbound webhooks (IN-2) ───────────────────────────────────────
+
+enum WebhookDeliveryStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED // transient failure — will retry at nextAttemptAt
+  DEAD // max attempts exhausted
+}
+
+/// Parish-managed endpoint registration. `secret` signs deliveries (HMAC) and is
+/// therefore stored raw; RLS restricts SELECT to parish admins of the owning parish.
+model WebhookSubscription {
+  id              String            @id @default(uuid()) @db.Uuid
+  dioceseId       String            @db.Uuid
+  parishId        String            @db.Uuid
+  name            String
+  url             String
+  secret          String
+  /// Subscribed event types, validated against WEBHOOK_EVENTS (lib/webhooks/events.ts)
+  events          String[]          @default([])
+  isActive        Boolean           @default(true)
+  createdByUserId String            @db.Uuid
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  diocese         Diocese           @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish          Parish            @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  createdBy       AppUser           @relation("WebhookSubscriptionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  deliveries      WebhookDelivery[]
+
+  @@index([dioceseId, parishId, isActive])
+}
+
+/// Transactional outbox: domain routes insert one row in the same withTenant
+/// transaction as the domain write; the privileged worker fans out + delivers.
+model WebhookEvent {
+  id          String            @id @default(uuid()) @db.Uuid
+  dioceseId   String            @db.Uuid
+  parishId    String            @db.Uuid
+  type        String
+  entityId    String?           @db.Uuid
+  payload     Json
+  createdAt   DateTime          @default(now())
+  processedAt DateTime?
+  diocese     Diocese           @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish      Parish            @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  deliveries  WebhookDelivery[]
+
+  @@index([processedAt, createdAt])
+  @@index([dioceseId, parishId, type])
+}
+
+model WebhookDelivery {
+  id             String                @id @default(uuid()) @db.Uuid
+  dioceseId      String                @db.Uuid
+  parishId       String                @db.Uuid
+  subscriptionId String                @db.Uuid
+  eventId        String                @db.Uuid
+  /// Denormalized from WebhookEvent.type for the delivery-log UI
+  eventType      String
+  status         WebhookDeliveryStatus @default(PENDING)
+  attemptCount   Int                   @default(0)
+  nextAttemptAt  DateTime              @default(now())
+  lastAttemptAt  DateTime?
+  responseStatus Int?
+  lastError      String?
+  deliveredAt    DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  diocese        Diocese               @relation(fields: [dioceseId], references: [id], onDelete: Cascade)
+  parish         Parish                @relation(fields: [parishId], references: [id], onDelete: Cascade)
+  subscription   WebhookSubscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  event          WebhookEvent          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, eventId])
+  @@index([status, nextAttemptAt])
+  @@index([dioceseId, parishId, createdAt])
 }

@@ -3,23 +3,7 @@ import { claimsFromUser, requireRole } from '@/lib/auth';
 import { withTenant } from '@/lib/db/withTenant';
 import { handle } from '@/lib/api';
 import { projectMember } from '@/lib/projection';
-
-function escapeCsv(value: unknown): string {
-  let str = value === null || value === undefined ? '' : String(value);
-  // Neutralize spreadsheet formula injection (=, +, -, @ leading a cell).
-  if (/^[=+\-@]/.test(str)) {
-    str = `'${str}`;
-  }
-  if (
-    str.includes(',') ||
-    str.includes('"') ||
-    str.includes('\n') ||
-    str.includes('\r')
-  ) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
+import { escapeCsvCell as escapeCsv } from '@/lib/csv';
 
 function formatDate(value: Date | string | null | undefined): string {
   if (!value) return '';

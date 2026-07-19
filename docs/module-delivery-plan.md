@@ -44,8 +44,8 @@ RLS shipped, UI mostly not.
 | M8 | **Sacramental Records** | ✅ shipped (R4) | ✅ | SacramentalRecord register + pastoral date dual-write — [R4 plan](releases/r4-sacramental-liturgical/1-sacramental-records.md) |
 | M9 | **Liturgical Calendar** | ✅ shipped (R4) | ✅ | LiturgicalObservance diocese/parish + events overlay — [R4 plan](releases/r4-sacramental-liturgical/2-liturgical-calendar.md) |
 | M10 | **Finance & Giving** *(giving + ledger, one module)* | ❌ not built | ❌ | Donation, Campaign, Pledge, ChartOfAccounts, JournalEntry, Period, Budget, VendorBill, ApprovalRequest (planned) |
-| M11 | **Reporting & Analytics** | ❌ not built | ❌ | report/query/statement primitives (planned) |
-| M12 | **Integrations & API** | ⚠️ partial | n/a | cron jobs, Resend/Twilio/Stripe, CSV, webhooks |
+| M11 | **Reporting & Analytics** | ✅ shipped (R6) | ✅ | report registry + role-safe CSV/PDF exports, Receipts & Payments, policy + diocese dashboards — [R6 plan](releases/r6-reporting-integrations/1-reporting-analytics.md) |
+| M12 | **Integrations & API** | ✅ shipped (R6) *(REST API deferred)* | ✅ | webhooks (outbox + signed delivery), CSV import, cron jobs, Stripe — [R6 plan](releases/r6-reporting-integrations/2-integrations.md) |
 | M13 | **Public / Guest Experience** | ⚠️ partial | ❌ | public parish profile, calendar, contact, online-giving entry |
 | M14 | **Platform Hardening (NFR)** | ⚠️ continuous | ⚠️ continuous | performance, security, a11y, DR, observability |
 
@@ -191,8 +191,10 @@ same ledger, so it is one module, not two.
 - **Deferred from R3:** richer M3 advanced diocese dashboards (beyond `/diocese/aggregate`)
   → **R6 Reporting**.
 - **Fully backed + UI shipped (R4):** M8 (sacramental register), M9 (liturgical calendar).
-- **Greenfield:** M10 (finance & giving), M11 (reporting).
-- **Partial/continuous:** M12 (integrations), M13 (public), M14 (hardening).
+- **Fully backed + UI shipped (R5):** M10 (finance & giving).
+- **Fully backed + UI shipped (R6):** M11 (reporting), M12 (integrations — public REST API
+  deferred; RP-3 query builder moved to R7).
+- **Partial/continuous:** M13 (public), M14 (hardening).
 
 ---
 
@@ -252,11 +254,18 @@ tests + audit). Releases are additive and independently demoable to real parishe
   auto-journal.
 - **Phases:** 20.  **Outcome:** full parish/org accounting + stewardship, highest-correctness area.
 
-### R6 — Reporting & Analytics
+### R6 — Reporting & Analytics *(shipped)*
 - **Modules:** **M11** · **M12 (completion)**.
-- **Delivers:** standard reports + role-safe exports, ad-hoc query builder, statement packs, audit
-  reports, finance-policy dashboard, public REST API + webhooks.
+- **Delivers:** the report registry + role-safe CSV/PDF exports, the annual Receipts & Payments
+  statement, the Global Finance Approval Policy Dashboard (RP-9/DA-12), richer diocese Tier-2
+  dashboards (deferred from R3), outbound webhooks (transactional outbox + HMAC-signed delivery
+  with retry/dead-letter), and member CSV import.
 - **Phases:** 21.  **Outcome:** the data becomes decisions; external systems integrate.
+- **State:** ✅ complete. **Deferred:** RP-3 ad-hoc query builder → R7; IN-1 public REST API +
+  scoped API keys → later (no external consumer yet); real `.xlsx` export; Resend/Twilio
+  production adapters (seam stubbed; Stripe is live).
+- **Plans:** [`releases/r6-reporting-integrations/1-reporting-analytics.md`](releases/r6-reporting-integrations/1-reporting-analytics.md)
+  (M11) · [`releases/r6-reporting-integrations/2-integrations.md`](releases/r6-reporting-integrations/2-integrations.md) (M12).
 
 ### R7 — Public & Hardening
 - **Modules:** **M13** · **M14**.
@@ -274,7 +283,7 @@ tests + audit). Releases are additive and independently demoable to real parishe
 | R3 | M4 | — (UI only) | Data sovereignty operable | 12 (done) |
 | R4 | M8, M9 | ✅ | Sacramental records + liturgical calendar | R4 plans |
 | R5 | M10 | ✅ | Finance & giving (accounting + stewardship) | 20 |
-| R6 | M11, M12 | ✅ | Reports + integrations | 21 |
+| R6 | M11, M12 | ✅ (done) | Reports + integrations | 21 |
 | R7 | M13, M14 | ✅ | Public site + hardening | 13, 22 |
 
 ---
