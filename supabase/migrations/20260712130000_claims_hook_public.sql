@@ -112,6 +112,9 @@ REVOKE ALL ON FUNCTION public.custom_access_token_hook(jsonb) FROM PUBLIC;
 DO $$
 BEGIN
   IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
+    -- Invoker needs schema USAGE to resolve public.fn; EXECUTE alone
+    -- yields "permission denied for schema public" and breaks login.
+    GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
     GRANT EXECUTE
       ON FUNCTION public.custom_access_token_hook(jsonb)
       TO supabase_auth_admin;

@@ -43,9 +43,9 @@ After (1)+(2), a fresh push to any branch provisions a branch DB with the full s
 | Vercel project | `cms` (`prj_oTkVF8nRLxzyj8vkLxaLRgyPjoDP`), team `aleag` (`team_B5g2S7bXLq9Yb7ABS9FZx99D`), Node 24.x |
 | Vercel domains attached | `cms.aleag.io` (prod), `cms-aleag.vercel.app`, `cms-beta-ruby-44.vercel.app`, `cms-git-main-aleag.vercel.app` |
 | Supabase prod project | `cms` ref `nehywddvywocalnhuqig`, region `us-east-1`, Postgres 17, ACTIVE_HEALTHY |
-| Supabase branching | **Enabled & working.** `main` branch = prod project; PR #59 has an ephemeral branch DB `phxoklfceusvwkeddvxc` (persistent=false, with_data=false, ACTIVE_HEALTHY). Working dir = `supabase-branch/`. |
-| Env vars in Vercel | Only the **Supabase-integration** set (`SUPABASE_*`, `POSTGRES_*`) — a base set on Production/Preview/Development (→ prod DB) plus a **branch-scoped override** on `Preview (feature/r5-batch-donations)` (→ branch DB). |
-| Latest deployment | **ERROR** — commit `6b23088`, `errorCode: BUILD_FAILED`, `"Resource provisioning failed"`, failed in ~1.7s with no build logs (platform provisioning, not a code error). Prior commit `7eeb272` deployed READY. |
+| Supabase branching | **Enabled** for the persistent `preview` branch only. Per-PR ephemeral branch provisioning is **disabled** on the Vercel store connection (quota). Working dir for native branch migrations = `supabase-branch/`. |
+| Env vars in Vercel | Integration set (`SUPABASE_*`, `POSTGRES_*`) on All Environments → **prod** DB. Preview-wide `*_OVERRIDE` + `DATABASE_URL` → persistent preview DB `fnvayegctruotqnutswv` (see §6). |
+| Latest note | 2026-07-19: feature PR redeploys READY after disabling required `branch-project` actions (§6). |
 
 ### DB env-var mapping (confirmed — do NOT add `DATABASE_URL` to Vercel)
 - Runtime (`lib/prisma.ts`): `DATABASE_URL ?? POSTGRES_URL` (pooler + SSL). `POSTGRES_URL` is provisioned → works.
@@ -54,7 +54,7 @@ After (1)+(2), a fresh push to any branch provisions a branch DB with the full s
 
 ### Migration strategy per environment (as Copilot wired it — keep this)
 - **Production (main):** Vercel `npm run build` runs `db:migrate:all` against the prod DB (`POSTGRES_URL_NON_POOLING`). Schema + RLS land on deploy.
-- **Preview / per-branch:** the **Supabase branching integration** applies the merged migration bundle in `supabase-branch/supabase/migrations` to the ephemeral branch DB. The Vercel build **skips** `db:migrate:all` on preview (`MIGRATE_ON_PREVIEW` unset). **Do not set `MIGRATE_ON_PREVIEW=1`** — it would double-apply (harmless if idempotent, but redundant) and race the branch provisioning.
+- **Preview (git `preview` + feature PRs):** all Preview deploys use the **persistent** preview branch DB via `*_OVERRIDE` / `DATABASE_URL`. Supabase applies the `supabase-branch/` bundle when the git `preview` branch updates. The Vercel build **skips** `db:migrate:all` on preview (`MIGRATE_ON_PREVIEW` unset). **Do not set `MIGRATE_ON_PREVIEW=1`** on shared preview — it would race/double-apply against the dress-rehearsal path.
 - Keep `supabase-branch/` in sync: after any new Prisma or `supabase/` migration, run `npm run db:branch:generate` and commit; CI enforces via `npm run db:branch:check`.
 
 ## 2. Target topology (three tiers)
@@ -63,7 +63,7 @@ After (1)+(2), a fresh push to any branch provisions a branch DB with the full s
 | --- | --- | --- | --- | --- |
 | **Production** | Production (branch `main`) | `cms.aleag.io` | prod project `nehywddvywocalnhuqig` (branch `main`) | Vercel build `db:migrate:all` |
 | **Preview (stable)** | one designated long-lived branch, e.g. `staging` | `preview.cms.aleag.io` | **persistent** Supabase branch off prod | Supabase branching |
-| **Per-branch (ephemeral)** | every other branch / PR | auto `cms-git-<branch>-aleag.vercel.app` (optionally `*.cms.aleag.io`) | ephemeral Supabase branch per PR | Supabase branching |
+| **Per-branch (feature PR)** | every other branch / PR | auto `cms-git-<branch>-aleag.vercel.app` | **shared** persistent preview DB (ephemeral branching off — §6) | none at deploy; migrations on merge → git `preview` |
 
 ## 3. Requirements — Vercel
 
@@ -114,36 +114,48 @@ Register endpoints in the Stripe dashboard (each yields the `STRIPE_WEBHOOK_SECR
 - Preview: `https://preview.cms.aleag.io/api/webhooks/stripe` (test mode) — optional.
 `/api/webhooks/stripe` is already in the `proxy.ts` public allowlist and verifies the signature.
 
-## 6. BLOCKER — branch/preview deploys fail: "Resource provisioning failed"
+## 6. ~~BLOCKER~~ RESOLVED (2026-07-19) — "Resource provisioning failed"
 
-**Confirmed diagnosis (2026-07-12):** every deploy of a *non-main* branch fails at
-`errorCode: BUILD_FAILED / "Resource provisioning failed"` in ~2–4s **before the build starts**.
-Production (`main`) deploys succeed. Verified it is **not** code and **not** the committed CLI cache
-(removed it; still fails; the prior commit `7eeb272` built READY). It is the **Vercel Marketplace
-→ Supabase integration** failing to provision a per-Git-branch Supabase branch database for the
-deployment.
+**Was:** feature/PR preview deploys failed at
+`errorCode: BUILD_FAILED / "Resource provisioning failed"` in ~2s **before the build starts**,
+while `main` (prod) and the git `preview` branch still deployed. The Vercel Marketplace → Supabase
+store connection had:
 
-**Why:** the integration creates a separate Supabase branch DB per Git branch. The *first* provision
-for `feature/r5-batch-donations` succeeded (branch DB `phxoklfceusvwkeddvxc`, and commit `7eeb272`
-deployed READY). Every deploy since fails to provision — almost always because **branching has hit a
-plan/compute limit or billing state** (preview branches are billable compute; free/trial credit
-exhausted or branch cap reached), or the Marketplace integration connection is degraded.
+```json
+"deployments": { "actions": [{ "environments": ["preview"], "slug": "branch-project" }], "required": true }
+```
 
-**Fix — pick one (dashboard/billing; cannot be done from the CLI):**
-- **Option A (recommended, simplest path to "prod + preview functional"):** stop provisioning a
-  Supabase branch per Git branch. In Vercel → Project → Storage/Integrations → the Supabase
-  integration, **disable automatic per-branch branching**, and instead point **Preview** deployments
-  at ONE dedicated Supabase branch (the persistent `staging` branch in §4.2) via the Preview-scoped
-  env vars. Production keeps using the prod project. Result: no per-deploy provisioning, no failures.
-- **Option B:** in the Supabase dashboard → Branching, confirm the plan **allows branching** and has
-  compute budget; upgrade/repair billing so provisioning succeeds; then per-PR ephemeral branches
-  work again.
-- **Immediate validation without fixing this:** the last **READY** preview is commit `7eeb272`
-  (alias `cms-git-feature-r5-batch-donations-aleag.vercel.app`). Use it to test PR #59, or merge #59
-  to `main` (production deploys are unaffected).
+so every Preview deploy **required** a per-PR Supabase branch. With only the persistent
+`preview` branch (`fnvayegctruotqnutswv`) occupying the concurrent-branch quota, feature PRs
+hit the limit (supabase[bot]: "reaching the limit of concurrent preview branches") and Vercel
+aborted the deploy.
 
-**Already fixed here (code side):** removed the 7.6 MB Supabase CLI cache that Copilot committed under
-`supabase-branch/supabase/.temp` and added the missing `.gitignore` (commit `b5b98a6`).
+**Fix applied (2026-07-19):**
+1. **Disabled required per-PR branch provisioning** on the cms Supabase store connection
+   (`store_2dcw2mFdPYGudy6k` / `spc_tfII1QQ1ipe654al`):
+   `deployments.actions = []`, `deployments.required = false`.
+2. **Pointed all Preview deploys at the persistent preview DB** via Preview-scoped (no
+   `gitBranch`) env vars — the app already prefers these over integration-owned prod vars:
+   - `NEXT_PUBLIC_SUPABASE_URL_OVERRIDE`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY_OVERRIDE`
+   - `SUPABASE_SERVICE_ROLE_KEY_OVERRIDE`
+   - `DATABASE_URL` (wins over integration `POSTGRES_URL` in `lib/prisma.ts`)
+   Values come from `supabase --experimental branches get preview -o env` (ref
+   `fnvayegctruotqnutswv`). Git-branch-scoped copies for `preview` remain as before.
+
+**Validation (PR #67 redeploy):** deployment `dpl_5D2qbfQHHFiKxeqrYTLzSVRJeivb` → **READY**
+(~96s). `/api/health` reports `consistent: true` and both `auth` + `db` project ref
+`fnvayegctruotqnutswv` (not prod). Alias:
+`cms-git-feature-r6-reporting-integrations-aleag.vercel.app`.
+
+**Trade-off:** feature PR previews **share** the persistent preview Supabase branch DB (no
+ephemeral isolation). Re-enable `branch-project` only after the Supabase plan allows more
+concurrent branches; then clear the all-Preview `_OVERRIDE` / `DATABASE_URL` if you want
+true per-PR DBs again.
+
+**Do not** set `MIGRATE_ON_PREVIEW=1` on feature deploys while they share the preview DB —
+migrations land when the feature merges to git `preview` and Supabase branching applies the
+`supabase-branch/` bundle there (dress rehearsal).
 
 ## 7. Prioritized checklist
 1. [ ] Set the **app-secret env vars** (§3.1) for Production (and Preview where applicable). *Nothing Stripe/email/SMS/cron/Blob works in prod without these.*
