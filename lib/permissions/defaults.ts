@@ -30,6 +30,8 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['finance_ledger', ['read', 'write']],
     ['finance_approval', ['read', 'write']],
     ['finance_giving', ['read', 'write', 'export']],
+    ['report', ['read', 'export']],
+    ['member_import', ['write']],
   ]),
   diocese_admin: allow([
     ['member_profile', ['read', 'write', 'delete', 'export']],
@@ -37,6 +39,7 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['finance_ledger', ['read', 'write']],
     ['finance_approval', ['read', 'write']],
     ['finance_giving', ['read', 'write', 'export']],
+    ['report', ['read', 'export']],
   ]),
   diocese_staff: allow([
     ['member_profile', ['read']],
@@ -44,6 +47,13 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['finance_ledger', ['read', 'write']],
     ['finance_approval', ['read']],
     ['finance_giving', ['read', 'write']],
+    ['report', ['read']],
+  ]),
+  // R6: the reporting-only diocese role had no defaults entry at all, which
+  // silently 403'd every report/export gate.
+  diocese_report_viewer: allow([
+    ['parish_directory', ['read']],
+    ['report', ['read', 'export']],
   ]),
   parish_admin: allow([
     ['member_profile', ['read', 'write', 'delete', 'export']],
@@ -56,6 +66,8 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['finance_ledger', ['read', 'write']],
     ['finance_approval', ['read', 'write']],
     ['finance_giving', ['read', 'write', 'export']],
+    ['report', ['read', 'export']],
+    ['member_import', ['write']],
   ]),
   parish_staff: allow([
     ['member_profile', ['read', 'write']],
@@ -64,6 +76,7 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['finance_ledger', ['read', 'write']],
     ['finance_approval', ['read']],
     ['finance_giving', ['read', 'write']],
+    ['report', ['read']],
   ]),
   clergy: allow([
     ['member_profile', ['read']],
@@ -71,12 +84,14 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['member_pastoral_data', ['read', 'write']],
     ['member_sacramental_record', ['read', 'write', 'export']],
     ['parish_directory', ['read']],
+    ['report', ['read']],
   ]),
   pastoral_data_accessor: allow([
     ['member_profile', ['read']],
     ['member_pastoral_data', ['read', 'write']],
     ['member_sacramental_record', ['read', 'write', 'export']],
     ['parish_directory', ['read']],
+    ['report', ['read']],
   ]),
   ministry_leader: allow([
     ['member_profile', ['read']],
@@ -87,6 +102,7 @@ export const DEFAULT_PERMISSIONS: Record<string, ResourceActions> = {
     ['parish_directory', ['read']],
     ['finance_ledger', ['read', 'write']],
     ['finance_approval', ['read', 'write']],
+    ['report', ['read', 'export']],
   ]),
   member: allow([
     ['parish_directory', ['read']],

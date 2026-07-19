@@ -78,6 +78,9 @@ describe('visibleNavItems', () => {
       '/finance/budgets',
       '/finance/reconciliation',
       '/finance/giving-statements',
+      '/finance/reports',
+      '/reports',
+      '/settings/integrations',
     ]);
     expect(hrefs.some((h) => h.startsWith('/diocese'))).toBe(false);
     expect(hrefs).not.toContain('/parishes');
@@ -88,7 +91,13 @@ describe('visibleNavItems', () => {
       visibleNavItems(['diocese_report_viewer'], { portal: 'diocese' }).map(
         (item) => item.href,
       ),
-    ).toEqual(['/app', '/diocese/aggregate', '/diocese/finance']);
+    ).toEqual([
+      '/app',
+      '/diocese/aggregate',
+      '/diocese/finance',
+      '/diocese/finance/policies',
+      '/reports',
+    ]);
   });
 
   it('hides parish ops from diocese admin in diocese portal', () => {
@@ -120,6 +129,9 @@ describe('visibleNavItems', () => {
       '/finance/budgets',
       '/finance/reconciliation',
       '/finance/giving-statements',
+      '/finance/reports',
+      '/diocese/finance/policies',
+      '/reports',
     ]);
     expect(hrefs).not.toContain('/programs');
     expect(hrefs).not.toContain('/members');
@@ -156,6 +168,7 @@ describe('visibleNavItems', () => {
       '/events',
       '/facilities',
       '/settings/officers',
+      '/reports',
     ]);
   });
 
@@ -220,6 +233,7 @@ describe('navSectionsFromClaims', () => {
           '/events',
           '/facilities',
           '/messages',
+          '/reports',
         ],
       },
       { title: 'Sharing', items: ['/sharing'] },
@@ -231,6 +245,7 @@ describe('navSectionsFromClaims', () => {
           '/settings/users',
           '/settings/permissions',
           '/audit',
+          '/settings/integrations',
         ],
       },
       {
@@ -251,6 +266,7 @@ describe('navSectionsFromClaims', () => {
           '/finance/budgets',
           '/finance/reconciliation',
           '/finance/giving-statements',
+          '/finance/reports',
         ],
       },
     ]);
@@ -272,10 +288,12 @@ describe('navSectionsFromClaims', () => {
           '/diocese/users',
           '/diocese/aggregate',
           '/diocese/liturgical',
+          '/reports',
         ],
       },
       { title: 'Sharing', items: ['/sharing'] },
       { title: 'Administration', items: ['/audit'] },
+      // '/diocese/finance/policies' groups under Finance, not Diocese.
       {
         title: 'Finance',
         items: [
@@ -294,6 +312,8 @@ describe('navSectionsFromClaims', () => {
           '/finance/budgets',
           '/finance/reconciliation',
           '/finance/giving-statements',
+          '/finance/reports',
+          '/diocese/finance/policies',
         ],
       },
     ]);

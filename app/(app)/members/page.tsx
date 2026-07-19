@@ -202,6 +202,11 @@ export default function MembersPage() {
                             Export
                         </Button>
                         {canManage ? (
+                            <Button asChild variant="outline">
+                                <Link href="/members/import">Import CSV</Link>
+                            </Button>
+                        ) : null}
+                        {canManage ? (
                             <Button asChild>
                                 <Link href="/members/new">
                                     <PlusIcon className="mr-2 size-4" />

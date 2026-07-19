@@ -14,6 +14,8 @@ const DEFAULT_ACCOUNTS: Array<{
   name: string;
   type: AccountType;
   fundName?: string;
+  /** Payments-side grouping for the Receipts & Payments report (R6). */
+  reportSection?: string;
 }> = [
   { code: '1000', name: 'Operating Cash', type: 'ASSET', fundName: 'General' },
   { code: '1010', name: 'Building Cash', type: 'ASSET', fundName: 'Building' },
@@ -32,10 +34,10 @@ const DEFAULT_ACCOUNTS: Array<{
   { code: '4100', name: 'Building Fund Income', type: 'INCOME', fundName: 'Building' },
   { code: '4200', name: 'Missions Income', type: 'INCOME', fundName: 'Missions' },
   { code: '4210', name: 'Harvest (Donation/Auction)', type: 'INCOME', fundName: 'Missions' },
-  { code: '5000', name: 'Salaries & Wages', type: 'EXPENSE', fundName: 'General' },
-  { code: '5100', name: 'Utilities', type: 'EXPENSE', fundName: 'General' },
-  { code: '5200', name: 'Facilities & Maintenance', type: 'EXPENSE', fundName: 'Building' },
-  { code: '5300', name: 'Missions Expense', type: 'EXPENSE', fundName: 'Missions' },
+  { code: '5000', name: 'Salaries & Wages', type: 'EXPENSE', fundName: 'General', reportSection: 'Personnel' },
+  { code: '5100', name: 'Utilities', type: 'EXPENSE', fundName: 'General', reportSection: 'Operations' },
+  { code: '5200', name: 'Facilities & Maintenance', type: 'EXPENSE', fundName: 'Building', reportSection: 'Facilities' },
+  { code: '5300', name: 'Missions Expense', type: 'EXPENSE', fundName: 'Missions', reportSection: 'Missions & Outreach' },
 ];
 
 export async function seedDefaultChart(tx: Tx, ledger: LedgerRef) {
@@ -74,7 +76,17 @@ export async function seedDefaultChart(tx: Tx, ledger: LedgerRef) {
         code: def.code,
       },
     });
-    if (existing) continue;
+    if (existing) {
+      // Backfill the R6 report grouping onto charts seeded before it existed,
+      // otherwise those ledgers report every expense under "Other payments".
+      if (def.reportSection && existing.reportSection !== def.reportSection) {
+        await tx.account.update({
+          where: { id: existing.id },
+          data: { reportSection: def.reportSection },
+        });
+      }
+      continue;
+    }
     await tx.account.create({
       data: {
         dioceseId: ledger.dioceseId,
@@ -85,6 +97,7 @@ export async function seedDefaultChart(tx: Tx, ledger: LedgerRef) {
         name: def.name,
         type: def.type,
         fundId: def.fundName ? (fundIds.get(def.fundName) ?? null) : null,
+        reportSection: def.reportSection ?? null,
       },
     });
     createdAccounts += 1;

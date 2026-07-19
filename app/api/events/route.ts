@@ -3,6 +3,7 @@ import { AuditOutcome, EventType, Role } from '@prisma/client';
 import { claimsFromUser, requireRole } from '@/lib/auth';
 import { withTenant } from '@/lib/db/withTenant';
 import { writeAuditEntry } from '@/lib/audit';
+import { emitWebhookEvent } from '@/lib/webhooks/emit';
 import { ApiError, handle } from '@/lib/api';
 
 function requireParishId(parishId: string | null): string {
@@ -60,8 +61,8 @@ export const POST = (request: Request) =>
     if (endAt <= startAt)
       throw new ApiError(400, 'endAt must be after startAt');
 
-    const event = await withTenant(claims, (tx) =>
-      tx.event.create({
+    const event = await withTenant(claims, async (tx) => {
+      const created = await tx.event.create({
         data: {
           dioceseId: actor.dioceseId,
           parishId,
@@ -75,8 +76,24 @@ export const POST = (request: Request) =>
           facilityId: body.facilityId || null,
           isPublic: body.isPublic ?? true,
         },
-      }),
-    );
+      });
+
+      await emitWebhookEvent(tx, {
+        dioceseId: actor.dioceseId,
+        parishId,
+        type: 'event.created',
+        entityId: created.id,
+        payload: {
+          eventId: created.id,
+          parishId,
+          name: created.name,
+          eventType: created.eventType,
+          startAt: created.startAt.toISOString(),
+        },
+      });
+
+      return created;
+    });
 
     await writeAuditEntry({
       requestId,

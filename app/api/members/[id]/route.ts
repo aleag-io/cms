@@ -3,6 +3,7 @@ import { AuditOutcome, MemberStatus, Role } from '@prisma/client';
 import { requireRole, claimsFromUser } from '@/lib/auth';
 import { withTenant } from '@/lib/db/withTenant';
 import { writeAuditEntry } from '@/lib/audit';
+import { emitWebhookEvent } from '@/lib/webhooks/emit';
 import { ApiError, handle } from '@/lib/api';
 import { projectMember } from '@/lib/projection';
 
@@ -117,7 +118,7 @@ export const PATCH = (
       const existing = await tx.member.findFirst({ where: { id, parishId } });
       if (!existing) throw new ApiError(404, 'Member not found');
 
-      return tx.member.update({
+      const updated = await tx.member.update({
         where: { id },
         data: {
           ...(body.firstName && { firstName: body.firstName.trim() }),
@@ -143,6 +144,21 @@ export const PATCH = (
         },
         include: { family: true, privateNote: true, pastoralData: true },
       });
+
+      await emitWebhookEvent(tx, {
+        dioceseId: actor.dioceseId,
+        parishId,
+        type: 'member.updated',
+        entityId: updated.id,
+        payload: {
+          memberId: updated.id,
+          parishId,
+          memberIdentifier: updated.memberIdentifier,
+          status: updated.status,
+        },
+      });
+
+      return updated;
     });
 
     await writeAuditEntry({
