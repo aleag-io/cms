@@ -74,6 +74,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { assertSeedTargetSafe } from '../lib/seed-guard';
 import { seedFinanceData, type FinanceParishBundle } from './seed-finance';
+import { WEBHOOK_EVENTS } from '../lib/webhooks/events';
 
 // ── env ──────────────────────────────────────────────────────────────────────
 
@@ -619,6 +620,9 @@ async function truncateAll() {
   await prisma.$executeRawUnsafe(`
     TRUNCATE
       "AuditEntry",
+      "WebhookDelivery",
+      "WebhookEvent",
+      "WebhookSubscription",
       "StripeEvent",
       "GivingStatement",
       "BankStatementLine",
@@ -1048,6 +1052,92 @@ const LOGIN_ACCOUNTS = [
 type LoginKey = (typeof LOGIN_ACCOUNTS)[number]['key'];
 
 // ── main seed ────────────────────────────────────────────────────────────────
+
+/**
+ * R6 / M12 — webhook endpoints plus a delivery log covering every status, so
+ * `/settings/integrations` is populated on a fresh seed.
+ */
+async function seedIntegrationsDemo(
+  dioceseId: string,
+  parish: FinanceParishBundle | undefined,
+): Promise<{ subscriptions: number; deliveries: number }> {
+  if (!parish) return { subscriptions: 0, deliveries: 0 };
+
+  const active = await prisma.webhookSubscription.create({
+    data: {
+      dioceseId,
+      parishId: parish.id,
+      name: 'Demo receiver',
+      url: 'https://example.com/webhooks/cms',
+      // Fixed so the demo secret is stable across reseeds; real endpoints get
+      // a random secret from the API.
+      secret: 'whsec_demo_0000000000000000000000000000000000000000000000000000',
+      events: [...WEBHOOK_EVENTS],
+      createdByUserId: parish.adminUserId,
+    },
+  });
+  await prisma.webhookSubscription.create({
+    data: {
+      dioceseId,
+      parishId: parish.id,
+      name: 'Legacy CRM (paused)',
+      url: 'https://example.org/legacy/hook',
+      secret: 'whsec_demo_1111111111111111111111111111111111111111111111111111',
+      events: ['member.created', 'member.updated'],
+      isActive: false,
+      createdByUserId: parish.adminUserId,
+    },
+  });
+
+  const now = Date.now();
+  const samples: Array<{
+    type: string;
+    status: 'DELIVERED' | 'FAILED' | 'DEAD';
+    attemptCount: number;
+    responseStatus: number | null;
+    lastError: string | null;
+  }> = [
+    { type: 'member.created', status: 'DELIVERED', attemptCount: 1, responseStatus: 200, lastError: null },
+    { type: 'donation.posted', status: 'DELIVERED', attemptCount: 1, responseStatus: 200, lastError: null },
+    { type: 'donation_batch.posted', status: 'FAILED', attemptCount: 2, responseStatus: 500, lastError: 'HTTP 500' },
+    { type: 'event.created', status: 'DEAD', attemptCount: 6, responseStatus: 502, lastError: 'HTTP 502' },
+  ];
+
+  let deliveries = 0;
+  for (const [index, sample] of samples.entries()) {
+    const createdAt = new Date(now - (index + 1) * 3_600_000);
+    const event = await prisma.webhookEvent.create({
+      data: {
+        dioceseId,
+        parishId: parish.id,
+        type: sample.type,
+        payload: { demo: true, parishId: parish.id },
+        createdAt,
+        processedAt: createdAt,
+      },
+    });
+    await prisma.webhookDelivery.create({
+      data: {
+        dioceseId,
+        parishId: parish.id,
+        subscriptionId: active.id,
+        eventId: event.id,
+        eventType: sample.type,
+        status: sample.status,
+        attemptCount: sample.attemptCount,
+        responseStatus: sample.responseStatus,
+        lastError: sample.lastError,
+        lastAttemptAt: createdAt,
+        deliveredAt: sample.status === 'DELIVERED' ? createdAt : null,
+        nextAttemptAt: createdAt,
+        createdAt,
+      },
+    });
+    deliveries += 1;
+  }
+
+  return { subscriptions: 2, deliveries };
+}
 
 async function seed() {
   const keep = process.argv.includes('--keep');
@@ -2346,6 +2436,16 @@ async function seed() {
     `     finance ledgers=${financeCounts.ledgers} donations=${financeCounts.donations} journals=${financeCounts.journals}`,
   );
 
+  // ── R6: integrations demo (webhook endpoints + delivery log) ─────────────
+  console.log('   Integrations (webhooks)…');
+  const integrationCounts = await seedIntegrationsDemo(
+    dioceseId,
+    financeParishes[0],
+  );
+  console.log(
+    `     webhooks subscriptions=${integrationCounts.subscriptions} deliveries=${integrationCounts.deliveries}`,
+  );
+
   // ── Audit samples ────────────────────────────────────────────────────────
   console.log('   Audit entries…');
   await prisma.auditEntry.createMany({
@@ -2428,6 +2528,8 @@ async function seed() {
     orgLedgers: await prisma.organization.count({
       where: { hasOwnLedger: true },
     }),
+    webhookSubscriptions: await prisma.webhookSubscription.count(),
+    webhookDeliveries: await prisma.webhookDelivery.count(),
   };
 
   console.log('\n✅ Seed complete');

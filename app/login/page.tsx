@@ -55,7 +55,13 @@ function LoginForm() {
     });
 
     if (authError) {
-      setError("root", { message: authError.message });
+      // GoTrue 500s (e.g. broken access-token hook) sometimes leave message
+      // empty; surface code/status so the UI is never a blank "{}".
+      const detail =
+        authError.message?.trim() ||
+        (authError as { code?: string }).code ||
+        "Sign-in failed";
+      setError("root", { message: detail });
       return;
     }
 

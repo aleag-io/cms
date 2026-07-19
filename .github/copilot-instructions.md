@@ -124,6 +124,33 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   register (schema/RLS/API/UI/certificates) + M9 liturgical calendar (diocese
   publish + events overlay). Plans under
   [docs/releases/r4-sacramental-liturgical/](../docs/releases/r4-sacramental-liturgical/).
+- **Release R5 — Finance & Giving (M10) — complete.** Double-entry ledger with
+  DB-enforced balancing, period lock + audited reopen, posted-entry immutability
+  (reversing entries only), polymorphic diocese/parish/organization ledgers, and a
+  config-driven maker-checker engine backed by a DB approval gate. Donations
+  (family-default, member attribution per PA-22), campaigns/pledges, vendor bills &
+  payments, budgets, CSV bank reconciliation, idempotent Stripe ingestion, annual
+  giving statements, batch giving entry + `GivingCategory` (a posted batch writes ONE
+  consolidated deposit journal). Money is integer cents (BIGINT). Full `/finance/*` UI.
+  Plan: [docs/releases/r5-finance-giving/](../docs/releases/r5-finance-giving/).
+- **Release R6 — Reporting & Integrations (M11, M12) — complete.** Code-defined report
+  registry (`lib/reports/`) served by one generic route pair (`GET /api/reports`,
+  `GET /api/reports/[id]?format=json|csv|pdf`); flat report rows let one CSV renderer,
+  one PDF renderer, and the cross-cutting leak gate iterate every report generically.
+  Flagship annual cash-basis **Receipts & Payments** statement (giving categories by
+  section, expenses by the new `Account.reportSection`, Budget/Actual/Variance), plus
+  membership/sacramental/attendance/giving/pledge/budget/fund reports and diocese-scope
+  aggregates. `/reports`, `/finance/reports`, `/diocese/finance/policies` (RP-9/DA-12),
+  extended `/diocese/aggregate`. Seven new self-securing Tier-2 views. **Webhooks** use a
+  transactional outbox — routes append a thin `WebhookEvent` in the same `withTenant` txn;
+  a privileged cron worker fans out and delivers HMAC-signed POSTs with backoff and
+  dead-lettering. *(Gotcha: `emitWebhookEvent` uses `createMany` — `create` emits
+  `RETURNING`, which Postgres checks against the SELECT policy parish staff deliberately
+  lack.)* Member CSV import (dry-run → commit, partial success). New permission resources
+  `report` and `member_import`. Exit gate: `tests/integration/api/r6-sensitive-leak.test.ts`.
+  **Deferred:** ad-hoc query builder → R7; public REST API + API keys → later; `.xlsx`;
+  Resend/Twilio production adapters. Plans:
+  [docs/releases/r6-reporting-integrations/](../docs/releases/r6-reporting-integrations/).
 
 ## How to run
 

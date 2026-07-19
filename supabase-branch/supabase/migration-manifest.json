@@ -240,7 +240,31 @@
       "sourceVersion": "20260712130000",
       "nativeVersion": "20260712130000",
       "output": "20260712130000_claims_hook_public.sql",
-      "sha256": "c3fa760d68fa4e0cb25f4d8102c7a3e84ac7ef6fb5a34d74ce90229a9b1c5199"
+      "sha256": "88533f47b7a9f62f731d0fbc3ef82c6c77dd1eb9a5963859d6b0d6bf6c5a0e98"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260717000002_r6_reporting_integrations_rls.sql",
+      "sourceVersion": "20260717000002",
+      "nativeVersion": "20260717000002",
+      "output": "20260717000002_r6_reporting_integrations_rls.sql",
+      "sha256": "98cac8faf0299d4be5c1c12753a5a5720b42aaae3deba14748000a9306f76f1e"
+    },
+    {
+      "kind": "prisma",
+      "source": "prisma/migrations/20260718020514_r6_reporting_integrations/migration.sql",
+      "sourceVersion": "20260718020514",
+      "nativeVersion": "20260718020514",
+      "output": "20260718020514_prisma_20260718020514_r6_reporting_integrations.sql",
+      "sha256": "6cfcb7dc4df7b15087d7855b4d6ea27c6a7f8c0cf81944360139c7515626d9c3"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260719130000_grant_auth_admin_public_schema.sql",
+      "sourceVersion": "20260719130000",
+      "nativeVersion": "20260719130000",
+      "output": "20260719130000_grant_auth_admin_public_schema.sql",
+      "sha256": "d2ee839a340194214c9d46abdf39e271ae99820468c8a705225fe1df494d714b"
     }
   ]
 }

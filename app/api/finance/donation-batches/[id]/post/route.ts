@@ -3,6 +3,7 @@ import { AuditOutcome, Role } from '@prisma/client';
 import { claimsFromUser, requireRole } from '@/lib/auth';
 import { withTenant } from '@/lib/db/withTenant';
 import { writeAuditEntry } from '@/lib/audit';
+import { emitWebhookEvent } from '@/lib/webhooks/emit';
 import { ApiError, handle } from '@/lib/api';
 import { requireUuid } from '@/lib/finance/validate';
 import { findCoveringPeriod, postJournalEntry } from '@/lib/finance/posting';
@@ -92,6 +93,23 @@ export const POST = (
         },
       });
       await tx.donation.updateMany({ where: { batchId: id }, data: { journalEntryId: entry.id } });
+
+      if (updated.parishId) {
+        await emitWebhookEvent(tx, {
+          dioceseId: updated.dioceseId,
+          parishId: updated.parishId,
+          type: 'donation_batch.posted',
+          entityId: updated.id,
+          payload: {
+            batchId: updated.id,
+            parishId: updated.parishId,
+            totalCents: total.toString(),
+            donationCount: batch.donations.length,
+            batchDate: updated.batchDate.toISOString().slice(0, 10),
+          },
+        });
+      }
+
       return { batch: updated, journalEntryId: entry.id, total, count: batch.donations.length };
     });
 

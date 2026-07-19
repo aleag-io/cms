@@ -497,23 +497,31 @@ async function seedLedgerSkeleton(
       fiscalYear: 2026,
       status: 'APPROVED',
       lines: {
+        // Every giving-category income account and every expense account gets a
+        // line so the R6 Receipts & Payments report shows a budget column on
+        // each row rather than a column of dashes.
         create: [
-          {
-            accountId: byCode.get('4000')!.id,
-            originalCents: cents(200_000_00),
-            revisedCents: cents(210_000_00),
-          },
-          {
-            accountId: byCode.get('5000')!.id,
-            originalCents: cents(80_000_00),
-            revisedCents: cents(82_000_00),
-          },
-          {
-            accountId: byCode.get('5100')!.id,
-            originalCents: cents(12_000_00),
-            revisedCents: cents(12_000_00),
-          },
-        ],
+          { code: '4000', original: 200_000_00, revised: 210_000_00 },
+          { code: '4110', original: 90_000_00, revised: 92_000_00 },
+          { code: '4120', original: 40_000_00, revised: 41_000_00 },
+          { code: '4130', original: 6_000_00, revised: 6_000_00 },
+          { code: '4140', original: 12_000_00, revised: 12_500_00 },
+          { code: '4150', original: 15_000_00, revised: 15_000_00 },
+          { code: '4160', original: 4_000_00, revised: 4_000_00 },
+          { code: '4100', original: 60_000_00, revised: 65_000_00 },
+          { code: '4200', original: 25_000_00, revised: 25_000_00 },
+          { code: '4210', original: 18_000_00, revised: 19_000_00 },
+          { code: '5000', original: 80_000_00, revised: 82_000_00 },
+          { code: '5100', original: 12_000_00, revised: 12_000_00 },
+          { code: '5200', original: 22_000_00, revised: 23_500_00 },
+          { code: '5300', original: 20_000_00, revised: 20_000_00 },
+        ]
+          .filter((line) => byCode.has(line.code))
+          .map((line) => ({
+            accountId: byCode.get(line.code)!.id,
+            originalCents: cents(line.original),
+            revisedCents: cents(line.revised),
+          })),
       },
     },
   });

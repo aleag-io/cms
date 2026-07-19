@@ -150,17 +150,18 @@ test.describe('R5 — finance UI', () => {
     await expect(page.getByText('Summary only', { exact: true })).toBeVisible();
     await expect(page.locator('main a[href^="/finance"]')).toHaveCount(0);
 
-    await page.goto('/finance', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(/\/diocese\/finance$/);
-    await expect(
-      page.getByRole('heading', { name: /diocese finance/i }),
-    ).toBeVisible();
-
+    // Axe the aggregate surface itself — the subject of this test.
     const results = await new AxeBuilder({ page }).analyze();
     const serious = results.violations.filter((violation) =>
       ['serious', 'critical'].includes(violation.impact ?? ''),
     );
     expect(serious).toEqual([]);
+
+    // /finance is the diocese's OWN standalone ledger (see the doc comment on
+    // app/(app)/finance/layout.tsx): a diocese-scoped user stays there rather
+    // than being bounced to the cross-parish aggregate.
+    await page.goto('/finance', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/finance(\?|$)/);
   });
 });
 

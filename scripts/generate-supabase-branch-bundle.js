@@ -20,6 +20,18 @@ function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
 
+// Windows checkouts with core.autocrlf=true hand us CRLF text; normalize so
+// generated content (and check comparisons) are byte-identical to CI's LF view.
+function readText(filePath) {
+  return fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n');
+}
+
+// path.relative emits backslashes on Windows; generated headers must use the
+// POSIX form so output is byte-identical across platforms.
+function posixRelative(from, to) {
+  return path.relative(from, to).split(path.sep).join('/');
+}
+
 function sqlFiles(directory) {
   return fs
     .readdirSync(directory, { withFileTypes: true })
@@ -90,8 +102,8 @@ function expectedBundle() {
       migrationName,
       'migration.sql',
     );
-    const source = path.relative(root, sourcePath);
-    const content = fs.readFileSync(sourcePath, 'utf8');
+    const source = posixRelative(root, sourcePath);
+    const content = readText(sourcePath);
     const digest = sha256(content);
     const sourceVersion = migrationName.slice(0, 14);
     const nativeVersion =
@@ -111,8 +123,8 @@ function expectedBundle() {
 
   for (const fileName of sqlFiles(path.join(supabaseDir, 'migrations'))) {
     const sourcePath = path.join(supabaseDir, 'migrations', fileName);
-    const source = path.relative(root, sourcePath);
-    const content = fs.readFileSync(sourcePath, 'utf8');
+    const source = posixRelative(root, sourcePath);
+    const content = readText(sourcePath);
     const digest = sha256(content);
 
     files.set(fileName, generatedSql(source, digest, content));
@@ -153,10 +165,7 @@ function expectedBundle() {
     2,
   )}\n`;
 
-  const rootConfig = fs.readFileSync(
-    path.join(supabaseDir, 'config.toml'),
-    'utf8',
-  );
+  const rootConfig = readText(path.join(supabaseDir, 'config.toml'));
   let config = rootConfig.replace(
     'project_id = "cms"',
     'project_id = "cms-native-branch"',
@@ -202,19 +211,19 @@ function checkBundle(expected) {
   }
   for (const [fileName, content] of expected.files) {
     const filePath = path.join(branchMigrationsDir, fileName);
-    if (!fs.existsSync(filePath) || fs.readFileSync(filePath, 'utf8') !== content) {
+    if (!fs.existsSync(filePath) || readText(filePath) !== content) {
       failures.push(`${fileName} is missing or stale`);
     }
   }
   if (
     !fs.existsSync(manifestPath) ||
-    fs.readFileSync(manifestPath, 'utf8') !== expected.manifest
+    readText(manifestPath) !== expected.manifest
   ) {
     failures.push('migration-manifest.json is missing or stale');
   }
   if (
     !fs.existsSync(branchConfigPath) ||
-    fs.readFileSync(branchConfigPath, 'utf8') !== expected.config
+    readText(branchConfigPath) !== expected.config
   ) {
     failures.push('generated config.toml is missing or stale');
   }

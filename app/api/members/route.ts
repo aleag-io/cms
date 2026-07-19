@@ -3,6 +3,7 @@ import { AuditOutcome, MemberStatus, Role } from '@prisma/client';
 import { requireRole, claimsFromUser } from '@/lib/auth';
 import { withTenant } from '@/lib/db/withTenant';
 import { writeAuditEntry } from '@/lib/audit';
+import { emitWebhookEvent } from '@/lib/webhooks/emit';
 import { ApiError, handle } from '@/lib/api';
 import { deriveMemberIdentifier } from '@/lib/member-identifier';
 import { projectDirectoryMember, projectMember } from '@/lib/projection';
@@ -114,7 +115,7 @@ export const POST = (request: Request) =>
         ? deriveMemberIdentifier(family.familyNumber, inFamilyIndex)
         : `UNASSIGNED.${inFamilyIndex}`;
 
-      return tx.member.create({
+      const created = await tx.member.create({
         data: {
           dioceseId: actor.dioceseId,
           parishId,
@@ -134,6 +135,21 @@ export const POST = (request: Request) =>
         },
         include: { family: true, privateNote: true, pastoralData: true },
       });
+
+      await emitWebhookEvent(tx, {
+        dioceseId: actor.dioceseId,
+        parishId,
+        type: 'member.created',
+        entityId: created.id,
+        payload: {
+          memberId: created.id,
+          parishId,
+          memberIdentifier: created.memberIdentifier,
+          status: created.status,
+        },
+      });
+
+      return created;
     });
 
     await withTenant(claims, async (tx) => {

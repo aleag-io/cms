@@ -384,6 +384,50 @@ export const NAV_ITEMS: NavItem[] = [
     portals: ['diocese'],
     roles: ['diocese_report_viewer'],
   },
+  // R6 — Reporting & Analytics
+  {
+    title: 'Financial Reports',
+    href: '/finance/reports',
+    section: 'Finance',
+    portals: ['parish', 'diocese'],
+    roles: [
+      'global_admin',
+      'diocese_admin',
+      'diocese_staff',
+      'parish_admin',
+      'parish_staff',
+      'organization_leader',
+    ],
+  },
+  {
+    title: 'Approval Policies',
+    href: '/diocese/finance/policies',
+    section: 'Finance',
+    portals: ['diocese'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'diocese_report_viewer'],
+  },
+  {
+    title: 'Reports',
+    href: '/reports',
+    section: 'Parish',
+    portals: ['parish'],
+    roles: ['parish_admin', 'parish_staff', 'clergy', 'pastoral_data_accessor'],
+  },
+  {
+    title: 'Reports',
+    href: '/reports',
+    section: 'Diocese',
+    portals: ['diocese'],
+    roles: ['global_admin', 'diocese_admin', 'diocese_staff', 'diocese_report_viewer'],
+  },
+  // R6 — Integrations (M12)
+  {
+    title: 'Integrations',
+    href: '/settings/integrations',
+    section: 'Administration',
+    portals: ['parish'],
+    roles: ['global_admin', 'parish_admin'],
+  },
 ];
 
 export type NavSection = {
