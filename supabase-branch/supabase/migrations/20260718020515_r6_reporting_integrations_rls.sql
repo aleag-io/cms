@@ -1,5 +1,5 @@
 -- GENERATED FILE - DO NOT EDIT.
--- Source: supabase/migrations/20260717000002_r6_reporting_integrations_rls.sql
+-- Source: supabase/migrations/20260718020515_r6_reporting_integrations_rls.sql
 -- SHA-256: 98cac8faf0299d4be5c1c12753a5a5720b42aaae3deba14748000a9306f76f1e
 
 -- R6 / M11+M12 — Reporting & Integrations RLS
