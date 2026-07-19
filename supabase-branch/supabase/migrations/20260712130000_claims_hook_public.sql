@@ -1,6 +1,6 @@
 -- GENERATED FILE - DO NOT EDIT.
 -- Source: supabase/migrations/20260712130000_claims_hook_public.sql
--- SHA-256: c3fa760d68fa4e0cb25f4d8102c7a3e84ac7ef6fb5a34d74ce90229a9b1c5199
+-- SHA-256: 88533f47b7a9f62f731d0fbc3ef82c6c77dd1eb9a5963859d6b0d6bf6c5a0e98
 
 -- Install the access-token hook in public. Hosted and local Supabase reserve
 -- ownership of the auth schema, so native branch migration runners cannot
@@ -116,6 +116,9 @@ REVOKE ALL ON FUNCTION public.custom_access_token_hook(jsonb) FROM PUBLIC;
 DO $$
 BEGIN
   IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
+    -- Invoker needs schema USAGE to resolve public.fn; EXECUTE alone
+    -- yields "permission denied for schema public" and breaks login.
+    GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
     GRANT EXECUTE
       ON FUNCTION public.custom_access_token_hook(jsonb)
       TO supabase_auth_admin;
