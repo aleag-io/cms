@@ -31,13 +31,19 @@ feature/x ──PR──▶ preview  (QA/UAT on preview.cms.aleag.io)  ──rel
 
 ## QA / UAT on preview
 
-- Test users work on `preview.cms.aleag.io` (seeded login in
-  `supabase-branch/supabase/seed.sql`: `preview.admin@example.invalid` /
-  `Preview@Local1`).
+- **Full demo data** (recommended for capability tours): run
+  `npm run db:seed:preview` with preview DB + Supabase service-role env set.
+  See [demo-data.md](./demo-data.md) for logins (`admin@cms.local` /
+  `Admin@Local1`), volumes, and walkthrough checklist.
+- **Bootstrap-only** login after a raw branch reset (before full seed):
+  `preview.admin@example.invalid` / `Preview@Local1` from
+  `supabase-branch/supabase/seed.sql`.
 - Multiple in-flight features are exercised **together** here before prod.
 - Check `https://preview.cms.aleag.io/api/health` — must show project ref
   `fnvayegctruotqnutswv` and `consistent: true`. If it shows the prod ref, the
   env overrides are broken (see §Environment wiring).
+- Preview data is **disposable**. Reseeding TRUNCATEs tenant tables — coordinate
+  with open QA. Production seed is never allowed (guarded by project ref).
 
 ## Releasing to production
 

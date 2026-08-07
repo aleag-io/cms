@@ -39,6 +39,8 @@
     "db:migrate": "npm run prisma:migrate:dev && npm run db:apply-rls",
     "db:reset": "prisma migrate reset --force && npm run prisma:generate && npm run db:apply-rls",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:demo": "SEED_PROFILE=demo tsx prisma/seed.ts",
+    "db:seed:preview": "bash scripts/seed-preview.sh",
     "db:branch:generate": "node scripts/generate-supabase-branch-bundle.js",
     "db:branch:check": "node scripts/generate-supabase-branch-bundle.js --check",
     "db:ensure-local-admin": "node scripts/ensure-local-admin.js",

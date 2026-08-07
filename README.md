@@ -85,12 +85,24 @@ Native Supabase branches use the generated deployment bundle in
 **Working directory** `supabase-branch`, not the repository root.
 
 The bundle combines the canonical Prisma schema migrations and Supabase RLS
-migrations in dependency order. It also contains a non-destructive synthetic
-SQL seed with this disposable preview login:
+migrations in dependency order. It also contains a minimal SQL bootstrap login
+(after branch reset only):
 
 ```text
 preview.admin@example.invalid / Preview@Local1
 ```
+
+For a full capability-demo dataset on preview (members, finance, programs,
+sharing, etc.), run the TypeScript seed against the preview DB:
+
+```bash
+# Requires preview DATABASE_URL + Supabase service role (never production)
+npm run db:seed:preview
+```
+
+Logins after full seed: `admin@cms.local` / `Admin@Local1` (and other roles —
+see [docs/ops/demo-data.md](docs/ops/demo-data.md)). Local dense data:
+`npm run db:seed:demo`.
 
 After adding or changing a migration or `supabase/config.toml`, regenerate and
 commit the bundle:

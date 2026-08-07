@@ -180,7 +180,7 @@ export function JournalEntryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit journal entry" : "New journal entry"}</DialogTitle>
           <DialogDescription>
@@ -190,7 +190,7 @@ export function JournalEntryDialog({
         </DialogHeader>
 
         <div className="grid gap-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="je-date">Date</Label>
               <Input id="je-date" type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
@@ -208,9 +208,15 @@ export function JournalEntryDialog({
           <div className="grid gap-2">
             <Label>Lines</Label>
             {lines.map((line, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div
+                key={i}
+                className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_8rem_auto]"
+              >
                 <Select value={line.accountId} onValueChange={(v) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, accountId: v } : l)))}>
-                  <SelectTrigger className="flex-1" aria-label={`Account for line ${i + 1}`}>
+                  <SelectTrigger
+                    className="col-span-3 w-full min-w-0 sm:col-span-1"
+                    aria-label={`Account for line ${i + 1}`}
+                  >
                     <SelectValue placeholder="Account" />
                   </SelectTrigger>
                   <SelectContent>
@@ -222,7 +228,7 @@ export function JournalEntryDialog({
                   </SelectContent>
                 </Select>
                 <Select value={line.direction} onValueChange={(v) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, direction: v as Line["direction"] } : l)))}>
-                  <SelectTrigger className="w-28" aria-label={`Direction for line ${i + 1}`}>
+                  <SelectTrigger className="w-full" aria-label={`Direction for line ${i + 1}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -231,7 +237,7 @@ export function JournalEntryDialog({
                   </SelectContent>
                 </Select>
                 <Input
-                  className="w-32 text-right tabular-nums"
+                  className="w-full text-right tabular-nums"
                   inputMode="decimal"
                   placeholder="0.00"
                   aria-label={`Amount for line ${i + 1}`}
