@@ -1,6 +1,11 @@
--- Native Supabase branch seed.
+-- Native Supabase branch seed (minimal bootstrap after branch create/reset).
 -- Synthetic data only. Supabase branching does not run seed files in production.
 -- Disposable login: preview.admin@example.invalid / Preview@Local1
+--
+-- For a full capability-demo dataset (members, finance, ops, sharing), run the
+-- TypeScript demo seed against this branch instead:
+--   npm run db:seed:preview
+-- See docs/ops/demo-data.md.
 
 BEGIN;
 

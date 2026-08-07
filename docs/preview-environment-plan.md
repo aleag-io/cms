@@ -108,7 +108,8 @@ continues to invoke `npm run db:migrate:all`.
 
 - [ ] Enable preview deployment protection unless anonymous access is specifically required.
 - [ ] Document who may access the preview Supabase dashboard and rotate its credentials.
-- [ ] Establish a reset procedure that rebuilds preview from migrations and synthetic seed data.
+- [x] Establish a reset procedure that rebuilds preview from migrations and synthetic seed data
+  (`npm run db:seed:preview` + `docs/ops/demo-data.md`; branch reset re-applies migrations + minimal SQL bootstrap).
 - [ ] Configure a spending limit or alert for the preview Supabase project and external vendors.
 - [ ] Add a visible preview-environment indicator in the UI if stakeholder confusion with
   production is likely.
