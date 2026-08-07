@@ -41,7 +41,8 @@ export function StatCards({ dashboard }: { dashboard: DashboardDto }) {
       value: stats.newMembersLast30Days,
       hint: "Recently added members",
       icon: <UserPlusIcon className="size-5" />,
-      href: mode === "member" ? undefined : "/members",
+      // Diocese mode never links to a parish-ops members list.
+      href: mode === "parish" ? "/members" : undefined,
     },
     {
       title: "Needs attention",

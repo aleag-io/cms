@@ -1,30 +1,31 @@
 /**
- * Development demo seed — populates a full diocese for local UI/API exploration.
+ * Development demo seed — populates a full diocese for local UI/API exploration
+ * and (with SEED_PROFILE=demo) a denser preview-environment capability tour.
  *
  * Usage:
- *   npm run db:seed
- *   npm run db:seed -- --keep   # skip truncate (append fails on unique constraints)
+ *   npm run db:seed                  # local profile (default, fast)
+ *   npm run db:seed:demo             # denser demo volumes
+ *   npm run db:seed:preview          # demo + remote-safe apply (needs env)
+ *   npm run db:seed -- --keep        # skip truncate (append fails on unique constraints)
+ *
+ * Profiles (`SEED_PROFILE=local|demo`) — see lib/seed-profile.ts.
+ * Optional overrides: SEED_FAMILY_MULTIPLIER, SEED_FINANCE_FULL_PARISHES,
+ * SEED_BATCH_MONTHS, SEED_SECONDARY_FRACTION.
  *
  * Safety (this script TRUNCATEs tenant tables, including audit):
  *   - Default: only local DB hosts (`localhost`, `127.0.0.1`, `::1`).
  *   - Non-local / cloud hosts require `SEED_ALLOW_REMOTE=1` (or `ALLOW_DEMO_SEED=1`).
- *   - Never point DATABASE_URL at production and run seed without the flag —
- *     `vercel env pull` can put remote URLs in `.env.local`.
+ *   - Production Supabase project is always refused (see lib/seed-guard.ts).
  *
- * Creates:
+ * Creates (demo profile scales people/ops/finance beyond local):
  *   - 1 diocese + diocese-level admins/staff/report viewers
- *   - 10 parishes × ≥20 families × ≥60 members each
+ *   - 10 parishes × families/members (local ~22×60+; demo ~2× templates)
  *   - Wide demographics, relationships, multi-parish membership
  *   - Programs, orgs, events, facilities, comms, sacramental, liturgical,
  *     sharing, registrations, officers, pastoral data, etc.
- *   - Finance (R5/M10) across all ledger scopes:
- *       diocese general ledger, diocese orgs, parish general ledgers,
- *       parish org ledgers (AUXILIARY / ministry orgs with hasOwnLedger),
- *       funds/CoA/periods, journals, donations (all methods), campaigns,
- *       pledges, external donors, vendors/bills/payments, budgets,
- *       approval policies, sample recon run
+ *   - Finance (R5/M10) across all ledger scopes
  *
- * Login helpers (after `npm run db:ensure-local-admin` or auth sync below):
+ * Login helpers (after auth provision below):
  *   admin@cms.local / Admin@Local1  (DIOCESE_ADMIN)
  *
  * This is independent of tests/helpers/db.ts fixtures used by CI.
@@ -72,7 +73,15 @@ import {
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { assertSeedTargetSafe } from '../lib/seed-guard';
+import {
+  assertSeedTargetSafe,
+  describeSeedTarget,
+} from '../lib/seed-guard';
+import {
+  financeFullParishLimit,
+  resolveSeedProfile,
+  type SeedProfile,
+} from '../lib/seed-profile';
 import { seedFinanceData, type FinanceParishBundle } from './seed-finance';
 import { WEBHOOK_EVENTS } from '../lib/webhooks/events';
 
@@ -105,7 +114,10 @@ const connectionString: string = requireConnectionString();
 
 // This seed TRUNCATEs every table (audit trail included). Refuse anything
 // that is not the local Supabase stack unless SEED_ALLOW_REMOTE / ALLOW_DEMO_SEED.
+// Production project ref is always refused.
 assertSeedTargetSafe(connectionString);
+
+const seedProfile: SeedProfile = resolveSeedProfile(process.env);
 
 const pool = new Pool({ connectionString });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
@@ -334,7 +346,7 @@ const EDUCATION: EducationLevel[] = [
   EducationLevel.OTHER,
 ];
 
-const PROGRAM_DEFS: Array<{
+const PROGRAM_DEFS_BASE: Array<{
   name: string;
   programType: ProgramType;
   description: string;
@@ -366,7 +378,19 @@ const PROGRAM_DEFS: Array<{
   },
 ];
 
-const ORG_DEFS: Array<{
+const PROGRAM_DEFS_EXTRA: Array<{
+  name: string;
+  programType: ProgramType;
+  description: string;
+}> = [
+  {
+    name: 'Senior Fellowship',
+    programType: ProgramType.OTHER,
+    description: 'Seniors ministry — monthly fellowship and pastoral visits',
+  },
+];
+
+const ORG_DEFS_BASE: Array<{
   name: string;
   organizationType: OrganizationType;
   membershipMode: MembershipMode;
@@ -409,6 +433,50 @@ const ORG_DEFS: Array<{
     description: 'Geographic exclusive prayer group (south)',
   },
 ];
+
+const ORG_DEFS_EXTRA: Array<{
+  name: string;
+  organizationType: OrganizationType;
+  membershipMode: MembershipMode;
+  description: string;
+}> = [
+  {
+    name: 'Altar Guild',
+    organizationType: OrganizationType.MINISTRY,
+    membershipMode: MembershipMode.OPEN,
+    description: 'Sanctuary care and liturgical preparation',
+  },
+  {
+    name: 'Choir Committee',
+    organizationType: OrganizationType.COMMITTEE,
+    membershipMode: MembershipMode.OPEN,
+    description: 'Music ministry planning committee',
+  },
+  {
+    name: 'East Area Prayer Group',
+    organizationType: OrganizationType.PRAYER_GROUP,
+    membershipMode: MembershipMode.EXCLUSIVE,
+    description: 'Geographic exclusive prayer group (east)',
+  },
+  {
+    name: 'West Area Prayer Group',
+    organizationType: OrganizationType.PRAYER_GROUP,
+    membershipMode: MembershipMode.EXCLUSIVE,
+    description: 'Geographic exclusive prayer group (west)',
+  },
+];
+
+function programDefsFor(profile: SeedProfile) {
+  return profile.extraPrograms
+    ? [...PROGRAM_DEFS_BASE, ...PROGRAM_DEFS_EXTRA]
+    : PROGRAM_DEFS_BASE;
+}
+
+function orgDefsFor(profile: SeedProfile) {
+  return profile.extraOrgs
+    ? [...ORG_DEFS_BASE, ...ORG_DEFS_EXTRA]
+    : ORG_DEFS_BASE;
+}
 
 const FACILITY_DEFS = [
   { name: 'Main Sanctuary', capacity: 350, location: 'Building A' },
@@ -733,27 +801,39 @@ type ParishBundle = {
 
 // ── build family/member graph (in memory) ────────────────────────────────────
 
+function expandFamilyTemplates(multiplier: number): FamilyTemplate[] {
+  const n = Math.max(1, Math.floor(multiplier));
+  if (n === 1) return FAMILY_TEMPLATES;
+  const out: FamilyTemplate[] = [];
+  for (let m = 0; m < n; m++) {
+    for (const t of FAMILY_TEMPLATES) out.push({ ...t });
+  }
+  return out;
+}
+
 function buildFamiliesForParish(
   parishIdx: number,
   familyStart: number,
   width: number,
   prefix: string,
+  familyMultiplier = 1,
 ): SeedFamily[] {
   const families: SeedFamily[] = [];
   let memberSeq = 0;
+  const templates = expandFamilyTemplates(familyMultiplier);
 
   // Pair empty-nest seniors with nuclear households they parent
-  const seniorTemplateIndexes = FAMILY_TEMPLATES.map((t, i) =>
+  const seniorTemplateIndexes = templates.map((t, i) =>
     t.emptyNestSenior ? i : -1,
   ).filter((i) => i >= 0);
-  const nuclearChildIndexes = FAMILY_TEMPLATES.map((t, i) =>
+  const nuclearChildIndexes = templates.map((t, i) =>
     t.minors > 0 && t.adults === 2 && !t.emptyNestSenior ? i : -1,
   )
     .filter((i) => i >= 0)
     .slice(0, seniorTemplateIndexes.length);
 
-  for (let f = 0; f < FAMILY_TEMPLATES.length; f++) {
-    const tmpl = FAMILY_TEMPLATES[f]!;
+  for (let f = 0; f < templates.length; f++) {
+    const tmpl = templates[f]!;
     const linkChildIdx = seniorTemplateIndexes.indexOf(f);
     // Seniors and their linked adult-child household share a surname
     const surnameIndex =
@@ -1144,6 +1224,12 @@ async function seed() {
   const skipAuth = process.argv.includes('--skip-auth');
 
   console.log('🌱 CMS demo seed starting…');
+  console.log(
+    `   Profile: ${seedProfile.name} | target: ${describeSeedTarget(connectionString)}`,
+  );
+  console.log(
+    `   Scale: families×${seedProfile.familyMultiplier}, financeFull=${seedProfile.financeFullParishes}, batchMonths=${seedProfile.batchMonths}`,
+  );
   if (!keep) {
     console.log('   Truncating existing tenant data…');
     await truncateAll();
@@ -1238,7 +1324,13 @@ async function seed() {
       },
     });
 
-    const families = buildFamiliesForParish(p, def.start, width, def.prefix);
+    const families = buildFamiliesForParish(
+      p,
+      def.start,
+      width,
+      def.prefix,
+      seedProfile.familyMultiplier,
+    );
     const allMembers = families.flatMap((f) => f.members);
 
     // Parish user IDs — use Auth-backed ids for parish 1 (and p2 admin)
@@ -1711,7 +1803,7 @@ async function seed() {
     });
   }
 
-  // ~3 members per parish with secondary membership at a neighboring parish
+  // Secondary memberships at neighboring parishes (fraction scales with profile)
   for (const pb of parishBundles) {
     const candidates = pb.members.filter(
       (m) =>
@@ -1719,7 +1811,14 @@ async function seed() {
         m.status === MemberStatus.ACTIVE &&
         m.id !== pb.clergyMemberId,
     );
-    const secondaryHosts = pickN(candidates, 3);
+    const target = Math.max(
+      3,
+      Math.round(candidates.length * seedProfile.secondaryMemberFraction),
+    );
+    const secondaryHosts = pickN(
+      candidates,
+      Math.min(candidates.length, target),
+    );
     for (const m of secondaryHosts) {
       const host = pick(
         parishBundles.filter((x) => x.id !== pb.id),
@@ -1780,8 +1879,9 @@ async function seed() {
     });
 
     // Programs
+    const parishPrograms = programDefsFor(seedProfile);
     const programIds: string[] = [];
-    for (const prog of PROGRAM_DEFS) {
+    for (const prog of parishPrograms) {
       const id = randomUUID();
       programIds.push(id);
       const coordinator = pick(activeAdults);
@@ -1806,9 +1906,13 @@ async function seed() {
             ? youth
             : activeAdults
           : prog.programType === ProgramType.FAITH_FORMATION
-            ? [...youth, ...pickN(activeAdults, 8)]
+            ? [...youth, ...pickN(activeAdults, Math.min(activeAdults.length, 16))]
             : activeAdults;
-      const enrollees = pickN(pool, Math.min(pool.length, intBetween(12, 22)));
+      const enrollN = Math.min(
+        pool.length,
+        seedProfile.enrollmentTarget + intBetween(0, 6),
+      );
+      const enrollees = pickN(pool, enrollN);
       await prisma.programEnrollment.createMany({
         data: enrollees.map((m, i) => ({
           dioceseId,
@@ -1832,9 +1936,9 @@ async function seed() {
         skipDuplicates: true,
       });
 
-      // Sessions + attendance for first two programs
-      if (programIds.length <= 2) {
-        for (let s = 0; s < 3; s++) {
+      // Sessions + attendance for first N programs
+      if (programIds.length <= seedProfile.programsWithSessions) {
+        for (let s = 0; s < seedProfile.programSessionCount; s++) {
           const sessionId = randomUUID();
           await prisma.programSession.create({
             data: {
@@ -1843,26 +1947,31 @@ async function seed() {
               parishId: pb.id,
               programId: id,
               title: `${prog.name} — Session ${s + 1}`,
-              scheduledAt: daysFromNow(-21 + s * 7, 10),
+              scheduledAt: daysFromNow(
+                -7 * seedProfile.programSessionCount + s * 7,
+                10,
+              ),
               location: pick(FACILITY_DEFS).name,
             },
           });
+          const attendN = Math.min(
+            enrollees.length,
+            Math.max(8, Math.floor(enrollees.length * 0.7)),
+          );
           await prisma.programSessionAttendance.createMany({
-            data: pickN(enrollees, Math.min(enrollees.length, 10)).map(
-              (m) => ({
-                dioceseId,
-                parishId: pb.id,
-                sessionId,
-                memberId: m.id,
-                status: pick([
-                  AttendanceStatus.PRESENT,
-                  AttendanceStatus.PRESENT,
-                  AttendanceStatus.PRESENT,
-                  AttendanceStatus.ABSENT,
-                  AttendanceStatus.EXCUSED,
-                ]),
-              }),
-            ),
+            data: pickN(enrollees, attendN).map((m) => ({
+              dioceseId,
+              parishId: pb.id,
+              sessionId,
+              memberId: m.id,
+              status: pick([
+                AttendanceStatus.PRESENT,
+                AttendanceStatus.PRESENT,
+                AttendanceStatus.PRESENT,
+                AttendanceStatus.ABSENT,
+                AttendanceStatus.EXCUSED,
+              ]),
+            })),
             skipDuplicates: true,
           });
         }
@@ -1883,8 +1992,12 @@ async function seed() {
     }
 
     // Organizations
+    const parishOrgs = orgDefsFor(seedProfile);
+    const exclusiveOrgs = parishOrgs.filter(
+      (o) => o.membershipMode === MembershipMode.EXCLUSIVE,
+    );
     const orgIds: string[] = [];
-    for (const org of ORG_DEFS) {
+    for (const org of parishOrgs) {
       const id = randomUUID();
       orgIds.push(id);
       await prisma.organization.create({
@@ -1909,16 +2022,26 @@ async function seed() {
         );
       if (!memberPool.length) memberPool = activeAdults;
 
-      // Exclusive prayer groups: split members so each joins only one
+      // Exclusive prayer groups: partition adults so each joins only one
       let membersForOrg: SeedMember[];
       if (org.membershipMode === MembershipMode.EXCLUSIVE) {
-        const half = Math.floor(activeAdults.length / 2);
-        membersForOrg =
-          org.name.includes('North')
-            ? activeAdults.slice(0, half).slice(0, 15)
-            : activeAdults.slice(half).slice(0, 15);
+        const exIdx = exclusiveOrgs.findIndex((o) => o.name === org.name);
+        const buckets = Math.max(1, exclusiveOrgs.length);
+        const sliceSize = Math.ceil(activeAdults.length / buckets);
+        const start = exIdx * sliceSize;
+        const cap = Math.min(
+          seedProfile.orgMembershipTarget,
+          Math.max(8, sliceSize),
+        );
+        membersForOrg = activeAdults.slice(start, start + sliceSize).slice(0, cap);
       } else {
-        membersForOrg = pickN(memberPool, Math.min(memberPool.length, intBetween(10, 18)));
+        membersForOrg = pickN(
+          memberPool,
+          Math.min(
+            memberPool.length,
+            seedProfile.orgMembershipTarget + intBetween(0, 5),
+          ),
+        );
       }
 
       if (membersForOrg.length) {
@@ -1998,6 +2121,66 @@ async function seed() {
         facilityId: sanctuaryId,
         maxCapacity: 350,
       },
+      ...(seedProfile.denseEvents
+        ? [
+            {
+              name: 'Youth Retreat Kickoff',
+              eventType: EventType.SOCIAL,
+              startAt: daysFromNow(35, 9),
+              endAt: daysFromNow(35, 17),
+              facilityId: hallId,
+              maxCapacity: 100,
+            },
+            {
+              name: 'Sevika Sanghom Meeting',
+              eventType: EventType.MEETING,
+              startAt: daysFromNow(10, 19),
+              endAt: daysFromNow(10, 21),
+              facilityId: hallId,
+              maxCapacity: 80,
+            },
+            {
+              name: 'Christmas Carol Service (past)',
+              eventType: EventType.SERVICE,
+              startAt: daysFromNow(-45, 18),
+              endAt: daysFromNow(-45, 20),
+              facilityId: sanctuaryId,
+              maxCapacity: 350,
+            },
+            {
+              name: 'Sunday School Teachers Meeting',
+              eventType: EventType.MEETING,
+              startAt: daysFromNow(7, 11),
+              endAt: daysFromNow(7, 12),
+              facilityId: facilityIds[2]!,
+              maxCapacity: 40,
+            },
+            {
+              name: 'Harvest Festival Planning',
+              eventType: EventType.MEETING,
+              startAt: daysFromNow(42, 19),
+              endAt: daysFromNow(42, 21),
+              facilityId: hallId,
+              maxCapacity: 60,
+            },
+            {
+              name: 'Two Sundays ago Qurbana (past)',
+              eventType: EventType.SERVICE,
+              startAt: daysFromNow(-14, 9),
+              endAt: daysFromNow(-14, 11),
+              facilityId: sanctuaryId,
+              maxCapacity: 350,
+            },
+            {
+              name: 'Three Sundays ago Qurbana (past)',
+              eventType: EventType.SERVICE,
+              startAt: daysFromNow(-21, 9),
+              endAt: daysFromNow(-21, 11),
+              facilityId: sanctuaryId,
+              maxCapacity: 350,
+            },
+          ]
+        : []),
     ];
 
     for (const ev of eventDefs) {
@@ -2033,7 +2216,10 @@ async function seed() {
       });
 
       // attended must stay false without parish_staff JWT (phase3_event_attendance_guard)
-      const attendees = pickN(activeAdults, Math.min(activeAdults.length, 25));
+      const attendees = pickN(
+        activeAdults,
+        Math.min(activeAdults.length, seedProfile.eventAttendanceTarget),
+      );
       await prisma.eventAttendance.createMany({
         data: attendees.map((m) => ({
           dioceseId,
@@ -2064,6 +2250,20 @@ async function seed() {
         status: FacilityBookingStatus.CLOSURE,
       },
     });
+
+    if (seedProfile.denseEvents) {
+      await prisma.facilityBooking.create({
+        data: {
+          dioceseId,
+          parishId: pb.id,
+          facilityId: facilityIds[4]!,
+          title: 'Cancelled pavilion rental',
+          startAt: daysFromNow(18, 10),
+          endAt: daysFromNow(18, 16),
+          status: FacilityBookingStatus.CANCELLED,
+        },
+      });
+    }
 
     // Messages + templates
     await prisma.messageTemplate.createMany({
@@ -2130,8 +2330,38 @@ async function seed() {
       },
     });
 
+    if (seedProfile.denseMessages) {
+      await prisma.message.create({
+        data: {
+          dioceseId,
+          parishId: pb.id,
+          channel: MessageChannel.SMS,
+          subject: null,
+          body: 'Reminder: Holy Qurbana this Sunday at 9am.',
+          audienceType: AudienceType.ALL_MEMBERS,
+          status: MessageStatus.FAILED,
+          createdByUserId: pb.staffUserId,
+        },
+      });
+      await prisma.message.create({
+        data: {
+          dioceseId,
+          parishId: pb.id,
+          channel: MessageChannel.EMAIL,
+          subject: 'Stewardship Sunday',
+          body: 'Thank you for your continued support of parish ministries.',
+          audienceType: AudienceType.ALL_MEMBERS,
+          status: MessageStatus.SENT,
+          createdByUserId: pb.adminUserId,
+        },
+      });
+    }
+
     // Communication preferences (some opt-outs)
-    const optOuts = pickN(activeAdults, 5);
+    const optOuts = pickN(
+      activeAdults,
+      Math.min(activeAdults.length, seedProfile.denseMessages ? 12 : 5),
+    );
     await prisma.communicationPreference.createMany({
       data: optOuts.flatMap((m) => [
         {
@@ -2152,38 +2382,55 @@ async function seed() {
       skipDuplicates: true,
     });
 
-    // Pending registrations
-    await prisma.memberRegistration.createMany({
-      data: [
-        {
-          dioceseId,
-          parishId: pb.id,
-          firstName: pick(MALE_FIRST),
-          lastName: pick(SURNAMES),
-          email: `pending.${pb.idx}.${randomUUID().slice(0, 8)}@demo.cms.local`,
-          phone: phoneFor(pb.idx, 900 + pb.idx),
-          familyName: pick(SURNAMES),
-          notes: 'New family relocating from India',
-          approvalStatus: RegistrationStatus.PENDING,
-        },
-        {
-          dioceseId,
-          parishId: pb.id,
-          firstName: pick(FEMALE_FIRST),
-          lastName: pick(SURNAMES),
-          email: `rejected.${pb.idx}.${randomUUID().slice(0, 8)}@demo.cms.local`,
-          approvalStatus: RegistrationStatus.REJECTED,
-          reviewedByUserId: pb.adminUserId,
-          reviewedAt: daysFromNow(-5),
-          notes: 'Duplicate of existing member',
-        },
-      ],
-    });
+    // Pending / rejected registrations
+    const registrationRows = [
+      {
+        dioceseId,
+        parishId: pb.id,
+        firstName: pick(MALE_FIRST),
+        lastName: pick(SURNAMES),
+        email: `pending.${pb.idx}.${randomUUID().slice(0, 8)}@demo.cms.local`,
+        phone: phoneFor(pb.idx, 900 + pb.idx),
+        familyName: pick(SURNAMES),
+        notes: 'New family relocating from India',
+        approvalStatus: RegistrationStatus.PENDING,
+      },
+      {
+        dioceseId,
+        parishId: pb.id,
+        firstName: pick(FEMALE_FIRST),
+        lastName: pick(SURNAMES),
+        email: `rejected.${pb.idx}.${randomUUID().slice(0, 8)}@demo.cms.local`,
+        approvalStatus: RegistrationStatus.REJECTED,
+        reviewedByUserId: pb.adminUserId,
+        reviewedAt: daysFromNow(-5),
+        notes: 'Duplicate of existing member',
+      },
+      ...Array.from({ length: seedProfile.extraPendingRegistrations }, (_, i) => ({
+        dioceseId,
+        parishId: pb.id,
+        firstName: pick(chance(0.5) ? MALE_FIRST : FEMALE_FIRST),
+        lastName: pick(SURNAMES),
+        email: `pending.${pb.idx}.${i}.${randomUUID().slice(0, 8)}@demo.cms.local`,
+        phone: phoneFor(pb.idx, 910 + i),
+        familyName: pick(SURNAMES),
+        notes: pick([
+          'Transfer from another diocese',
+          'College student requesting membership',
+          'Spouse joining after marriage',
+        ]),
+        approvalStatus: RegistrationStatus.PENDING,
+      })),
+    ];
+    await prisma.memberRegistration.createMany({ data: registrationRows });
 
     // Sacramental records (baptism, communion, marriage sample)
+    const activeForSacraments = pb.members.filter(
+      (m) => m.status === MemberStatus.ACTIVE,
+    );
     const sacramentMembers = pickN(
-      pb.members.filter((m) => m.status === MemberStatus.ACTIVE),
-      20,
+      activeForSacraments,
+      Math.min(activeForSacraments.length, seedProfile.sacramentalSampleSize),
     );
     const sacramentalRows = [];
     for (const m of sacramentMembers) {
@@ -2227,7 +2474,7 @@ async function seed() {
     }
 
     // Marriage records for couples
-    for (const fam of pb.families.slice(0, 8)) {
+    for (const fam of pb.families.slice(0, seedProfile.marriageCoupleCount)) {
       const head = fam.members.find((m) => m.roleInFamily === 'head');
       const spouse = fam.members.find((m) => m.roleInFamily === 'spouse');
       if (head && spouse) {
@@ -2260,7 +2507,7 @@ async function seed() {
 
     await prisma.sacramentalRecord.createMany({ data: sacramentalRows });
 
-    // Parish-local liturgical observance
+    // Parish-local liturgical observances
     await prisma.liturgicalObservance.create({
       data: {
         dioceseId,
@@ -2272,6 +2519,31 @@ async function seed() {
         isPublished: true,
       },
     });
+    if (seedProfile.denseEvents) {
+      await prisma.liturgicalObservance.create({
+        data: {
+          dioceseId,
+          parishId: pb.id,
+          title: `${pb.name.split(' ')[0]} Vicar Installation Anniversary`,
+          observanceType: ObservanceType.OTHER,
+          month: ((pb.idx + 7) % 12) + 1,
+          day: 5 + (pb.idx % 10),
+          isPublished: true,
+        },
+      });
+      // Draft visible only to writers (members need isPublished)
+      await prisma.liturgicalObservance.create({
+        data: {
+          dioceseId,
+          parishId: pb.id,
+          title: `${pb.name.split(' ')[0]} Draft feast (unpublished)`,
+          observanceType: ObservanceType.FEAST,
+          month: 8,
+          day: 15,
+          isPublished: false,
+        },
+      });
+    }
   }
 
   // ── Diocese liturgical calendar ──────────────────────────────────────────
@@ -2289,11 +2561,24 @@ async function seed() {
     })),
   });
 
-  // ── Data sharing samples (first 3 parishes) ──────────────────────────────
+  // ── Data sharing samples ─────────────────────────────────────────────────
   console.log('   Data-sharing grants & requests…');
-  for (let p = 0; p < 3; p++) {
+  const sharingParishCount = seedProfile.denseSharing
+    ? Math.min(parishBundles.length, 6)
+    : 3;
+  for (let p = 0; p < sharingParishCount; p++) {
     const pb = parishBundles[p]!;
     const requestId = randomUUID();
+    const status =
+      p === 0
+        ? SharingRequestStatus.APPROVED
+        : p === 1
+          ? SharingRequestStatus.PENDING
+          : p === 2
+            ? SharingRequestStatus.REJECTED
+            : p % 2 === 0
+              ? SharingRequestStatus.APPROVED
+              : SharingRequestStatus.PENDING;
     await prisma.dataSharingRequest.create({
       data: {
         id: requestId,
@@ -2301,20 +2586,19 @@ async function seed() {
         dioceseId,
         dataCategory: DataCategory.MEMBER_DEMOGRAPHICS_DETAIL,
         reason: 'Annual diocese statistical report',
-        status:
-          p === 0
-            ? SharingRequestStatus.APPROVED
-            : p === 1
-              ? SharingRequestStatus.PENDING
-              : SharingRequestStatus.REJECTED,
+        status,
         requestedByUserId: dioceseReportViewerId,
-        reviewedByUserId: p === 1 ? null : pb.sharingManagerUserId,
-        reviewedAt: p === 1 ? null : daysFromNow(-3),
+        reviewedByUserId:
+          status === SharingRequestStatus.PENDING
+            ? null
+            : pb.sharingManagerUserId,
+        reviewedAt:
+          status === SharingRequestStatus.PENDING ? null : daysFromNow(-3),
         expiresAt: daysFromNow(60),
       },
     });
 
-    if (p === 0) {
+    if (status === SharingRequestStatus.APPROVED) {
       await prisma.dataSharingGrant.create({
         data: {
           parishId: pb.id,
@@ -2342,12 +2626,13 @@ async function seed() {
         scope: SharingScope.ALL_RECORDS,
         grantedByUserId: pb.adminUserId,
         expiresAt: daysFromNow(180),
-        isActive: true,
+        isActive: p !== 2, // one revoked-style inactive grant
+        notes: p === 2 ? 'Revoked after scope change' : null,
       },
     });
   }
 
-  // Emergency access (parish 0, short-lived)
+  // Emergency access (parish 0 active; optional expired sample)
   await prisma.emergencyAccessGrant.create({
     data: {
       parishId: parishBundles[0]!.id,
@@ -2358,6 +2643,20 @@ async function seed() {
       isActive: true,
     },
   });
+  if (seedProfile.denseSharing && parishBundles[1]) {
+    await prisma.emergencyAccessGrant.create({
+      data: {
+        parishId: parishBundles[1].id,
+        dioceseId,
+        grantedByUserId: parishBundles[1].adminUserId,
+        justification: 'Expired sample — hurricane pastoral coverage',
+        expiresAt: daysFromNow(-14),
+        isActive: false,
+        revokedAt: daysFromNow(-10),
+        revokedByUserId: parishBundles[1].adminUserId,
+      },
+    });
+  }
 
   // Contextual shares
   const shareToken = 'demo-secure-share-token-r4';
@@ -2431,6 +2730,17 @@ async function seed() {
     dioceseAdminId,
     dioceseStaffId,
     parishes: financeParishes,
+    options: {
+      fullParishCount: financeFullParishLimit(
+        seedProfile,
+        financeParishes.length,
+      ),
+      batchMonths: seedProfile.batchMonths,
+      pledgeCount: seedProfile.pledgeCount,
+      envelopeFamilyCount: seedProfile.envelopeFamilyCount,
+      pendingApprovals: seedProfile.pendingApprovals,
+      monthlyExpenseMonths: seedProfile.monthlyExpenseMonths,
+    },
   });
   console.log(
     `     finance ledgers=${financeCounts.ledgers} donations=${financeCounts.donations} journals=${financeCounts.journals}`,
@@ -2535,6 +2845,7 @@ async function seed() {
   console.log('\n✅ Seed complete');
   console.log(JSON.stringify(counts, null, 2));
   console.log(`
+Profile: ${seedProfile.name}
 Login accounts (password: Admin@Local1):
   admin@cms.local              DIOCESE_ADMIN
   diocese.staff@cms.local      DIOCESE_STAFF
@@ -2547,6 +2858,7 @@ Login accounts (password: Admin@Local1):
   parishN.*@cms.local          same pattern for parishes 2–10
 
 Secure share demo token: ${shareToken}
+  Public path: /share/${shareToken}
 `);
 }
 

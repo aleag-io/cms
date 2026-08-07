@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { assertSeedTargetSafe } from '@/lib/seed-guard';
+import {
+  assertSeedTargetSafe,
+  describeSeedTarget,
+  isProductionDbTarget,
+  PROD_SUPABASE_PROJECT_REF,
+} from '@/lib/seed-guard';
 
 describe('assertSeedTargetSafe', () => {
   it('allows local hosts without a remote flag', () => {
@@ -36,5 +41,38 @@ describe('assertSeedTargetSafe', () => {
         { ALLOW_DEMO_SEED: '1' },
       ),
     ).not.toThrow();
+  });
+
+  it('always refuses the production project ref even with SEED_ALLOW_REMOTE', () => {
+    const prodUrl = `postgresql://postgres:secret@db.${PROD_SUPABASE_PROJECT_REF}.supabase.co:5432/postgres`;
+    expect(() =>
+      assertSeedTargetSafe(prodUrl, { SEED_ALLOW_REMOTE: '1' }),
+    ).toThrow(/production database/);
+  });
+});
+
+describe('isProductionDbTarget', () => {
+  it('detects production host', () => {
+    expect(
+      isProductionDbTarget(
+        `postgresql://x@db.${PROD_SUPABASE_PROJECT_REF}.supabase.co:5432/postgres`,
+      ),
+    ).toBe(true);
+  });
+
+  it('does not flag preview-like hosts', () => {
+    expect(
+      isProductionDbTarget(
+        'postgresql://x@db.fnvayegctruotqnutswv.supabase.co:5432/postgres',
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('describeSeedTarget', () => {
+  it('returns hostname', () => {
+    expect(
+      describeSeedTarget('postgresql://u:p@127.0.0.1:54322/postgres'),
+    ).toBe('127.0.0.1');
   });
 });

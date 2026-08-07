@@ -265,6 +265,14 @@
       "nativeVersion": "20260719130000",
       "output": "20260719130000_grant_auth_admin_public_schema.sql",
       "sha256": "d2ee839a340194214c9d46abdf39e271ae99820468c8a705225fe1df494d714b"
+    },
+    {
+      "kind": "supabase",
+      "source": "supabase/migrations/20260720120000_jwt_helpers_security_definer.sql",
+      "sourceVersion": "20260720120000",
+      "nativeVersion": "20260720120000",
+      "output": "20260720120000_jwt_helpers_security_definer.sql",
+      "sha256": "ca4c6255983db7eb385f78b092dd552f7ef3a5dd10070e93fb6de69519e84fa7"
     }
   ]
 }

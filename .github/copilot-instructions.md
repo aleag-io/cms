@@ -107,6 +107,16 @@ North America. Stack: **Next.js 16** (App Router) + React 19, **Prisma 7**, **Su
   plus `tests/integration/api/r1-self-service.test.ts` and
   `tests/rls/r1-self-service.test.ts`. Playwright now runs serially with a 15s
   expect timeout (shared seeded DB + dev-server compile latency).
+  **M0 shell close-out (2026-08-06):** tenant context & portal scope (shell plan §7)
+  completed — role+portal-aware nav, the diocese→parish work-context switcher, and the
+  **MM-17 multi-parish member working-parish switcher** (members focus a parish they
+  belong to via the shared `cms_working_parish_id` cookie; `MemberParish`-validated at
+  the resolver, never role-mutating, audited `context.parish.enter`/`.exit`). Page-level
+  forbidden state on `/diocese/aggregate` (G4) and diocese-dashboard portal leaks
+  (per-member `/members/*` links in diocese mode) fixed. Gates:
+  `tests/integration/api/m0-session-context.test.ts`, `tests/rls/m0-member-working-parish.test.ts`,
+  `tests/e2e/m0-tenant-context.test.ts`. Plan:
+  [docs/releases/r1-people-core/6-m0-shell-tenant-context.md](docs/releases/r1-people-core/6-m0-shell-tenant-context.md).
   Full suite green (unit/integration/rls/e2e). Plans:
   [docs/releases/r1-people-core/](docs/releases/r1-people-core/).
 - **Release R2 — Parish Operations UI (phases 10–11) — complete.** UI over existing

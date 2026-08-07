@@ -18,9 +18,14 @@ import { randomUUID } from 'node:crypto';
 import type {
   DonationMethod,
   LedgerOwnerType,
+  Prisma,
   PrismaClient,
   Role,
 } from '@prisma/client';
+import {
+  batchTotalCents,
+  groupCreditsByAccount,
+} from '../lib/finance/batch';
 import { seedDefaultChart } from '../lib/finance/seedChart';
 
 export type FinanceParishBundle = {
@@ -42,11 +47,27 @@ export type FinanceParishBundle = {
   }>;
 };
 
+export type FinanceSeedOptions = {
+  /** How many leading parishes get the full giving/vendor path. */
+  fullParishCount?: number;
+  /** Months of Sunday offering batches (1 = single batch as before). */
+  batchMonths?: number;
+  /** Active + lapsed pledges per full parish. */
+  pledgeCount?: number;
+  /** Families tagged with envelope numbers. */
+  envelopeFamilyCount?: number;
+  /** Leave a DRAFT journal + PENDING approval for maker-checker demos. */
+  pendingApprovals?: boolean;
+  /** Extra monthly utility expense journals per full parish. */
+  monthlyExpenseMonths?: number;
+};
+
 export type FinanceSeedInput = {
   dioceseId: string;
   dioceseAdminId: string;
   dioceseStaffId: string;
   parishes: FinanceParishBundle[];
+  options?: FinanceSeedOptions;
 };
 
 export type FinanceSeedCounts = {
@@ -585,9 +606,22 @@ async function seedParishGiving(
   parish: FinanceParishBundle,
   chart: ChartIds,
   actorUserId: string,
+  options: Required<
+    Pick<
+      FinanceSeedOptions,
+      | 'batchMonths'
+      | 'pledgeCount'
+      | 'envelopeFamilyCount'
+      | 'pendingApprovals'
+      | 'monthlyExpenseMonths'
+    >
+  >,
 ): Promise<{ donations: number; campaigns: number; pledges: number }> {
-  // Envelope numbers on first 8 families
-  for (let i = 0; i < Math.min(8, parish.families.length); i++) {
+  const envelopeN = Math.min(
+    options.envelopeFamilyCount,
+    parish.families.length,
+  );
+  for (let i = 0; i < envelopeN; i++) {
     await prisma.family.update({
       where: { id: parish.families[i]!.id },
       data: { envelopeNumber: String(100 + i) },
@@ -650,11 +684,17 @@ async function seedParishGiving(
     ],
   });
 
-  // Pledges
+  // Pledges (active + a few lapsed for reminder demos)
   let pledges = 0;
-  for (let i = 0; i < Math.min(5, parish.families.length); i++) {
+  const pledgeN = Math.min(options.pledgeCount, parish.families.length);
+  for (let i = 0; i < pledgeN; i++) {
     const fam = parish.families[i]!;
     const member = parish.members.find((m) => m.familyId === fam.id);
+    const isLapsed = i >= pledgeN - Math.min(3, Math.floor(pledgeN / 5));
+    const amount = (2_000 + i * 250) * 100;
+    const fulfilled = isLapsed
+      ? Math.floor(amount * 0.15)
+      : Math.floor(amount * (0.25 + (i % 5) * 0.1));
     await prisma.pledge.create({
       data: {
         dioceseId,
@@ -662,10 +702,10 @@ async function seedParishGiving(
         campaignId: campaignAnnual,
         familyId: fam.id,
         memberId: i % 2 === 0 ? (member?.id ?? null) : null,
-        amountCents: cents((2_000 + i * 500) * 100),
-        fulfilledCents: cents((500 + i * 100) * 100),
+        amountCents: cents(amount),
+        fulfilledCents: cents(fulfilled),
         frequency: i % 2 === 0 ? 'MONTHLY' : 'ANNUAL',
-        status: 'ACTIVE',
+        status: isLapsed ? 'LAPSED' : 'ACTIVE',
         startDate: dateOnly('2026-01-01'),
         endDate: dateOnly('2026-12-31'),
       },
@@ -673,28 +713,38 @@ async function seedParishGiving(
     pledges += 1;
   }
 
-  // Sunday offering batch + donations covering all methods
-  const batchId = randomUUID();
-  await prisma.donationBatch.create({
-    data: {
-      id: batchId,
-      dioceseId,
-      parishId: parish.id,
+  // Giving categories (created earlier by seedGivingCategories for this ledger)
+  const categories = await prisma.givingCategory.findMany({
+    where: {
       ownerType: 'PARISH',
       ownerId: parish.id,
-      batchDate: dateOnly('2026-06-01'),
-      label: '2026-06-01 Sunday Offering',
-      status: 'POSTED',
-      totalCents: cents(0),
-      donationCount: 0,
-      depositReference: 'DEP-SEED-001',
+      isActive: true,
     },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
   });
+  const catByName = new Map(categories.map((c) => [c.name, c]));
+  const plateCat =
+    catByName.get('Offertory (Plate)') ?? categories[0] ?? null;
+  const subscriptionCat =
+    catByName.get('Subscription') ?? categories[1] ?? categories[0] ?? null;
+  const specialCat =
+    catByName.get('Special Donation') ?? categories[2] ?? categories[0] ?? null;
+  const birthdayCat =
+    catByName.get('Birthday Offertory') ?? specialCat;
+  const christmasCat =
+    catByName.get('Christmas Donation') ?? specialCat;
+  const harvestCat =
+    catByName.get('Harvest (Donation/Auction)') ?? specialCat;
+  const categoryRotation = [
+    subscriptionCat,
+    plateCat,
+    birthdayCat,
+    specialCat,
+    christmasCat,
+    harvestCat,
+  ].filter(Boolean) as typeof categories;
 
-  let donations = 0;
-  let batchTotal = 0n;
-
-  const giftSpecs: Array<{
+  type BatchGiftLine = {
     method: DonationMethod;
     amount: number;
     familyIdx?: number;
@@ -702,53 +752,295 @@ async function seedParishGiving(
     externalId?: string;
     anonymous?: boolean;
     campaignId?: string;
-    fundId: string;
-    incomeAccountId: string;
-    cashAccountId: string;
     checkNumber?: string;
     externalTxnId?: string;
     dedication?: string;
-    inBatch?: boolean;
-  }> = [
-    {
-      method: 'CASH',
-      amount: 125_00,
-      anonymous: true,
-      fundId: chart.fundGeneralId,
-      incomeAccountId: chart.incomeId,
-      cashAccountId: chart.cashId,
-      inBatch: true,
-    },
-    {
-      method: 'CHECK',
-      amount: 500_00,
-      familyIdx: 0,
-      checkNumber: '4521',
-      fundId: chart.fundGeneralId,
-      incomeAccountId: chart.incomeId,
-      cashAccountId: chart.cashId,
-      inBatch: true,
-      campaignId: campaignAnnual,
-    },
+    categoryId: string | null;
+    fundId: string;
+  };
+
+  /**
+   * Create a Sunday batch with categorized gifts. Posted batches get ONE
+   * consolidated deposit journal (matches production batch-post API).
+   */
+  async function writeSundayBatch(args: {
+    isoDate: string;
+    label: string;
+    depositReference: string | null;
+    post: boolean;
+    lines: BatchGiftLine[];
+  }): Promise<number> {
+    const batchId = randomUUID();
+    await prisma.donationBatch.create({
+      data: {
+        id: batchId,
+        dioceseId,
+        parishId: parish.id,
+        ownerType: 'PARISH',
+        ownerId: parish.id,
+        batchDate: dateOnly(args.isoDate),
+        label: args.label,
+        status: 'OPEN',
+        totalCents: cents(0),
+        donationCount: 0,
+        depositAccountId: chart.cashId,
+        depositReference: args.depositReference,
+      },
+    });
+
+    const donationIds: string[] = [];
+    const creditLines: Array<{ incomeAccountId: string; amountCents: bigint }> =
+      [];
+
+    for (const g of args.lines) {
+      const fam =
+        g.familyIdx != null ? parish.families[g.familyIdx] : undefined;
+      const member =
+        g.member && fam
+          ? parish.members.find((m) => m.familyId === fam.id)
+          : undefined;
+      const amount = cents(g.amount);
+      const cat = g.categoryId
+        ? categories.find((c) => c.id === g.categoryId)
+        : null;
+      const fundId = cat?.fundId ?? g.fundId;
+      const donationId = randomUUID();
+      donationIds.push(donationId);
+
+      await prisma.donation.create({
+        data: {
+          id: donationId,
+          dioceseId,
+          parishId: parish.id,
+          familyId: g.anonymous || g.externalId ? null : (fam?.id ?? null),
+          memberId: g.anonymous || g.externalId ? null : (member?.id ?? null),
+          externalDonorId: g.externalId ?? null,
+          isAnonymous: g.anonymous === true,
+          fundId,
+          categoryId: g.categoryId,
+          campaignId: g.campaignId ?? null,
+          periodId: chart.periodId,
+          batchId,
+          amountCents: amount,
+          method: g.method,
+          checkNumber: g.checkNumber ?? null,
+          externalTxnId: g.externalTxnId ?? null,
+          dedication: g.dedication ?? null,
+          receivedAt: dateOnly(args.isoDate),
+          status: 'ACTIVE',
+          allocations: {
+            create: [{ fundId, amountCents: amount }],
+          },
+        },
+      });
+
+      if (cat) {
+        creditLines.push({
+          incomeAccountId: cat.incomeAccountId,
+          amountCents: amount,
+        });
+      } else {
+        creditLines.push({
+          incomeAccountId: chart.incomeId,
+          amountCents: amount,
+        });
+      }
+    }
+
+    const total = batchTotalCents(
+      args.lines.map((l) => ({ amountCents: cents(l.amount) })),
+    );
+
+    if (args.post && donationIds.length > 0) {
+      const journalId = randomUUID();
+      const credits = groupCreditsByAccount(creditLines);
+      await createPostedJournal(prisma, {
+        id: journalId,
+        dioceseId,
+        parishId: parish.id,
+        ownerType: 'PARISH',
+        ownerId: parish.id,
+        periodId: chart.periodId,
+        entryDate: dateOnly(args.isoDate),
+        description: `Deposit: ${args.label}`,
+        source: 'DONATION',
+        cashImpact: true,
+        actorUserId,
+        lines: [
+          {
+            accountId: chart.cashId,
+            direction: 'DEBIT',
+            amountCents: total,
+          },
+          ...credits.map((c) => ({
+            accountId: c.accountId,
+            direction: 'CREDIT' as const,
+            amountCents: c.amountCents,
+          })),
+        ],
+      });
+      await prisma.donationBatch.update({
+        where: { id: batchId },
+        data: {
+          status: 'POSTED',
+          totalCents: total,
+          donationCount: donationIds.length,
+          postedJournalEntryId: journalId,
+          depositAccountId: chart.cashId,
+          depositReference: args.depositReference,
+        },
+      });
+      await prisma.donation.updateMany({
+        where: { batchId },
+        data: { journalEntryId: journalId },
+      });
+    } else {
+      await prisma.donationBatch.update({
+        where: { id: batchId },
+        data: {
+          totalCents: total,
+          donationCount: donationIds.length,
+        },
+      });
+    }
+
+    return donationIds.length;
+  }
+
+  function categoryAt(i: number) {
+    if (!categoryRotation.length) return null;
+    return categoryRotation[i % categoryRotation.length]!;
+  }
+
+  function buildMonthLines(
+    month: number,
+    giftFamilies: number,
+  ): BatchGiftLine[] {
+    const lines: BatchGiftLine[] = [
+      {
+        method: 'CASH',
+        amount: 80_00 + month * 15_00,
+        anonymous: true,
+        categoryId: plateCat?.id ?? null,
+        fundId: plateCat?.fundId ?? chart.fundGeneralId,
+      },
+    ];
+    for (let fi = 0; fi < giftFamilies; fi++) {
+      const cat = categoryAt(fi + month);
+      lines.push({
+        method: fi % 3 === 0 ? 'CHECK' : fi % 3 === 1 ? 'CASH' : 'ACH',
+        amount: (50 + ((fi + month) % 12) * 25) * 100,
+        familyIdx: fi,
+        member: fi % 2 === 0,
+        checkNumber: fi % 3 === 0 ? `${4000 + month * 10 + fi}` : undefined,
+        externalTxnId:
+          fi % 3 === 2
+            ? `ach-${parish.id.slice(0, 6)}-m${month}-f${fi}`
+            : undefined,
+        campaignId: fi % 4 === 0 ? campaignAnnual : undefined,
+        categoryId: cat?.id ?? null,
+        fundId: cat?.fundId ?? chart.fundGeneralId,
+      });
+    }
+    return lines;
+  }
+
+  let donations = 0;
+
+  // Monthly Sunday batches (demo: 12 months; local: 1). Last month stays OPEN.
+  const months = Math.max(1, options.batchMonths);
+  const giftFamilies = Math.min(
+    8 + Math.floor(months / 2),
+    parish.families.length,
+  );
+
+  for (let m = 1; m <= months; m++) {
+    const mm = String(m).padStart(2, '0');
+    const iso = `2026-${mm}-01`;
+    const isOpenDraft = m === months && months > 1;
+    const lines =
+      m === 6
+        ? [
+            {
+              method: 'CASH' as const,
+              amount: 125_00,
+              anonymous: true,
+              categoryId: plateCat?.id ?? null,
+              fundId: plateCat?.fundId ?? chart.fundGeneralId,
+            },
+            {
+              method: 'CHECK' as const,
+              amount: 500_00,
+              familyIdx: 0,
+              checkNumber: '4521',
+              campaignId: campaignAnnual,
+              categoryId: subscriptionCat?.id ?? null,
+              fundId: subscriptionCat?.fundId ?? chart.fundGeneralId,
+            },
+            {
+              method: 'CHECK' as const,
+              amount: 300_00,
+              familyIdx: 3,
+              checkNumber: '8890',
+              categoryId: specialCat?.id ?? null,
+              fundId: specialCat?.fundId ?? chart.fundGeneralId,
+            },
+            ...buildMonthLines(m, Math.min(giftFamilies, 6)).slice(1),
+          ]
+        : buildMonthLines(m, giftFamilies);
+
+    donations += await writeSundayBatch({
+      isoDate: iso,
+      label: `${iso} Sunday Offering`,
+      depositReference: isOpenDraft
+        ? null
+        : `DEP-${parish.id.slice(0, 6)}-${mm}01`,
+      post: !isOpenDraft,
+      lines,
+    });
+  }
+
+  // Non-batch online/external gifts (each gets its own journal + category)
+  type SoloGift = {
+    method: DonationMethod;
+    amount: number;
+    familyIdx?: number;
+    member?: boolean;
+    externalId?: string;
+    campaignId?: string;
+    externalTxnId?: string;
+    dedication?: string;
+    categoryId: string | null;
+    fundId: string;
+    incomeAccountId: string;
+    cashAccountId: string;
+    receivedAt: string;
+  };
+
+  const soloGifts: SoloGift[] = [
     {
       method: 'ZELLE',
       amount: 200_00,
       familyIdx: 1,
       member: true,
       externalTxnId: `zelle-seed-${parish.id.slice(0, 8)}-1`,
-      fundId: chart.fundGeneralId,
-      incomeAccountId: chart.incomeId,
+      categoryId: subscriptionCat?.id ?? null,
+      fundId: subscriptionCat?.fundId ?? chart.fundGeneralId,
+      incomeAccountId: subscriptionCat?.incomeAccountId ?? chart.incomeId,
       cashAccountId: chart.cashId,
+      receivedAt: '2026-06-03',
     },
     {
       method: 'ACH',
       amount: 750_00,
       familyIdx: 2,
       externalTxnId: `ach-seed-${parish.id.slice(0, 8)}-1`,
+      campaignId: campaignBuilding,
+      categoryId: specialCat?.id ?? null,
       fundId: chart.fundBuildingId,
       incomeAccountId: chart.buildingIncomeId,
       cashAccountId: chart.buildingCashId,
-      campaignId: campaignBuilding,
+      receivedAt: '2026-06-05',
     },
     {
       method: 'CARD',
@@ -756,49 +1048,43 @@ async function seedParishGiving(
       familyIdx: 0,
       member: true,
       externalTxnId: `card-seed-${parish.id.slice(0, 8)}-1`,
-      fundId: chart.fundGeneralId,
-      incomeAccountId: chart.incomeId,
-      cashAccountId: chart.cashId,
       campaignId: campaignAnnual,
+      categoryId: subscriptionCat?.id ?? null,
+      fundId: subscriptionCat?.fundId ?? chart.fundGeneralId,
+      incomeAccountId: subscriptionCat?.incomeAccountId ?? chart.incomeId,
+      cashAccountId: chart.cashId,
+      receivedAt: '2026-06-08',
     },
     {
       method: 'STOCK',
       amount: 2_500_00,
       externalId: external2,
-      fundId: chart.fundMissionsId,
-      incomeAccountId: chart.incomeId,
-      cashAccountId: chart.cashId,
       dedication: 'In memory of parish founders',
+      categoryId: harvestCat?.id ?? null,
+      fundId: chart.fundMissionsId,
+      incomeAccountId: harvestCat?.incomeAccountId ?? chart.incomeId,
+      cashAccountId: chart.cashId,
+      receivedAt: '2026-06-10',
     },
     {
       method: 'OTHER',
       amount: 50_00,
       externalId: external1,
-      fundId: chart.fundGeneralId,
-      incomeAccountId: chart.incomeId,
+      categoryId: specialCat?.id ?? null,
+      fundId: specialCat?.fundId ?? chart.fundGeneralId,
+      incomeAccountId: specialCat?.incomeAccountId ?? chart.incomeId,
       cashAccountId: chart.cashId,
-    },
-    {
-      method: 'CHECK',
-      amount: 300_00,
-      familyIdx: 3,
-      checkNumber: '8890',
-      fundId: chart.fundGeneralId,
-      incomeAccountId: chart.incomeId,
-      cashAccountId: chart.cashId,
-      // split gift: also allocate via second fund in create below
-      inBatch: true,
+      receivedAt: '2026-06-12',
     },
   ];
 
-  for (const g of giftSpecs) {
+  for (const g of soloGifts) {
     const fam =
       g.familyIdx != null ? parish.families[g.familyIdx] : undefined;
     const member =
       g.member && fam
         ? parish.members.find((m) => m.familyId === fam.id)
         : undefined;
-
     const amount = cents(g.amount);
     const journalId = randomUUID();
     await createPostedJournal(prisma, {
@@ -808,8 +1094,8 @@ async function seedParishGiving(
       ownerType: 'PARISH',
       ownerId: parish.id,
       periodId: chart.periodId,
-      entryDate: dateOnly('2026-06-01'),
-      description: `Donation ${g.method}${g.checkNumber ? ` #${g.checkNumber}` : ''}`,
+      entryDate: dateOnly(g.receivedAt),
+      description: `Donation ${g.method}`,
       source: 'DONATION',
       cashImpact: true,
       actorUserId,
@@ -826,57 +1112,32 @@ async function seedParishGiving(
         },
       ],
     });
-
-    const donationId = randomUUID();
-    const isSplit = g.checkNumber === '8890';
     await prisma.donation.create({
       data: {
-        id: donationId,
         dioceseId,
         parishId: parish.id,
-        familyId: g.anonymous || g.externalId ? null : (fam?.id ?? null),
-        memberId: g.anonymous || g.externalId ? null : (member?.id ?? null),
+        familyId: g.externalId ? null : (fam?.id ?? null),
+        memberId: g.externalId ? null : (member?.id ?? null),
         externalDonorId: g.externalId ?? null,
-        isAnonymous: g.anonymous === true,
+        isAnonymous: false,
         fundId: g.fundId,
+        categoryId: g.categoryId,
         campaignId: g.campaignId ?? null,
         periodId: chart.periodId,
-        batchId: g.inBatch ? batchId : null,
         amountCents: amount,
         method: g.method,
-        checkNumber: g.checkNumber ?? null,
         externalTxnId: g.externalTxnId ?? null,
         dedication: g.dedication ?? null,
-        receivedAt: dateOnly('2026-06-01'),
+        receivedAt: dateOnly(g.receivedAt),
         status: 'ACTIVE',
         journalEntryId: journalId,
         allocations: {
-          create: isSplit
-            ? [
-                {
-                  fundId: chart.fundGeneralId,
-                  amountCents: cents(200_00),
-                },
-                {
-                  fundId: chart.fundBuildingId,
-                  amountCents: cents(100_00),
-                },
-              ]
-            : [{ fundId: g.fundId, amountCents: amount }],
+          create: [{ fundId: g.fundId, amountCents: amount }],
         },
       },
     });
     donations += 1;
-    if (g.inBatch) batchTotal += amount;
   }
-
-  await prisma.donationBatch.update({
-    where: { id: batchId },
-    data: {
-      totalCents: batchTotal,
-      donationCount: giftSpecs.filter((g) => g.inBatch).length,
-    },
-  });
 
   // Vendor + bill + payment on parish books
   const vendorId = randomUUID();
@@ -977,6 +1238,116 @@ async function seedParishGiving(
     where: { id: billId },
     data: { status: 'PAID' },
   });
+
+  // Extra monthly operating expenses (utilities/salaries) for report density
+  for (let m = 1; m <= options.monthlyExpenseMonths; m++) {
+    const mm = String(m).padStart(2, '0');
+    const amount = cents((900 + m * 40) * 100);
+    await createPostedJournal(prisma, {
+      id: randomUUID(),
+      dioceseId,
+      parishId: parish.id,
+      ownerType: 'PARISH',
+      ownerId: parish.id,
+      periodId: chart.periodId,
+      entryDate: dateOnly(`2026-${mm}-12`),
+      description: `${mm}/2026 utilities`,
+      source: 'VENDOR_BILL',
+      cashImpact: false,
+      actorUserId,
+      lines: [
+        {
+          accountId: chart.expenseUtilitiesId,
+          direction: 'DEBIT',
+          amountCents: amount,
+        },
+        {
+          accountId: chart.apId,
+          direction: 'CREDIT',
+          amountCents: amount,
+        },
+      ],
+    });
+    if (m % 2 === 0) {
+      const salary = cents((4_500 + m * 50) * 100);
+      await createPostedJournal(prisma, {
+        id: randomUUID(),
+        dioceseId,
+        parishId: parish.id,
+        ownerType: 'PARISH',
+        ownerId: parish.id,
+        periodId: chart.periodId,
+        entryDate: dateOnly(`2026-${mm}-28`),
+        description: `${mm}/2026 staff stipends`,
+        source: 'MANUAL',
+        cashImpact: true,
+        actorUserId,
+        lines: [
+          {
+            accountId: chart.expenseSalariesId,
+            direction: 'DEBIT',
+            amountCents: salary,
+          },
+          {
+            accountId: chart.cashId,
+            direction: 'CREDIT',
+            amountCents: salary,
+          },
+        ],
+      });
+    }
+  }
+
+  // Maker-checker demo: DRAFT journal + PENDING approval request
+  if (options.pendingApprovals && parish.staffUserId) {
+    const draftId = randomUUID();
+    const draftAmount = cents(6_500_00);
+    await prisma.journalEntry.create({
+      data: {
+        id: draftId,
+        dioceseId,
+        parishId: parish.id,
+        ownerType: 'PARISH',
+        ownerId: parish.id,
+        periodId: chart.periodId,
+        entryDate: dateOnly('2026-06-15'),
+        description: 'Special mission transfer (pending approval)',
+        source: 'MANUAL',
+        status: 'DRAFT',
+        cashImpact: true,
+        createdByUserId: parish.staffUserId,
+        lines: {
+          create: [
+            {
+              accountId: chart.expenseSalariesId,
+              direction: 'DEBIT',
+              amountCents: draftAmount,
+              memo: 'Awaiting checker',
+            },
+            {
+              accountId: chart.cashId,
+              direction: 'CREDIT',
+              amountCents: draftAmount,
+            },
+          ],
+        },
+      },
+    });
+    await prisma.approvalRequest.create({
+      data: {
+        dioceseId,
+        parishId: parish.id,
+        ownerType: 'PARISH',
+        ownerId: parish.id,
+        entityKind: 'JOURNAL',
+        entityId: draftId,
+        makerUserId: parish.staffUserId,
+        amountCents: draftAmount,
+        status: 'PENDING',
+        requiredApprovals: 1,
+      },
+    });
+  }
 
   // Bank recon sample
   const runId = randomUUID();
@@ -1104,10 +1475,734 @@ async function seedDioceseGiving(
   return { donations: 1, campaigns: 1 };
 }
 
+// ── Bulk multi-year giving & operating history ─────────────────────────────
+//
+// The functions above build a small, hand-curated set of ledgers/journals for
+// screenshot-friendly demo coverage. Everything below adds volume: several
+// years of weekly parish offertory plus monthly vendor bill/payment cycles,
+// batched via createMany so it stays fast against a remote database (each
+// (ledger, year) combo is a handful of round trips regardless of row count).
+//
+// Deferred constraint triggers (journal_balanced, donation_allocations_sum)
+// fire at the end of each createMany statement, so inserting all lines for a
+// batch of entries in one call — after the parent entries already exist from
+// a prior committed statement — validates correctly without extra ceremony.
+// AccountingPeriod stays OPEN while its journal entries are inserted and
+// posted, then flips to CLOSED once that year is done (the DB refuses writes
+// into a CLOSED period).
+
+function mulberry32(seed: number) {
+  return function next() {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+type Rng = () => number;
+
+function rPick<T>(rand: Rng, arr: readonly T[]): T {
+  return arr[Math.floor(rand() * arr.length)]!;
+}
+function rIntBetween(rand: Rng, min: number, max: number) {
+  return min + Math.floor(rand() * (max - min + 1));
+}
+function rChance(rand: Rng, p: number) {
+  return rand() < p;
+}
+
+/** 2025 reuses the existing (already CLOSED) prior period; 2026 reuses the existing OPEN period. */
+const HISTORY_ALL_YEARS = [2021, 2022, 2023, 2024, 2025, 2026] as const;
+
+const METHOD_WEIGHTS: Array<{ method: DonationMethod; weight: number }> = [
+  { method: 'CHECK', weight: 30 },
+  { method: 'CASH', weight: 25 },
+  { method: 'ACH', weight: 20 },
+  { method: 'CARD', weight: 15 },
+  { method: 'ZELLE', weight: 6 },
+  { method: 'OTHER', weight: 2 },
+  { method: 'STOCK', weight: 2 },
+];
+function weightedMethod(rand: Rng): DonationMethod {
+  const total = METHOD_WEIGHTS.reduce((s, w) => s + w.weight, 0);
+  let r = rand() * total;
+  for (const w of METHOD_WEIGHTS) {
+    if (r < w.weight) return w.method;
+    r -= w.weight;
+  }
+  return 'CASH';
+}
+
+function sundaysInYear(year: number): Date[] {
+  const out: Date[] = [];
+  const d = new Date(Date.UTC(year, 0, 1));
+  while (d.getUTCDay() !== 0) d.setUTCDate(d.getUTCDate() + 1);
+  while (d.getUTCFullYear() === year) {
+    out.push(new Date(d));
+    d.setUTCDate(d.getUTCDate() + 7);
+  }
+  return out;
+}
+
+function monthlyDate(year: number, month0: number, day: number): Date {
+  return new Date(Date.UTC(year, month0, day));
+}
+
+async function ensureVendor(
+  prisma: PrismaClient,
+  dioceseId: string,
+  parishId: string | null,
+  name: string,
+): Promise<string> {
+  const existing = await prisma.vendor.findFirst({
+    where: { dioceseId, parishId, name },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+  const id = randomUUID();
+  await prisma.vendor.create({
+    data: { id, dioceseId, parishId, name, isActive: true },
+  });
+  return id;
+}
+
+async function ensurePartnerDonor(
+  prisma: PrismaClient,
+  dioceseId: string,
+  name: string,
+  email: string,
+): Promise<string> {
+  const existing = await prisma.externalDonor.findFirst({
+    where: { dioceseId, parishId: null, name },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+  const id = randomUUID();
+  await prisma.externalDonor.create({
+    data: { id, dioceseId, parishId: null, name, email },
+  });
+  return id;
+}
+
+type YearPeriod = { id: string; isHistorical: boolean };
+
+async function getYearPeriod(
+  prisma: PrismaClient,
+  ledger: LedgerCtx,
+  chart: ChartIds,
+  year: number,
+): Promise<YearPeriod> {
+  if (year === 2026) return { id: chart.periodId, isHistorical: false };
+  if (year === 2025) {
+    await prisma.accountingPeriod.update({
+      where: { id: chart.priorPeriodId },
+      data: { status: 'OPEN' },
+    });
+    return { id: chart.priorPeriodId, isHistorical: true };
+  }
+  const id = randomUUID();
+  await prisma.accountingPeriod.create({
+    data: {
+      id,
+      dioceseId: ledger.dioceseId,
+      parishId: ledger.parishId,
+      ownerType: ledger.ownerType,
+      ownerId: ledger.ownerId,
+      startDate: new Date(Date.UTC(year, 0, 1)),
+      endDate: new Date(Date.UTC(year, 11, 31)),
+      status: 'OPEN',
+    },
+  });
+  return { id, isHistorical: true };
+}
+
+async function closeYearPeriod(
+  prisma: PrismaClient,
+  ledger: LedgerCtx,
+  periodId: string,
+) {
+  await prisma.accountingPeriod.update({
+    where: { id: periodId },
+    data: {
+      status: 'CLOSED',
+      closedAt: new Date(),
+      closedByUserId: ledger.actorUserId,
+    },
+  });
+}
+
+type HistoryCounts = {
+  donations: number;
+  journals: number;
+  bills: number;
+  payments: number;
+};
+
+/** One fiscal year of weekly offertory + monthly bill/payment cycles for one PARISH ledger. */
+async function seedParishYearHistory(
+  prisma: PrismaClient,
+  ledger: LedgerCtx,
+  chart: ChartIds,
+  parishId: string,
+  givers: Array<{ familyId: string; memberId: string | null }>,
+  utilitiesVendorId: string,
+  payrollVendorId: string,
+  year: number,
+  rand: Rng,
+): Promise<HistoryCounts> {
+  const period = await getYearPeriod(prisma, ledger, chart, year);
+
+  const journalEntries: Prisma.JournalEntryCreateManyInput[] = [];
+  const journalLines: Prisma.JournalLineCreateManyInput[] = [];
+  const donations: Prisma.DonationCreateManyInput[] = [];
+  const allocations: Prisma.DonationAllocationCreateManyInput[] = [];
+  const bills: Prisma.VendorBillCreateManyInput[] = [];
+  const payments: Prisma.PaymentCreateManyInput[] = [];
+
+  let checkSeq = 1000 + (year % 100) * 10;
+
+  for (const sunday of sundaysInYear(year)) {
+    const numGifts = rIntBetween(rand, 5, 11);
+    for (let g = 0; g < numGifts; g++) {
+      const anonymous = rChance(rand, 0.12);
+      const giver = anonymous ? undefined : rPick(rand, givers);
+      const method = weightedMethod(rand);
+      const toBuilding = rChance(rand, 0.1);
+      const toMissions = !toBuilding && rChance(rand, 0.05);
+      const fundId = toBuilding
+        ? chart.fundBuildingId
+        : toMissions
+          ? chart.fundMissionsId
+          : chart.fundGeneralId;
+      const incomeAccountId = toBuilding ? chart.buildingIncomeId : chart.incomeId;
+      const cashAccountId = toBuilding ? chart.buildingCashId : chart.cashId;
+      const amount = cents(
+        toBuilding
+          ? rIntBetween(rand, 5_000, 150_000)
+          : toMissions
+            ? rIntBetween(rand, 2_000, 40_000)
+            : rIntBetween(rand, 1_500, 60_000),
+      );
+
+      const entryId = randomUUID();
+      const postedAt = new Date(sunday.getTime() + 2 * 24 * 3_600_000);
+      journalEntries.push({
+        id: entryId,
+        dioceseId: ledger.dioceseId,
+        parishId: ledger.parishId,
+        ownerType: ledger.ownerType,
+        ownerId: ledger.ownerId,
+        periodId: period.id,
+        entryDate: sunday,
+        description: `Donation ${method}`,
+        source: 'DONATION',
+        status: 'DRAFT',
+        cashImpact: true,
+        createdByUserId: ledger.actorUserId,
+        postedByUserId: ledger.actorUserId,
+        postedAt,
+      });
+      journalLines.push(
+        {
+          id: randomUUID(),
+          journalEntryId: entryId,
+          accountId: cashAccountId,
+          direction: 'DEBIT',
+          amountCents: amount,
+        },
+        {
+          id: randomUUID(),
+          journalEntryId: entryId,
+          accountId: incomeAccountId,
+          direction: 'CREDIT',
+          amountCents: amount,
+        },
+      );
+
+      const donationId = randomUUID();
+      const isCheck = method === 'CHECK';
+      const isElectronic = method === 'ACH' || method === 'CARD' || method === 'ZELLE';
+      donations.push({
+        id: donationId,
+        dioceseId: ledger.dioceseId,
+        parishId,
+        familyId: giver?.familyId ?? null,
+        memberId: giver?.memberId ?? null,
+        isAnonymous: anonymous,
+        fundId,
+        periodId: period.id,
+        amountCents: amount,
+        method,
+        checkNumber: isCheck ? String(checkSeq++) : null,
+        externalTxnId: isElectronic
+          ? `${method.toLowerCase()}-${parishId.slice(0, 8)}-${year}-${entryId.slice(0, 8)}`
+          : null,
+        receivedAt: sunday,
+        status: 'ACTIVE',
+        journalEntryId: entryId,
+      });
+      allocations.push({
+        id: randomUUID(),
+        donationId,
+        fundId,
+        amountCents: amount,
+      });
+    }
+  }
+
+  const monthlyOps: Array<{
+    vendorId: string;
+    expenseAccountId: string;
+    label: string;
+    baseAmount: number;
+  }> = [
+    { vendorId: utilitiesVendorId, expenseAccountId: chart.expenseUtilitiesId, label: 'Utilities', baseAmount: 60_000 },
+    { vendorId: payrollVendorId, expenseAccountId: chart.expenseSalariesId, label: 'Payroll', baseAmount: 350_000 },
+  ];
+
+  for (let m = 0; m < 12; m++) {
+    for (const op of monthlyOps) {
+      const billDate = monthlyDate(year, m, 5);
+      const dueDate = monthlyDate(year, m, 25);
+      const payDate = monthlyDate(year, m, 20);
+      const amount = cents(op.baseAmount + rIntBetween(rand, -5_000, 8_000));
+
+      const billJeId = randomUUID();
+      journalEntries.push({
+        id: billJeId,
+        dioceseId: ledger.dioceseId,
+        parishId: ledger.parishId,
+        ownerType: ledger.ownerType,
+        ownerId: ledger.ownerId,
+        periodId: period.id,
+        entryDate: billDate,
+        description: `${op.label} bill accrual`,
+        source: 'VENDOR_BILL',
+        status: 'DRAFT',
+        cashImpact: false,
+        createdByUserId: ledger.actorUserId,
+        postedByUserId: ledger.actorUserId,
+        postedAt: billDate,
+      });
+      journalLines.push(
+        {
+          id: randomUUID(),
+          journalEntryId: billJeId,
+          accountId: op.expenseAccountId,
+          direction: 'DEBIT',
+          amountCents: amount,
+        },
+        {
+          id: randomUUID(),
+          journalEntryId: billJeId,
+          accountId: chart.apId,
+          direction: 'CREDIT',
+          amountCents: amount,
+        },
+      );
+      const billId = randomUUID();
+      bills.push({
+        id: billId,
+        dioceseId: ledger.dioceseId,
+        parishId: ledger.parishId,
+        ownerType: ledger.ownerType,
+        ownerId: ledger.ownerId,
+        vendorId: op.vendorId,
+        amountCents: amount,
+        description: `${op.label} — ${year}-${String(m + 1).padStart(2, '0')}`,
+        invoiceNumber: `${op.label.slice(0, 3).toUpperCase()}-${year}-${String(m + 1).padStart(2, '0')}`,
+        billDate,
+        dueDate,
+        status: 'PAID',
+        journalEntryId: billJeId,
+      });
+
+      const payJeId = randomUUID();
+      journalEntries.push({
+        id: payJeId,
+        dioceseId: ledger.dioceseId,
+        parishId: ledger.parishId,
+        ownerType: ledger.ownerType,
+        ownerId: ledger.ownerId,
+        periodId: period.id,
+        entryDate: payDate,
+        description: `Pay ${op.label.toLowerCase()} bill`,
+        source: 'PAYMENT',
+        status: 'DRAFT',
+        cashImpact: true,
+        createdByUserId: ledger.actorUserId,
+        postedByUserId: ledger.actorUserId,
+        postedAt: payDate,
+      });
+      journalLines.push(
+        {
+          id: randomUUID(),
+          journalEntryId: payJeId,
+          accountId: chart.apId,
+          direction: 'DEBIT',
+          amountCents: amount,
+        },
+        {
+          id: randomUUID(),
+          journalEntryId: payJeId,
+          accountId: chart.cashId,
+          direction: 'CREDIT',
+          amountCents: amount,
+        },
+      );
+      payments.push({
+        id: randomUUID(),
+        dioceseId: ledger.dioceseId,
+        parishId: ledger.parishId,
+        ownerType: ledger.ownerType,
+        ownerId: ledger.ownerId,
+        vendorBillId: billId,
+        amountCents: amount,
+        method: 'ACH',
+        paidAt: payDate,
+        journalEntryId: payJeId,
+      });
+    }
+  }
+
+  await prisma.journalEntry.createMany({ data: journalEntries });
+  await prisma.journalLine.createMany({ data: journalLines });
+  if (donations.length) await prisma.donation.createMany({ data: donations });
+  if (allocations.length) await prisma.donationAllocation.createMany({ data: allocations });
+  if (bills.length) await prisma.vendorBill.createMany({ data: bills });
+  if (payments.length) await prisma.payment.createMany({ data: payments });
+
+  await prisma.journalEntry.updateMany({
+    where: {
+      periodId: period.id,
+      ownerType: ledger.ownerType,
+      ownerId: ledger.ownerId,
+      status: 'DRAFT',
+    },
+    data: { status: 'POSTED' },
+  });
+
+  if (period.isHistorical) {
+    await closeYearPeriod(prisma, ledger, period.id);
+  }
+
+  return {
+    donations: donations.length,
+    journals: journalEntries.length,
+    bills: bills.length,
+    payments: payments.length,
+  };
+}
+
+/** One fiscal year of lighter diocese-level giving + operating cycles for the DIOCESE ledger. */
+async function seedDioceseYearHistory(
+  prisma: PrismaClient,
+  ledger: LedgerCtx,
+  chart: ChartIds,
+  opsVendorId: string,
+  partnerDonorIds: string[],
+  year: number,
+  rand: Rng,
+): Promise<HistoryCounts> {
+  const period = await getYearPeriod(prisma, ledger, chart, year);
+
+  const journalEntries: Prisma.JournalEntryCreateManyInput[] = [];
+  const journalLines: Prisma.JournalLineCreateManyInput[] = [];
+  const donations: Prisma.DonationCreateManyInput[] = [];
+  const allocations: Prisma.DonationAllocationCreateManyInput[] = [];
+  const bills: Prisma.VendorBillCreateManyInput[] = [];
+  const payments: Prisma.PaymentCreateManyInput[] = [];
+
+  const giftCount = rIntBetween(rand, 4, 8);
+  for (let i = 0; i < giftCount; i++) {
+    const month = rIntBetween(rand, 0, 11);
+    const day = rIntBetween(rand, 1, 27);
+    const receivedAt = monthlyDate(year, month, day);
+    const method = rPick(rand, ['ACH', 'CHECK', 'STOCK'] as DonationMethod[]);
+    const amount = cents(rIntBetween(rand, 100_000, 2_000_000));
+    const donorId = rPick(rand, partnerDonorIds);
+
+    const entryId = randomUUID();
+    journalEntries.push({
+      id: entryId,
+      dioceseId: ledger.dioceseId,
+      parishId: null,
+      ownerType: ledger.ownerType,
+      ownerId: ledger.ownerId,
+      periodId: period.id,
+      entryDate: receivedAt,
+      description: `Diocese mission gift (${method})`,
+      source: 'DONATION',
+      status: 'DRAFT',
+      cashImpact: true,
+      createdByUserId: ledger.actorUserId,
+      postedByUserId: ledger.actorUserId,
+      postedAt: receivedAt,
+    });
+    journalLines.push(
+      { id: randomUUID(), journalEntryId: entryId, accountId: chart.cashId, direction: 'DEBIT', amountCents: amount },
+      { id: randomUUID(), journalEntryId: entryId, accountId: chart.incomeId, direction: 'CREDIT', amountCents: amount },
+    );
+
+    const donationId = randomUUID();
+    donations.push({
+      id: donationId,
+      dioceseId: ledger.dioceseId,
+      parishId: null,
+      externalDonorId: donorId,
+      fundId: chart.fundMissionsId,
+      periodId: period.id,
+      amountCents: amount,
+      method,
+      externalTxnId: `diocese-${method.toLowerCase()}-${year}-${entryId.slice(0, 8)}`,
+      receivedAt,
+      status: 'ACTIVE',
+      journalEntryId: entryId,
+    });
+    allocations.push({ id: randomUUID(), donationId, fundId: chart.fundMissionsId, amountCents: amount });
+  }
+
+  for (let m = 0; m < 12; m++) {
+    const billDate = monthlyDate(year, m, 3);
+    const dueDate = monthlyDate(year, m, 20);
+    const payDate = monthlyDate(year, m, 15);
+    const amount = cents(180_000 + rIntBetween(rand, -10_000, 15_000));
+
+    const billJeId = randomUUID();
+    journalEntries.push({
+      id: billJeId,
+      dioceseId: ledger.dioceseId,
+      parishId: null,
+      ownerType: ledger.ownerType,
+      ownerId: ledger.ownerId,
+      periodId: period.id,
+      entryDate: billDate,
+      description: 'Diocese operations bill accrual',
+      source: 'VENDOR_BILL',
+      status: 'DRAFT',
+      cashImpact: false,
+      createdByUserId: ledger.actorUserId,
+      postedByUserId: ledger.actorUserId,
+      postedAt: billDate,
+    });
+    journalLines.push(
+      { id: randomUUID(), journalEntryId: billJeId, accountId: chart.expenseSalariesId, direction: 'DEBIT', amountCents: amount },
+      { id: randomUUID(), journalEntryId: billJeId, accountId: chart.apId, direction: 'CREDIT', amountCents: amount },
+    );
+    const billId = randomUUID();
+    bills.push({
+      id: billId,
+      dioceseId: ledger.dioceseId,
+      parishId: null,
+      ownerType: ledger.ownerType,
+      ownerId: ledger.ownerId,
+      vendorId: opsVendorId,
+      amountCents: amount,
+      description: `Diocese operations — ${year}-${String(m + 1).padStart(2, '0')}`,
+      invoiceNumber: `DIO-OPS-${year}-${String(m + 1).padStart(2, '0')}`,
+      billDate,
+      dueDate,
+      status: 'PAID',
+      journalEntryId: billJeId,
+    });
+
+    const payJeId = randomUUID();
+    journalEntries.push({
+      id: payJeId,
+      dioceseId: ledger.dioceseId,
+      parishId: null,
+      ownerType: ledger.ownerType,
+      ownerId: ledger.ownerId,
+      periodId: period.id,
+      entryDate: payDate,
+      description: 'Pay diocese operations bill',
+      source: 'PAYMENT',
+      status: 'DRAFT',
+      cashImpact: true,
+      createdByUserId: ledger.actorUserId,
+      postedByUserId: ledger.actorUserId,
+      postedAt: payDate,
+    });
+    journalLines.push(
+      { id: randomUUID(), journalEntryId: payJeId, accountId: chart.apId, direction: 'DEBIT', amountCents: amount },
+      { id: randomUUID(), journalEntryId: payJeId, accountId: chart.cashId, direction: 'CREDIT', amountCents: amount },
+    );
+    payments.push({
+      id: randomUUID(),
+      dioceseId: ledger.dioceseId,
+      parishId: null,
+      ownerType: ledger.ownerType,
+      ownerId: ledger.ownerId,
+      vendorBillId: billId,
+      amountCents: amount,
+      method: 'ACH',
+      paidAt: payDate,
+      journalEntryId: payJeId,
+    });
+  }
+
+  await prisma.journalEntry.createMany({ data: journalEntries });
+  await prisma.journalLine.createMany({ data: journalLines });
+  if (donations.length) await prisma.donation.createMany({ data: donations });
+  if (allocations.length) await prisma.donationAllocation.createMany({ data: allocations });
+  if (bills.length) await prisma.vendorBill.createMany({ data: bills });
+  if (payments.length) await prisma.payment.createMany({ data: payments });
+
+  await prisma.journalEntry.updateMany({
+    where: {
+      periodId: period.id,
+      ownerType: ledger.ownerType,
+      ownerId: ledger.ownerId,
+      status: 'DRAFT',
+    },
+    data: { status: 'POSTED' },
+  });
+
+  if (period.isHistorical) {
+    await closeYearPeriod(prisma, ledger, period.id);
+  }
+
+  return {
+    donations: donations.length,
+    journals: journalEntries.length,
+    bills: bills.length,
+    payments: payments.length,
+  };
+}
+
+export async function seedFinanceHistory(
+  prisma: PrismaClient,
+  input: {
+    dioceseId: string;
+    dioceseAdminId: string;
+    dioceseChart: ChartIds | null;
+    parishes: Array<{
+      bundle: FinanceParishBundle;
+      chart: ChartIds;
+      actorUserId: string;
+    }>;
+  },
+): Promise<HistoryCounts & { years: number }> {
+  const rand = mulberry32(20260715);
+  const totals: HistoryCounts = { donations: 0, journals: 0, bills: 0, payments: 0 };
+
+  if (input.dioceseChart) {
+    const ledger: LedgerCtx = {
+      ownerType: 'DIOCESE',
+      ownerId: input.dioceseId,
+      dioceseId: input.dioceseId,
+      parishId: null,
+      actorUserId: input.dioceseAdminId,
+      label: 'Diocese',
+    };
+    const opsVendorId = await ensureVendor(
+      prisma,
+      input.dioceseId,
+      null,
+      'Diocese Central Operations Vendor',
+    );
+    const partnerNames = [
+      'Mar Thoma Mission Partner Org',
+      'Heritage Foundation',
+      'Friends of the Diocese',
+      'St. Thomas Legacy Fund',
+    ];
+    const partners: string[] = [];
+    for (const name of partnerNames) {
+      partners.push(
+        await ensurePartnerDonor(
+          prisma,
+          input.dioceseId,
+          name,
+          `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@example.org`,
+        ),
+      );
+    }
+
+    for (const year of HISTORY_ALL_YEARS) {
+      const r = await seedDioceseYearHistory(
+        prisma,
+        ledger,
+        input.dioceseChart,
+        opsVendorId,
+        partners,
+        year,
+        rand,
+      );
+      totals.donations += r.donations;
+      totals.journals += r.journals;
+      totals.bills += r.bills;
+      totals.payments += r.payments;
+    }
+    console.log(`     Diocese: ${HISTORY_ALL_YEARS.length} fiscal years of history seeded`);
+  }
+
+  for (const p of input.parishes) {
+    const ledger: LedgerCtx = {
+      ownerType: 'PARISH',
+      ownerId: p.bundle.id,
+      dioceseId: input.dioceseId,
+      parishId: p.bundle.id,
+      actorUserId: p.actorUserId,
+      label: p.bundle.name,
+    };
+    const givers = p.bundle.families
+      .map((f) => ({
+        familyId: f.id,
+        memberId: p.bundle.members.find((m) => m.familyId === f.id)?.id ?? null,
+      }))
+      .filter((g): g is { familyId: string; memberId: string | null } => Boolean(g.familyId));
+    if (!givers.length) continue;
+
+    const utilitiesVendorId = await ensureVendor(
+      prisma,
+      input.dioceseId,
+      p.bundle.id,
+      `${p.bundle.name.split(' ')[0]} Utilities Co`,
+    );
+    const payrollVendorId = await ensureVendor(
+      prisma,
+      input.dioceseId,
+      p.bundle.id,
+      `${p.bundle.name.split(' ')[0]} Payroll Services`,
+    );
+
+    for (const year of HISTORY_ALL_YEARS) {
+      const r = await seedParishYearHistory(
+        prisma,
+        ledger,
+        p.chart,
+        p.bundle.id,
+        givers,
+        utilitiesVendorId,
+        payrollVendorId,
+        year,
+        rand,
+      );
+      totals.donations += r.donations;
+      totals.journals += r.journals;
+      totals.bills += r.bills;
+      totals.payments += r.payments;
+    }
+    console.log(`     ${p.bundle.name}: ${HISTORY_ALL_YEARS.length} fiscal years of history seeded`);
+  }
+
+  return { ...totals, years: HISTORY_ALL_YEARS.length };
+}
+
 export async function seedFinanceData(
   prisma: PrismaClient,
   input: FinanceSeedInput,
 ): Promise<FinanceSeedCounts> {
+  const opts = {
+    fullParishCount: input.options?.fullParishCount ?? 3,
+    batchMonths: input.options?.batchMonths ?? 1,
+    pledgeCount: input.options?.pledgeCount ?? 5,
+    envelopeFamilyCount: input.options?.envelopeFamilyCount ?? 8,
+    pendingApprovals: input.options?.pendingApprovals ?? false,
+    monthlyExpenseMonths: input.options?.monthlyExpenseMonths ?? 0,
+  };
+
   const counts: FinanceSeedCounts = {
     ledgers: 0,
     funds: 0,
@@ -1237,18 +2332,25 @@ export async function seedFinanceData(
     counts.campaigns += d.campaigns;
   }
 
-  // Parish giving + vendors (first 3 parishes full; others lighter)
+  // Parish giving + vendors (full path for first N parishes; others lighter)
   for (let i = 0; i < input.parishes.length; i++) {
     const parish = input.parishes[i]!;
     const chart = parishCharts.get(parish.id);
     if (!chart) continue;
-    if (i < 3) {
+    if (i < opts.fullParishCount) {
       const g = await seedParishGiving(
         prisma,
         input.dioceseId,
         parish,
         chart,
         parish.adminUserId,
+        {
+          batchMonths: opts.batchMonths,
+          pledgeCount: opts.pledgeCount,
+          envelopeFamilyCount: opts.envelopeFamilyCount,
+          pendingApprovals: opts.pendingApprovals,
+          monthlyExpenseMonths: opts.monthlyExpenseMonths,
+        },
       );
       counts.donations += g.donations;
       counts.campaigns += g.campaigns;
@@ -1352,6 +2454,24 @@ export async function seedFinanceData(
       });
     }
   }
+
+  // Multi-year giving & operating history (2021–2026) — bulk, batched inserts.
+  const history = await seedFinanceHistory(prisma, {
+    dioceseId: input.dioceseId,
+    dioceseAdminId: input.dioceseAdminId,
+    dioceseChart,
+    parishes: input.parishes
+      .map((parish) => {
+        const chart = parishCharts.get(parish.id);
+        return chart
+          ? { bundle: parish, chart, actorUserId: parish.adminUserId }
+          : null;
+      })
+      .filter((p): p is { bundle: FinanceParishBundle; chart: ChartIds; actorUserId: string } => p !== null),
+  });
+  console.log(
+    `     history: +${history.donations} donations, +${history.journals} journals, +${history.bills} bills, +${history.payments} payments across ${history.years} fiscal years`,
+  );
 
   counts.funds = await prisma.fund.count();
   counts.accounts = await prisma.account.count();

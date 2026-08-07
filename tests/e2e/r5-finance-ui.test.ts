@@ -96,6 +96,39 @@ test.describe('R5 — finance UI', () => {
     }
   });
 
+  test('journal entry dialog has no horizontal overflow', async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    test.skip(
+      !(await isSupabaseAuthUp()),
+      'Supabase auth stack not available (run `supabase start`)',
+    );
+    test.setTimeout(60_000);
+    await injectAdmin(context, baseURL!);
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    await page.goto('/finance/journal');
+    await expect(page.getByTestId('finance-journal')).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.getByRole('button', { name: /new entry/i }).click();
+
+    const dialog = page.getByRole('dialog', {
+      name: /new journal entry/i,
+    });
+    await expect(dialog).toBeVisible();
+    const bounds = await dialog.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+
+    expect(bounds.scrollWidth, JSON.stringify(bounds)).toBeLessThanOrEqual(
+      bounds.clientWidth + 1,
+    );
+  });
+
   test('member does not see Finance nav or ledger surfaces', async ({
     page,
     context,

@@ -5,6 +5,7 @@ import { getSessionUser, claimsFromUser } from "@/lib/auth";
 import { navSectionsFromClaims, portalFromClaims } from "@/lib/nav/menu";
 import {
   isDioceseScopedRole,
+  memberWorkingParishChoices,
   resolveWorkingParish,
 } from "@/lib/context/working-parish";
 import { prisma } from "@/lib/prisma";
@@ -24,17 +25,29 @@ export default async function AuthenticatedLayout({
   const sections = navSectionsFromClaims(claims);
   const portal = portalFromClaims(claims);
 
-  const working = isDioceseScopedRole(user.role)
-    ? await resolveWorkingParish(user)
-    : null;
+  const dioceseScoped = isDioceseScopedRole(user.role);
+  const working = await resolveWorkingParish(user);
 
   let parishName: string | null = working?.name ?? null;
-  if (!parishName && user.parishId && !isDioceseScopedRole(user.role)) {
+  if (!parishName && user.parishId && !dioceseScoped) {
     const home = await prisma.parish.findFirst({
       where: { id: user.parishId },
       select: { name: true },
     });
     parishName = home?.name ?? null;
+  }
+
+  // Multi-parish members (MM-17) can switch working parish among their own
+  // memberships; diocese-scoped roles load the parish list client-side.
+  let switchableParishes: { id: string; name: string; isPrimary: boolean }[] = [];
+  if (!dioceseScoped) {
+    const member = await prisma.member.findFirst({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+    if (member) {
+      switchableParishes = await memberWorkingParishChoices(member.id);
+    }
   }
 
   return (
@@ -49,9 +62,11 @@ export default async function AuthenticatedLayout({
       sections={sections}
       context={{
         portal,
-        canSwitchParish: isDioceseScopedRole(user.role),
+        canSwitchParish: dioceseScoped || switchableParishes.length > 1,
         parishName,
         workingParishId: working?.id ?? null,
+        homeParishId: dioceseScoped ? null : user.parishId,
+        switchableParishes,
       }}
     >
       {children}
