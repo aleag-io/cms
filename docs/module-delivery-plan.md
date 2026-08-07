@@ -56,7 +56,8 @@ Multi-tenant RLS + `app_authenticated` role, the claims pipeline (`claimsFromUse
 `getSessionClaims`), append-only audit, `lib/db/withTenant.ts`, the Prisma↔Supabase migration
 split, and — on the UI side — the design system/app shell/auth/data layer (Phase 5), including
 **portal-aware nav** and **tenant context switcher** (parish-only portal vs diocese portal +
-diocese-admin “work in parish” mode — shell plan §7; partially shipped: role nav only).
+diocese-admin “work in parish” mode — shell plan §7; tenant context switcher shipped: role +
+portal-aware nav, diocese work-context, and the MM-17 multi-parish member switcher).
 
 **M1 — People & Membership** *(the core domain everything references)*
 Diocese→Parish→Family→Member hierarchy, member identifiers (`<family>.<index>`), status

@@ -36,6 +36,8 @@ const COOKIE_NAME = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-tok
 
 const DIOCESE_ID = '00000000-0000-0000-0000-000000000001';
 const PARISH_A_ID = '00000000-0000-0000-0000-000000000010';
+const PARISH_B_ID = '00000000-0000-0000-0000-000000000011';
+export const PARISH_B_NAME = 'St. Mary Parish (Parish B)';
 
 /** Ensure diocese + Parish A exist (idempotent). Required after migrate/reset. */
 export async function ensureTenantFixtures(): Promise<void> {
@@ -54,6 +56,12 @@ export async function ensureTenantFixtures(): Promise<void> {
        VALUES ($1, $2, 'St. Thomas Parish (Parish A)', true, '', 4, 1, false, now(), now())
        ON CONFLICT (id) DO NOTHING`,
       [PARISH_A_ID, DIOCESE_ID],
+    );
+    await c.query(
+      `INSERT INTO "Parish"(id, "dioceseId", name, "isActive", "familyNumberPrefix", "familyNumberWidth", "familyNumberStart", "autoApprove", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, true, '', 4, 1, false, now(), now())
+       ON CONFLICT (id) DO NOTHING`,
+      [PARISH_B_ID, DIOCESE_ID, PARISH_B_NAME],
     );
     await c.query('COMMIT');
   } catch (e) {
@@ -340,4 +348,99 @@ export function ensureClergySession() {
     memberIdentifier: '902.1',
     clergyOfficer: true,
   });
+}
+
+/** Diocese-scoped DIOCESE_REPORT_VIEWER session (read-only aggregate portal). */
+export async function ensureReportViewerSession(): Promise<{
+  cookie: { name: string; value: string };
+  userId: string;
+}> {
+  await ensureTenantFixtures();
+  const email = 'report-viewer-e2e@cms.local';
+  const password = 'E2ePassw0rd!';
+  const uid = await ensureAuthUser(email, password);
+  const pool = new Pool({ connectionString: DATABASE_URL });
+
+  try {
+    await pool.query(
+      `INSERT INTO "AppUser"(id,email,"displayName",role,"dioceseId","parishId","isActive","createdAt","updatedAt")
+       VALUES ($1,$2,'E2E Report Viewer','DIOCESE_REPORT_VIEWER',$3,NULL,true,now(),now())
+       ON CONFLICT (id) DO UPDATE SET role='DIOCESE_REPORT_VIEWER',"parishId"=NULL,"isActive"=true`,
+      [uid, email, DIOCESE_ID],
+    );
+  } finally {
+    await pool.end();
+  }
+
+  return { cookie: await mintCookie(email, password), userId: uid };
+}
+
+/**
+ * MM-17 multi-parish member: MEMBER role, home parish A, also belongs to
+ * parish B (secondary). Parish B gets a unique peer member so the directory
+ * contents visibly change when the working parish switches.
+ */
+export async function ensureMultiParishMemberSession(): Promise<{
+  cookie: { name: string; value: string };
+  userId: string;
+  parishAName: string;
+  parishBName: string;
+}> {
+  await ensureTenantFixtures();
+  const email = 'multi-parish-e2e@cms.local';
+  const password = 'E2ePassw0rd!';
+  const uid = await ensureAuthUser(email, password);
+
+  const pool = new Pool({ connectionString: DATABASE_URL });
+  const c = await pool.connect();
+  try {
+    await c.query('BEGIN');
+    await c.query(
+      `INSERT INTO "AppUser"(id,email,"displayName",role,"dioceseId","parishId","isActive","createdAt","updatedAt")
+       VALUES ($1,$2,'E2E Multi Parish','MEMBER',$3,$4,true,now(),now())
+       ON CONFLICT (id) DO UPDATE SET role='MEMBER',"parishId"=$4,"isActive"=true`,
+      [uid, email, DIOCESE_ID, PARISH_A_ID],
+    );
+    // Member row (home parish A).
+    await c.query(
+      `INSERT INTO "Member"(id,"dioceseId","parishId","userId","memberIdentifier","firstName","lastName",email,status,"createdAt","updatedAt")
+       VALUES ($1,$2,$3,$1,'910.1','Multi','Parish','multi-e2e@cms.local','ACTIVE',now(),now())
+       ON CONFLICT (id) DO UPDATE SET status='ACTIVE',"parishId"=$3`,
+      [uid, DIOCESE_ID, PARISH_A_ID],
+    );
+    // Memberships: A primary, B secondary.
+    await c.query(
+      `INSERT INTO "MemberParish"(id,"memberId","parishId","isPrimary","membershipType","joinedAt","createdAt","updatedAt")
+       VALUES (gen_random_uuid(),$1,$2,true,'PRIMARY',now(),now(),now())
+       ON CONFLICT ("memberId","parishId") DO NOTHING`,
+      [uid, PARISH_A_ID],
+    );
+    await c.query(
+      `INSERT INTO "MemberParish"(id,"memberId","parishId","isPrimary","membershipType","joinedAt","createdAt","updatedAt")
+       VALUES (gen_random_uuid(),$1,$2,false,'SECONDARY',now(),now(),now())
+       ON CONFLICT ("memberId","parishId") DO NOTHING`,
+      [uid, PARISH_B_ID],
+    );
+    // A unique peer visible only in parish B's directory.
+    await c.query(
+      `INSERT INTO "Member"(id,"dioceseId","parishId","memberIdentifier","firstName","lastName",email,status,"createdAt","updatedAt")
+       VALUES ('00000000-0000-0000-0000-000000000911'::uuid,$1,$2,'911.1','Zebulon','ParishBTwist','bonly-e2e@cms.local','ACTIVE',now(),now())
+       ON CONFLICT (id) DO UPDATE SET status='ACTIVE',"parishId"=$2`,
+      [DIOCESE_ID, PARISH_B_ID],
+    );
+    await c.query('COMMIT');
+  } catch (e) {
+    await c.query('ROLLBACK');
+    throw e;
+  } finally {
+    c.release();
+    await pool.end();
+  }
+
+  return {
+    cookie: await mintCookie(email, password),
+    userId: uid,
+    parishAName: 'St. Thomas Parish (Parish A)',
+    parishBName: PARISH_B_NAME,
+  };
 }

@@ -149,7 +149,6 @@ export function projectDioceseDashboard(
   raw: DioceseDashboardRaw,
   claims: SessionClaims,
 ): DashboardDto {
-  const showNew = canSeeNewMembers(claims);
   const workItems = raw.workItems.filter((item) => {
     if (item.key === 'pending_sharing_requests') return canSeeSharingQueues(claims);
     return canSeeNewMembers(claims);
@@ -169,7 +168,9 @@ export function projectDioceseDashboard(
     demographics: {
       byStatus: raw.demographics.byStatus,
     },
-    newMembers: showNew ? raw.newMembers : [],
+    // Diocese portal is aggregate-only: never emit per-member rows (they would
+    // link to parish-ops /members/[id], which is out of portal scope).
+    newMembers: [],
     workItems,
   };
 }
