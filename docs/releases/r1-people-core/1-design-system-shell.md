@@ -91,7 +91,13 @@ dashboards; `mvp1-console` retired.
 
 ---
 
-## 7. Tenant context & portal scope *(product requirement — gap as of R2)*
+## 7. Tenant context & portal scope *(shipped — R1 follow-up, 2026-08)*
+
+> **Status:** implemented and gated by tests. The gaps in §7.3 are closed by
+> [6-m0-shell-tenant-context.md](6-m0-shell-tenant-context.md): the
+> multi-parish member switcher (MM-17) and the page-level forbidden state +
+> diocese-dashboard portal-leak fixes (G4). What follows is the canonical
+> design spec; §7.3/§7.6 are retained for historical context.
 
 ### 7.1 Intent
 

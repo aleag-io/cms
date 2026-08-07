@@ -9,7 +9,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { PageHeader } from '@/components/patterns/page-header';
-import { EmptyState } from '@/components/patterns/states';
+import { EmptyState, ForbiddenState } from '@/components/patterns/states';
 import {
     Table,
     TableBody,
@@ -18,7 +18,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { claimsFromUser, requireRole } from '@/lib/auth';
+import { claimsFromUser, getSessionUser } from '@/lib/auth';
 import { withTenant } from '@/lib/db/withTenant';
 import { formatCents } from '@/lib/finance/money';
 
@@ -97,12 +97,31 @@ const MONTH_FORMAT = new Intl.DateTimeFormat('en-US', {
 });
 
 export default async function DioceseAggregatePage() {
-    const actor = await requireRole([
+    const actor = await getSessionUser();
+    if (!actor) return null;
+
+    // Page-level guard (shell §7.7): parish-scoped roles get an explicit
+    // forbidden state, not an empty main or an error boundary.
+    const allowed: Role[] = [
         Role.GLOBAL_ADMIN,
         Role.DIOCESE_ADMIN,
         Role.DIOCESE_STAFF,
         Role.DIOCESE_REPORT_VIEWER,
-    ]);
+    ];
+    if (!allowed.includes(actor.role)) {
+        return (
+            <div className="flex min-h-full flex-col">
+                <PageHeader
+                    title="Diocese Aggregate"
+                    description="Tier-2 parish summary."
+                />
+                <div className="flex-1 p-4 sm:p-6">
+                    <ForbiddenState description="This diocese-level view is not available to your role." />
+                </div>
+            </div>
+        );
+    }
+
     const claims = await claimsFromUser(actor);
 
     const { rows, parishNames, trend, sacramental, attendance, events, pledges } =

@@ -76,6 +76,10 @@ export type ShellContext = {
   canSwitchParish: boolean;
   parishName: string | null;
   workingParishId: string | null;
+  /** Home parish for parish-home users (null for diocese-scoped roles). */
+  homeParishId: string | null;
+  /** MM-17: a member's own active parish memberships (empty for diocese roles). */
+  switchableParishes: { id: string; name: string; isPrimary: boolean }[];
 };
 
 const NAV_ICONS: Record<string, Icon> = {
@@ -288,6 +292,8 @@ export function AppShell({
                   initialPortal={context.portal}
                   initialParishName={context.parishName}
                   initialWorkingParishId={context.workingParishId}
+                  homeParishId={context.homeParishId}
+                  switchableParishes={context.switchableParishes}
                 />
               </header>
               <main className="flex-1">{children}</main>

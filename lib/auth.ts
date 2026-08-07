@@ -124,15 +124,16 @@ let _claimsResolver: ClaimsResolver = async (user) => {
   }
 
   // Parish work-context (shell §7): diocese-scoped actors may temporarily
-  // operate with parish_id set without mutating AppUser.role.
-  const workingParishId = isDioceseScopedRole(user.role)
-    ? await resolveWorkingParishId(user)
-    : null;
+  // operate with parish_id set (work-in-parish mode), and multi-parish members
+  // may focus a working parish (MM-17) — both without mutating AppUser.role.
+  const workingParishId = await resolveWorkingParishId(user);
   const effectiveParishId = workingParishId ?? user.parishId;
 
-  // When in parish work-context, surface parish-portal roles for nav (UX only).
-  // requireRole still uses elevatedRolesForWorkContext for API authorization.
-  if (workingParishId) {
+  // When a diocese-scoped actor is in parish work-context, surface
+  // parish-portal roles for nav (UX only). requireRole still uses
+  // elevatedRolesForWorkContext for API authorization. Members keep their own
+  // roles — the working parish only narrows scope, never widens privilege.
+  if (workingParishId && isDioceseScopedRole(user.role)) {
     for (const elevated of elevatedRolesForWorkContext(user.role)) {
       roles.add(elevated.toLowerCase());
     }
@@ -190,12 +191,15 @@ export async function requireRole(roles: Role[]): Promise<AppUser> {
   const user = await requireSessionUser();
   if (roles.includes(user.role)) return user;
 
-  // Diocese-scoped actor in parish work-context may satisfy parish operator roles.
-  const workingId = await resolveWorkingParishId(user);
-  if (workingId) {
-    const elevated = elevatedRolesForWorkContext(user.role);
-    if (roles.some((r) => elevated.includes(r))) {
-      return user; // already has parishId overlay from requireSessionUser
+  // Diocese-scoped actor in parish work-context may satisfy parish operator
+  // roles. Members never elevate — their working parish only narrows scope.
+  if (isDioceseScopedRole(user.role)) {
+    const workingId = await resolveWorkingParishId(user);
+    if (workingId) {
+      const elevated = elevatedRolesForWorkContext(user.role);
+      if (roles.some((r) => elevated.includes(r))) {
+        return user; // already has parishId overlay from requireSessionUser
+      }
     }
   }
 
