@@ -376,6 +376,31 @@ this file is specific to this repo and takes precedence over this section.
   or pattern from a sibling repo, check that it applies here.
 - **Read this repo's own sections before acting.** They describe the
   load-bearing rules this baseline deliberately does not repeat.
+
+## Plans and specs live in the repo they belong to
+
+Every repo keeps its own planning documents, committed alongside the code they
+describe:
+
+```
+docs/superpowers/
+├── plans/YYYY-MM-DD-<slug>.md          what will be built, in what order
+└── specs/YYYY-MM-DD-<slug>-design.md   the design it was agreed against
+```
+
+- **Date-prefix every file** (`2026-08-07-boldsign-migration.md`) so the
+  directory sorts chronologically and a stale plan is obvious at a glance.
+- **Commit them.** These are project history, not scratch files — a plan that
+  only exists in one machine's session storage is lost to everyone else.
+- **Read the existing plans before starting related work.** A plan in
+  `docs/superpowers/plans/` may already cover the task, may have been superseded
+  by a later one, or may record a decision that has since been reversed. Check
+  the dates.
+- **Never write a plan for one repo into another**, and never into the
+  `projects` meta-repo — plans belong with the code they describe. `projects`
+  holds only fleet-wide tooling.
+- Claude Code's own plan-mode files under `~/.claude/plans/` are session
+  artifacts on a single machine. They are not a substitute for a committed plan.
 <!-- END:fleet-baseline -->
 
 <!-- BEGIN:fleet-profile-nextjs-supabase v1 -->
